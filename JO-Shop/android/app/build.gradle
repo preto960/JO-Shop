@@ -1,0 +1,64 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+react {
+    /* Folders */
+    root = file("../../")
+    reactNativeDir = file("../../node_modules/react-native")
+    codegenDir = file("../../node_modules/@react-native/codegen")
+    cliFile = file("../../node_modules/react-native/cli.js")
+
+    /* Variants */
+    debuggableVariants = ["debug"]
+
+    /* Bundling */
+    //   The name of the generated asset file containing your JS bundle
+    bundleAssetName = "index.android.bundle"
+    //   The entry file for bundle generation
+    entryFile = file("../../index.js")
+
+    //   A list of extra flags to pass to the `bundle` commands.
+    //   See https://facebook.github.io/react-native/docs/bundling
+    //   We use custom CLI by default
+    cliPath = "node_modules/react-native/local-cli/cli.js"
+}
+
+android {
+    namespace "com.joshop"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        applicationId "com.joshop"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+    implementation "com.facebook.react:react-android:+"
+    implementation "com.facebook.react:hermes-android:+"
+}
