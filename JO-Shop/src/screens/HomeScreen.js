@@ -28,14 +28,14 @@ const HomeScreen = () => {
   const [error, setError] = useState(null);
   const [hasApiConfig, setHasApiConfig] = useState(false);
 
-  // Verificar si hay configuración de API
+  // Verificar si hay configuración de API (se ejecuta cada vez que la pantalla gana foco)
   useEffect(() => {
     const checkConfig = async () => {
       const config = await apiService.getApiConfig();
       setHasApiConfig(!!config.baseUrl);
     };
     checkConfig();
-  }, []);
+  }, [navigation]);
 
   // Cargar productos
   const loadProducts = useCallback(async (isRefresh = false) => {
