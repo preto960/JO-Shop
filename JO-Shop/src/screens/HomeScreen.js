@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -21,14 +20,17 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [stores, setStores] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedStore, setSelectedStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [hasApiConfig, setHasApiConfig] = useState(false);
+  const [showStoreFilter, setShowStoreFilter] = useState(false);
 
-  // Verificar si hay configuración de API (se ejecuta cada vez que la pantalla gana foco)
+  // Verificar si hay configuración de API
   useEffect(() => {
     const checkConfig = async () => {
       const config = await apiService.getApiConfig();
@@ -47,18 +49,17 @@ const HomeScreen = () => {
       }
       setError(null);
 
+      const params = {};
+      if (selectedCategory) params.category = selectedCategory;
+      if (selectedStore) params.store = selectedStore;
+
       let data;
       if (searchQuery.trim()) {
-        data = await apiService.searchProducts(searchQuery.trim(), {
-          category: selectedCategory,
-        });
+        data = await apiService.searchProducts(searchQuery.trim(), params);
       } else {
-        data = await apiService.fetchProducts({
-          category: selectedCategory,
-        });
+        data = await apiService.fetchProducts(params);
       }
 
-      // Adaptar diferentes formatos de respuesta del backend
       const productsList = Array.isArray(data)
         ? data
         : data?.data || data?.products || data?.results || [];
@@ -70,7 +71,7 @@ const HomeScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, selectedStore]);
 
   // Cargar categorías
   const loadCategories = useCallback(async () => {
@@ -79,8 +80,18 @@ const HomeScreen = () => {
       const cats = Array.isArray(data) ? data : data?.data || data?.categories || [];
       setCategories(cats);
     } catch {
-      // Si no hay endpoint de categorías, no es crítico
       setCategories([]);
+    }
+  }, []);
+
+  // Cargar tiendas
+  const loadStores = useCallback(async () => {
+    try {
+      const data = await apiService.fetchStores();
+      const storeList = Array.isArray(data) ? data : data?.data || data?.stores || [];
+      setStores(storeList);
+    } catch {
+      setStores([]);
     }
   }, []);
 
@@ -88,10 +99,11 @@ const HomeScreen = () => {
     if (hasApiConfig) {
       loadProducts();
       loadCategories();
+      loadStores();
     } else {
       setLoading(false);
     }
-  }, [hasApiConfig, loadProducts, loadCategories]);
+  }, [hasApiConfig, loadProducts, loadCategories, loadStores]);
 
   // Debounce de búsqueda
   useEffect(() => {
@@ -109,6 +121,18 @@ const HomeScreen = () => {
   const handleCategorySelect = categoryId => {
     setSelectedCategory(prev => (prev === categoryId ? null : categoryId));
   };
+
+  const handleStoreSelect = storeId => {
+    setSelectedStore(prev => (prev === storeId ? null : storeId));
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory(null);
+    setSelectedStore(null);
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = selectedCategory || selectedStore || searchQuery;
 
   // Renderizar sin configuración
   if (!hasApiConfig && !loading) {
@@ -162,31 +186,114 @@ const HomeScreen = () => {
           ) : null}
         </View>
 
-        {/* Categorías */}
-        {categories.length > 0 && (
-          <View style={styles.categoriesContainer}>
+        {/* Filtros */}
+        <View style={styles.filterRow}>
+          {/* Categorías */}
+          {categories.length > 0 && (
             <FlatList
               horizontal
-              data={[{id: null, name: 'Todos'}, ...categories]}
-              keyExtractor={item => item.id?.toString() || 'all'}
               showsHorizontalScrollIndicator={false}
+              data={[{id: null, name: 'Todos'}, ...categories]}
+              keyExtractor={item => `cat-${item.id?.toString() || 'all'}`}
               renderItem={({item}) => (
                 <TouchableOpacity
                   onPress={() => handleCategorySelect(item.id)}
                   style={[
-                    styles.categoryChip,
-                    selectedCategory === item.id && styles.categoryChipActive,
+                    styles.filterChip,
+                    selectedCategory === item.id && styles.filterChipActive,
                   ]}
                   activeOpacity={0.7}>
                   <Text
                     style={[
-                      styles.categoryText,
-                      selectedCategory === item.id && styles.categoryTextActive,
+                      styles.filterChipText,
+                      selectedCategory === item.id && styles.filterChipTextActive,
                     ]}>
                     {item.name || 'Todos'}
                   </Text>
                 </TouchableOpacity>
               )}
+              style={styles.filterList}
+            />
+          )}
+        </View>
+
+        {/* Tiendas filter */}
+        {stores.length > 0 && (
+          <View style={styles.storeFilterRow}>
+            <TouchableOpacity
+              style={styles.storeFilterToggle}
+              onPress={() => setShowStoreFilter(prev => !prev)}>
+              <Icon
+                name="storefront-outline"
+                size={16}
+                color={selectedStore ? theme.colors.accent : theme.colors.textSecondary}
+              />
+              <Text style={[
+                styles.storeFilterLabel,
+                selectedStore && styles.storeFilterLabelActive,
+              ]}>
+                {selectedStore
+                  ? stores.find(s => s.id === selectedStore)?.name || 'Tienda'
+                  : 'Filtrar por tienda'}
+              </Text>
+              <Icon
+                name={showStoreFilter ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.colors.textSecondary}
+              />
+            </TouchableOpacity>
+            {hasActiveFilters && (
+              <TouchableOpacity
+                style={styles.clearFiltersBtn}
+                onPress={clearFilters}>
+                <Icon name="close-circle" size={16} color={theme.colors.accent} />
+                <Text style={styles.clearFiltersText}>Limpiar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {showStoreFilter && stores.length > 0 && (
+          <View style={styles.storeFilterContainer}>
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={[{id: null, name: 'Todas las tiendas'}, ...stores]}
+              keyExtractor={item => `store-${item.id?.toString() || 'all'}`}
+              renderItem={({item}) => {
+                const storeCount = item._count?.products || 0;
+                return (
+                  <TouchableOpacity
+                    onPress={() => handleStoreSelect(item.id)}
+                    style={[
+                      styles.storeChip,
+                      selectedStore === item.id && styles.storeChipActive,
+                    ]}
+                    activeOpacity={0.7}>
+                    <Icon
+                      name="storefront"
+                      size={14}
+                      color={selectedStore === item.id ? theme.colors.white : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.storeChipText,
+                        selectedStore === item.id && styles.storeChipTextActive,
+                      ]}>
+                      {item.name || 'Todas'}
+                    </Text>
+                    {storeCount > 0 && (
+                      <Text style={[
+                        styles.storeChipCount,
+                        selectedStore === item.id && styles.storeChipCountActive,
+                      ]}>
+                        {storeCount}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              style={styles.filterList}
             />
           </View>
         )}
@@ -224,7 +331,9 @@ const HomeScreen = () => {
               message={
                 searchQuery
                   ? `No encontramos resultados para "${searchQuery}". Intenta con otra búsqueda.`
-                  : 'Aún no hay productos disponibles. ¡Vuelve pronto!'
+                  : selectedStore
+                    ? 'Esta tienda no tiene productos disponibles.'
+                    : 'Aún no hay productos disponibles. ¡Vuelve pronto!'
               }
             />
           }
@@ -284,25 +393,100 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     height: '100%',
   },
-  categoriesContainer: {
+  filterRow: {
     marginTop: theme.spacing.sm,
   },
-  categoryChip: {
+  filterList: {
+    marginRight: theme.spacing.sm,
+  },
+  filterChip: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.xl,
     backgroundColor: theme.colors.inputBg,
     marginRight: theme.spacing.sm,
   },
-  categoryChipActive: {
+  filterChipActive: {
     backgroundColor: theme.colors.accent,
   },
-  categoryText: {
+  filterChipText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '500',
     color: theme.colors.textSecondary,
   },
-  categoryTextActive: {
+  filterChipTextActive: {
+    color: theme.colors.white,
+  },
+  // Store filter toggle
+  storeFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.sm,
+  },
+  storeFilterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  storeFilterLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  storeFilterLabelActive: {
+    color: theme.colors.accent,
+    fontWeight: '600',
+  },
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+  },
+  clearFiltersText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.accent,
+    fontWeight: '600',
+  },
+  storeFilterContainer: {
+    marginTop: theme.spacing.xs,
+  },
+  storeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.xl,
+    backgroundColor: theme.colors.inputBg,
+    marginRight: theme.spacing.sm,
+  },
+  storeChipActive: {
+    backgroundColor: theme.colors.accent,
+  },
+  storeChipText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+  },
+  storeChipTextActive: {
+    color: theme.colors.white,
+  },
+  storeChipCount: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.textLight,
+    backgroundColor: theme.colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 18,
+    textAlign: 'center',
+  },
+  storeChipCountActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
     color: theme.colors.white,
   },
   productList: {

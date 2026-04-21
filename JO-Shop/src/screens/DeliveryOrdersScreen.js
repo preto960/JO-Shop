@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -16,12 +15,19 @@ import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import ConfirmModal from '@components/ConfirmModal';
+import Toast from '@components/Toast';
 
 // ─── Status Configuration ─────────────────────────────────────────────────────
 
 const STATUS_CONFIG = {
+  pending: {
+    label: 'Pendiente',
+    color: theme.colors.warning,
+    icon: 'time-outline',
+  },
   confirmed: {
-    label: 'Confirmado',
+    label: 'Disponible',
     color: '#3498DB',
     icon: 'checkmark-circle-outline',
   },
@@ -38,8 +44,8 @@ const STATUS_CONFIG = {
 };
 
 const FILTER_TABS = [
-  {key: 'confirmed', label: 'Por entregar'},
-  {key: 'shipped', label: 'En camino'},
+  {key: 'available', label: 'Disponibles'},
+  {key: 'my_deliveries', label: 'Mis entregas'},
   {key: 'delivered', label: 'Entregados'},
 ];
 
@@ -56,28 +62,6 @@ const formatDate = dateStr => {
   return `${d}/${m}/${y} ${h}:${min}`;
 };
 
-const normalizeOrderData = raw => {
-  const orders = Array.isArray(raw) ? raw : raw.data || [];
-  return orders.map(order => ({
-    id: order.id,
-    orderNumber: order.orderNumber || order.id,
-    customerName:
-      order.customerName ||
-      order.customer?.name ||
-      order.user?.name ||
-      'Cliente',
-    customerPhone:
-      order.customerPhone || order.customer?.phone || order.user?.phone || '',
-    address:
-      order.customerAddr || order.shippingAddress || order.address || '',
-    items: order.items || [],
-    totalItems: order.totalItems || order.items?.length || 0,
-    total: order.total || 0,
-    status: order.status || 'confirmed',
-    createdAt: order.createdAt || order.created_at || null,
-  }));
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const DeliveryOrdersScreen = () => {
@@ -86,7 +70,7 @@ const DeliveryOrdersScreen = () => {
 
   // Data state
   const [orders, setOrders] = useState([]);
-  const [activeTab, setActiveTab] = useState('confirmed');
+  const [activeTab, setActiveTab] = useState('available');
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -94,9 +78,34 @@ const DeliveryOrdersScreen = () => {
   const [error, setError] = useState(null);
 
   // Action state
-  const [actionLoading, setActionLoading] = useState(null); // orderId being acted upon
+  const [actionLoading, setActionLoading] = useState(null);
+
+  // Modal state
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    type: 'confirm',
+    title: '',
+    message: '',
+    confirmText: 'Aceptar',
+    onConfirm: null,
+  });
+
+  // Toast state
+  const [toast, setToast] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
 
   const flatListRef = useRef(null);
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({visible: true, message, type});
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast(prev => ({...prev, visible: false}));
+  }, []);
 
   // ─── Data Loading ─────────────────────────────────────────────────────────
 
@@ -110,8 +119,44 @@ const DeliveryOrdersScreen = () => {
         }
         setError(null);
 
-        const res = await apiService.fetchOrders({status: activeTab});
-        const normalized = normalizeOrderData(res);
+        let data;
+        if (activeTab === 'available') {
+          // Pedidos disponibles (sin asignar)
+          const res = await apiService.fetchAvailableOrders();
+          data = Array.isArray(res) ? res : res?.data || [];
+        } else if (activeTab === 'my_deliveries') {
+          // Mis entregas (asignados a mí que no están entregados)
+          const res = await apiService.fetchOrders({status: 'shipped'});
+          const allOrders = Array.isArray(res) ? res : res?.data || [];
+          data = allOrders.filter(o => o.deliveryId === user?.id || o.delivery?.id === user?.id);
+        } else {
+          // Entregados por mí
+          const res = await apiService.fetchOrders({status: 'delivered'});
+          const allOrders = Array.isArray(res) ? res : res?.data || [];
+          data = allOrders.filter(o => o.deliveryId === user?.id || o.delivery?.id === user?.id);
+        }
+
+        const normalized = data.map(order => ({
+          id: order.id,
+          orderNumber: order.id,
+          customerName:
+            order.customerName ||
+            order.user?.name ||
+            'Cliente',
+          customerPhone:
+            order.customerPhone ||
+            order.user?.phone ||
+            '',
+          address:
+            order.customerAddr || order.address || '',
+          items: order.items || [],
+          totalItems: order.totalItems || order.items?.length || 0,
+          total: order.total || 0,
+          status: order.status || 'confirmed',
+          createdAt: order.createdAt || null,
+          deliveryId: order.deliveryId || order.delivery?.id || null,
+        }));
+
         setOrders(normalized);
       } catch (err) {
         setError(
@@ -122,7 +167,7 @@ const DeliveryOrdersScreen = () => {
         setRefreshing(false);
       }
     },
-    [activeTab],
+    [activeTab, user?.id],
   );
 
   useEffect(() => {
@@ -148,70 +193,76 @@ const DeliveryOrdersScreen = () => {
 
   const handleAcceptOrder = useCallback(
     order => {
-      Alert.alert(
-        'Aceptar entrega',
-        `¿Aceptar la entrega del pedido #${order.id}?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: 'Aceptar',
-            onPress: () => handleStatusChange(order.id, 'shipped'),
-          },
-        ],
-      );
+      setConfirmModal({
+        visible: true,
+        type: 'confirm',
+        title: 'Aceptar entrega',
+        message: `¿Deseas aceptar la entrega del pedido #${order.id}?\n\nCliente: ${order.customerName}\nDirección: ${order.address || 'Sin dirección'}\nTotal: ${formatPrice(order.total)}`,
+        confirmText: 'Aceptar entrega',
+        onConfirm: async () => {
+          setConfirmModal(prev => ({...prev, visible: false}));
+          try {
+            setActionLoading(order.id);
+            await apiService.acceptOrder(order.id);
+            showToast('Pedido aceptado correctamente. ¡En camino!');
+            // Recargar lista
+            setTimeout(() => loadOrders(true), 300);
+          } catch (err) {
+            const msg = err?.message || 'Error al aceptar el pedido';
+            if (err?.response?.data?.code === 'ORDER_ALREADY_ASSIGNED') {
+              showToast('Este pedido ya fue tomado por otro repartidor', 'warning');
+            } else {
+              showToast(msg, 'error');
+            }
+            loadOrders(true);
+          } finally {
+            setActionLoading(null);
+          }
+        },
+      });
     },
-    [],
+    [loadOrders, showToast],
   );
 
   const handleMarkDelivered = useCallback(
     order => {
-      Alert.alert(
-        'Confirmar entrega',
-        `¿Confirmar que el pedido #${order.id} fue entregado?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: 'Entregado',
-            onPress: () => handleStatusChange(order.id, 'delivered'),
-          },
-        ],
-      );
+      setConfirmModal({
+        visible: true,
+        type: 'confirm',
+        title: 'Confirmar entrega',
+        message: `¿Confirmar que el pedido #${order.id} fue entregado exitosamente?`,
+        confirmText: 'Sí, fue entregado',
+        onConfirm: async () => {
+          setConfirmModal(prev => ({...prev, visible: false}));
+          try {
+            setActionLoading(order.id);
+            await apiService.updateOrderStatus(order.id, 'delivered');
+            showToast('Entrega confirmada', 'success');
+            setTimeout(() => loadOrders(true), 300);
+          } catch (err) {
+            showToast(err?.message || 'Error al confirmar entrega', 'error');
+            loadOrders(true);
+          } finally {
+            setActionLoading(null);
+          }
+        },
+      });
     },
-    [],
+    [loadOrders, showToast],
   );
 
-  const handleStatusChange = useCallback(async (orderId, newStatus) => {
-    try {
-      setActionLoading(orderId);
-      await apiService.updateOrderStatus(orderId, newStatus);
-
-      // Optimistically update or reload
-      setOrders(prev =>
-        prev.map(o => (o.id === orderId ? {...o, status: newStatus} : o)),
-      );
-    } catch (err) {
-      Alert.alert(
-        'Error',
-        err?.message || 'No se pudo actualizar el estado del pedido.',
-      );
-      // Reload to restore correct state
-      loadOrders(true);
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
-
-  // ─── Logout ──────────────────────────────────────────────────────────────
-
   const handleLogout = useCallback(() => {
-    Alert.alert(
-      'Cerrar sesión',
-      `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {text: 'Cerrar sesión', style: 'destructive', onPress: () => logout()},
-      ],
-    );
+    setConfirmModal({
+      visible: true,
+      type: 'danger',
+      title: 'Cerrar sesión',
+      message: `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => {
+        setConfirmModal(prev => ({...prev, visible: false}));
+        logout();
+      },
+    });
   }, [user?.name, logout]);
 
   // ─── Render: Empty State ─────────────────────────────────────────────────
@@ -239,15 +290,27 @@ const DeliveryOrdersScreen = () => {
       );
     }
 
-    const tabConfig = STATUS_CONFIG[activeTab];
+    const tabLabel = activeTab === 'available'
+      ? 'disponibles'
+      : activeTab === 'my_deliveries'
+        ? 'en camino'
+        : 'entregados';
+
     return (
       <View style={styles.emptyContainer}>
         <Icon name="receipt-outline" size={56} color={theme.colors.textLight} />
         <Text style={styles.emptyTitle}>Sin pedidos</Text>
         <Text style={styles.emptyText}>
-          No hay pedidos {tabConfig?.label?.toLowerCase() || ''} en este
-          momento.
+          No hay pedidos {tabLabel} en este momento.
         </Text>
+        {activeTab !== 'available' && (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setActiveTab('available')}
+            activeOpacity={0.8}>
+            <Text style={styles.retryButtonText}>Ver disponibles</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }, [loading, error, activeTab, loadOrders]);
@@ -317,6 +380,16 @@ const DeliveryOrdersScreen = () => {
                 {item.address || 'Sin dirección'}
               </Text>
             </View>
+
+            {/* Items summary */}
+            {item.items && item.items.length > 0 && (
+              <View style={styles.itemsSummary}>
+                <Text style={styles.itemsSummaryText}>
+                  {item.items.slice(0, 3).map(i => i.productName).join(', ')}
+                  {item.items.length > 3 ? ` y ${item.items.length - 3} más` : ''}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Card Footer */}
@@ -335,8 +408,8 @@ const DeliveryOrdersScreen = () => {
               <Text style={styles.totalText}>{formatPrice(item.total)}</Text>
             </View>
 
-            {/* Action Button */}
-            {item.status === 'confirmed' && (
+            {/* Action Buttons */}
+            {activeTab === 'available' && item.status !== 'shipped' && (
               <TouchableOpacity
                 style={[styles.actionButton, styles.acceptButton]}
                 onPress={() => handleAcceptOrder(item)}
@@ -353,7 +426,7 @@ const DeliveryOrdersScreen = () => {
               </TouchableOpacity>
             )}
 
-            {item.status === 'shipped' && (
+            {item.status === 'shipped' && item.deliveryId === user?.id && (
               <TouchableOpacity
                 style={[styles.actionButton, styles.deliverButton]}
                 onPress={() => handleMarkDelivered(item)}
@@ -387,7 +460,7 @@ const DeliveryOrdersScreen = () => {
         </View>
       );
     },
-    [actionLoading, handleAcceptOrder, handleMarkDelivered],
+    [actionLoading, handleAcceptOrder, handleMarkDelivered, activeTab, user?.id],
   );
 
   // ─── Render: Filter Tabs ─────────────────────────────────────────────────
@@ -397,7 +470,6 @@ const DeliveryOrdersScreen = () => {
       <View style={styles.tabsContainer}>
         {FILTER_TABS.map(tab => {
           const isActive = activeTab === tab.key;
-          const count = orders.filter(o => o.status === tab.key).length;
           return (
             <TouchableOpacity
               key={tab.key}
@@ -408,31 +480,19 @@ const DeliveryOrdersScreen = () => {
                 style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
                 {tab.label}
               </Text>
-              {isActive && count > 0 && (
-                <View style={styles.tabCount}>
-                  <Text style={styles.tabCountText}>{count}</Text>
-                </View>
-              )}
             </TouchableOpacity>
           );
         })}
       </View>
     );
-  }, [activeTab, orders, handleTabChange]);
+  }, [activeTab, handleTabChange]);
 
   // ─── Loading Screen ──────────────────────────────────────────────────────
 
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Entregas</Text>
             <Text style={styles.headerSubtitle}>Gestión de entregas</Text>
@@ -460,14 +520,6 @@ const DeliveryOrdersScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Entregas</Text>
           <Text style={styles.headerSubtitle}>
@@ -475,6 +527,11 @@ const DeliveryOrdersScreen = () => {
           </Text>
         </View>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={handleRefresh}
+            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Icon name="refresh" size={22} color={theme.colors.text} />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={handleLogout}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
@@ -507,6 +564,25 @@ const DeliveryOrdersScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
       />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        visible={confirmModal.visible}
+        type={confirmModal.type}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        onClose={() => setConfirmModal(prev => ({...prev, visible: false}))}
+        onConfirm={confirmModal.onConfirm}
+      />
+
+      {/* Toast */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 };
@@ -517,8 +593,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-
-  // Header (matches AdminProductsScreen pattern)
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -527,15 +601,6 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
-  },
-  headerLeft: {
-    width: 40,
-    justifyContent: 'center',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
   },
   headerCenter: {
     flex: 1,
@@ -554,9 +619,7 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
-    width: 40,
-    justifyContent: 'flex-end',
+    gap: theme.spacing.md,
   },
 
   // Loading
@@ -583,13 +646,12 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   tab: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.inputBg,
-    gap: theme.spacing.xs,
   },
   tabActive: {
     backgroundColor: theme.colors.accent,
@@ -600,20 +662,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   tabLabelActive: {
-    color: theme.colors.white,
-  },
-  tabCount: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: theme.borderRadius.full,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.xs,
-  },
-  tabCountText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: '700',
     color: theme.colors.white,
   },
 
@@ -722,6 +770,18 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
     lineHeight: 20,
+  },
+  itemsSummary: {
+    marginTop: theme.spacing.xs,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  itemsSummaryText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
   },
 
   // Card Footer

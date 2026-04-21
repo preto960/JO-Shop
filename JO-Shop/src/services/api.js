@@ -306,6 +306,20 @@ const fetchDeliveryUsers = async () => {
   return api.get('/auth/users');
 };
 
+// Delivery: pedidos disponibles para aceptar
+const fetchAvailableOrders = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/orders/available');
+};
+
+// Delivery: aceptar pedido
+const acceptOrder = async orderId => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post(`/orders/${orderId}/accept`);
+};
+
 // ==================== ADMIN USER EDIT ====================
 
 const updateUser = async (userId, userData) => {
@@ -357,6 +371,8 @@ const apiService = {
   // Delivery assignment
   assignOrderDelivery,
   fetchDeliveryUsers,
+  fetchAvailableOrders,
+  acceptOrder,
 };
 
 export default apiService;

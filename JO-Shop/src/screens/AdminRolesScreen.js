@@ -14,6 +14,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import ConfirmModal from '@components/ConfirmModal';
+import Toast from '@components/Toast';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
@@ -29,6 +31,22 @@ const AdminRolesScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('roles');
+
+  // Toast state
+  const [toast, setToast] = useState({visible: false, message: '', type: 'success'});
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({visible: true, message, type});
+  }, []);
+  const hideToast = useCallback(() => {
+    setToast(prev => ({...prev, visible: false}));
+  }, []);
+
+  // Confirm modal state
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false, type: 'confirm', title: '', message: '',
+    confirmText: 'Aceptar', onConfirm: null,
+  });
 
   // Modals
   const [roleDetailVisible, setRoleDetailVisible] = useState(false);
@@ -108,7 +126,7 @@ const AdminRolesScreen = () => {
       setRoles(updated);
       setSelectedRole(updated.find(r => r.id === selectedRole.id));
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo actualizar el permiso');
+      showToast(err.message || 'No se pudo actualizar el permiso', 'error');
     }
   };
 
@@ -136,14 +154,14 @@ const AdminRolesScreen = () => {
       loadData(true);
       setSelectedUser({...selectedUser, roles: roles.filter(r => newIds.includes(r.id))});
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo actualizar el rol del usuario');
+      showToast(err.message || 'No se pudo actualizar el rol del usuario', 'error');
     }
   };
 
   // ─── Create Role ───────────────────────────────────────────────────────
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) {
-      Alert.alert('Error', 'El nombre del rol es requerido');
+      showToast('El nombre del rol es requerido', 'warning');
       return;
     }
 
@@ -158,7 +176,7 @@ const AdminRolesScreen = () => {
       setNewRoleDesc('');
       loadData(true);
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo crear el rol');
+      showToast(err.message || 'No se pudo crear el rol', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -196,6 +214,8 @@ const AdminRolesScreen = () => {
     products: 'Productos',
     categories: 'Categorías',
     orders: 'Pedidos',
+    delivery: 'Delivery',
+    stores: 'Tiendas',
     users: 'Usuarios',
     dashboard: 'Dashboard',
   };
@@ -439,6 +459,8 @@ const AdminRolesScreen = () => {
           </View>
         </View>
       </Modal>
+      {/* Toast */}
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
     </SafeAreaView>
   );
 };

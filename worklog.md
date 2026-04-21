@@ -110,3 +110,32 @@ Stage Summary:
 - Edit modal fix: user clicks "Editar usuario" and edit modal opens immediately without requiring double click
 - AdminOrdersScreen now supports full delivery assignment workflow
 - Backend .env now has GOOGLE_PLACES_API_KEY for future server-side Places API usage
+---
+Task ID: 1
+Agent: main
+Task: Fix @db.Double + implement delivery accept, stores model, custom modals, store filter
+
+Work Log:
+- Fixed @db.Double → Float? in schema.prisma (already committed in previous session push)
+- Added Store model to prisma schema (name, slug, owner FK, products relation)
+- Added storeId to Product model with FK to Store
+- Added ownedStore relation to User model
+- Created src/routes/stores.js with full CRUD (GET list, GET detail, GET my-store, POST create, PUT update, DELETE)
+- Editor auto-linked: only 1 store per editor, auto-filters products
+- Added GET /orders/available endpoint for delivery (confirmed/pending, deliveryId=null)
+- Added POST /orders/:id/accept with atomic updateMany race condition protection (returns 409 if taken)
+- Updated products route: store filter (?store=N), auto-assign storeId for editors
+- Updated seed: 2 stores, 19 products distributed, 7 modules (32 permissions), 5 users
+- Created ConfirmModal component (animated, types: confirm/alert/danger)
+- Created Toast component (animated slide-in, types: success/error/warning/info)
+- Rewrote DeliveryOrdersScreen: 3 tabs (Disponibles/Mis entregas/Entregados), custom modals, toast feedback
+- Updated AdminRolesScreen: added delivery+stores to moduleLabels, replaced Alert.alert with Toast
+- Updated HomeScreen: added store filter (expandable), clear filters button
+- Updated api.js: added fetchAvailableOrders, acceptOrder, fetchStores methods
+- Pushed all backend changes (commit 73de58c)
+
+Stage Summary:
+- Backend fully pushed to origin/main
+- App changes ready at /home/z/my-project/JO-Shop/
+- User needs: git pull in backend, npx prisma db push, npx prisma db seed
+- App: copy updated files to local JO-Shop project
