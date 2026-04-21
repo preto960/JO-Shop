@@ -19,6 +19,7 @@ const config = {
     extraNodeModules: {
       '@': srcPath,
       '@components': path.resolve(srcPath, 'components'),
+      '@config': path.resolve(srcPath, 'config'),
       '@screens': path.resolve(srcPath, 'screens'),
       '@navigation': path.resolve(srcPath, 'navigation'),
       '@context': path.resolve(srcPath, 'context'),

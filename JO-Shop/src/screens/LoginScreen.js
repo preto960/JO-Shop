@@ -12,6 +12,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
+import ENV from '@config/env';
 import theme from '@theme/styles';
 
 const LoginScreen = ({navigation}) => {
@@ -134,18 +135,18 @@ const LoginScreen = ({navigation}) => {
           <View style={styles.demoContainer}>
             <Text style={styles.demoTitle}>Credenciales de prueba:</Text>
             <TouchableOpacity
-              onPress={() => {setEmail('admin@joshop.com'); setPassword('Admin123');}}
+              onPress={() => {setEmail(ENV.DEMO_ADMIN_EMAIL); setPassword(ENV.DEMO_ADMIN_PASSWORD);}}
               style={styles.demoButton}
               activeOpacity={0.7}>
               <Icon name="shield-outline" size={16} color={theme.colors.accent} />
-              <Text style={styles.demoText}>Admin: admin@joshop.com</Text>
+              <Text style={styles.demoText}>Admin: {ENV.DEMO_ADMIN_EMAIL}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => {setEmail('cliente@joshop.com'); setPassword('Cliente123');}}
+              onPress={() => {setEmail(ENV.DEMO_CLIENT_EMAIL); setPassword(ENV.DEMO_CLIENT_PASSWORD);}}
               style={styles.demoButton}
               activeOpacity={0.7}>
               <Icon name="person-outline" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.demoText}>Cliente: cliente@joshop.com</Text>
+              <Text style={styles.demoText}>Cliente: {ENV.DEMO_CLIENT_EMAIL}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

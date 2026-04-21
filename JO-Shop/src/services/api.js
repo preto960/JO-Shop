@@ -1,23 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import ENV from '@config/env';
 
 const API_CONFIG_KEY = '@joshop_api_config';
 let authToken = null;
 
 const defaultConfig = {
-  baseUrl: '',
-  timeout: 15000,
+  baseUrl: ENV.API_URL || '',
+  timeout: ENV.API_TIMEOUT || 15000,
 };
 
 const getApiConfig = async () => {
   try {
     const stored = await AsyncStorage.getItem(API_CONFIG_KEY);
     if (stored) {
-      return {...defaultConfig, ...JSON.parse(stored)};
+      const parsed = JSON.parse(stored);
+      // Si el usuario configuro una URL explicita en runtime, usar esa
+      // Si borro la URL en ajustes (string vacio), volver al env
+      if (parsed.baseUrl && parsed.baseUrl.trim() !== '') {
+        return {...defaultConfig, ...parsed};
+      }
     }
-    return defaultConfig;
+    return {...defaultConfig};
   } catch (error) {
-    return defaultConfig;
+    return {...defaultConfig};
   }
 };
 
@@ -117,12 +123,14 @@ const createOrder = async orderData => {
 
 const checkConnection = async baseUrl => {
   try {
-    const client = axios.create({baseURL: baseUrl, timeout: 10000});
+    const url = (baseUrl && baseUrl.trim() !== '') ? baseUrl : ENV.API_URL;
+    const client = axios.create({baseURL: url, timeout: ENV.CONNECTION_TIMEOUT || 10000});
     await client.get('/health');
     return {success: true, message: 'Conexión exitosa'};
   } catch {
     try {
-      const client = axios.create({baseURL: baseUrl, timeout: 10000});
+      const url = (baseUrl && baseUrl.trim() !== '') ? baseUrl : ENV.API_URL;
+      const client = axios.create({baseURL: url, timeout: ENV.CONNECTION_TIMEOUT || 10000});
       await client.get('/');
       return {success: true, message: 'Conexión exitosa'};
     } catch {

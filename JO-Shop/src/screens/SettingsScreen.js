@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Switch,
   Linking,
   ScrollView,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '@services/api';
+import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
 import theme from '@theme/styles';
 
@@ -21,13 +22,19 @@ const SettingsScreen = () => {
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const envUrl = ENV.API_URL || '';
 
-  // Cargar configuración guardada
+  // Cargar configuración guardada (puede ser override del env)
   useEffect(() => {
     const loadConfig = async () => {
       const config = await apiService.getApiConfig();
-      setBaseUrl(config.baseUrl || '');
-      setSaved(!!config.baseUrl);
+      // Mostrar la URL activa (runtime override o env default)
+      const activeUrl = config.baseUrl || envUrl;
+      setBaseUrl(activeUrl);
+      // "saved" indica si hay un override manual activo
+      const stored = await AsyncStorage.getItem('@joshop_api_config');
+      const parsed = stored ? JSON.parse(stored) : null;
+      setSaved(!!(parsed?.baseUrl && parsed.baseUrl.trim() !== ''));
     };
     loadConfig();
   }, []);
@@ -54,30 +61,29 @@ const SettingsScreen = () => {
     }
 
     const success = await apiService.saveApiConfig({
-      ...((await apiService.getApiConfig()) || {}),
+      ...(await apiService.getApiConfig()),
       baseUrl: url,
     });
 
     if (success) {
       setSaved(true);
-      Alert.alert('Guardado', 'La configuración del servidor se guardó correctamente.\n\nVuelve a la pantalla de inicio para ver los productos.');
+      Alert.alert('Guardado', 'Se usará esta URL como servidor.\n\nReinicia la app para aplicar los cambios completamente.');
     } else {
       Alert.alert('Error', 'No se pudo guardar la configuración.');
     }
   };
 
-  const handleClearConfig = () => {
+  const handleResetToEnv = () => {
     Alert.alert(
-      'Limpiar configuración',
-      '¿Estás seguro de que deseas eliminar la configuración del servidor?',
+      'Restaurar URL por defecto',
+      `Se eliminará la URL personalizada y se usará:\n${envUrl}`,
       [
         {text: 'Cancelar', style: 'cancel'},
         {
-          text: 'Limpiar',
-          style: 'destructive',
+          text: 'Restaurar',
           onPress: async () => {
             await apiService.clearApiConfig();
-            setBaseUrl('');
+            setBaseUrl(envUrl);
             setSaved(false);
             setConnectionStatus(null);
           },
@@ -101,20 +107,36 @@ const SettingsScreen = () => {
           <Text style={styles.headerSubtitle}>Configuración del servidor y preferencias</Text>
         </View>
 
-        {/* Configuración del servidor */}
+        {/* URL del entorno (embebida en compilación) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Servidor Backend</Text>
 
+          {/* Tarjeta con la URL embebida */}
+          <View style={styles.envCard}>
+            <View style={styles.envCardHeader}>
+              <Icon name="hardware-chip-outline" size={18} color={theme.colors.accent} />
+              <Text style={styles.envCardTitle}>URL embebida (compilación)</Text>
+            </View>
+            <Text style={styles.envUrlText} numberOfLines={1}>
+              {envUrl || 'No configurada'}
+            </Text>
+            <Text style={styles.envHint}>
+              Definida en src/config/env.js antes de compilar
+            </Text>
+          </View>
+
           <View style={styles.card}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>URL del servidor</Text>
+              <Text style={styles.inputLabel}>
+                URL del servidor {saved ? '(personalizada)' : ''}
+              </Text>
               <TextInput
                 value={baseUrl}
                 onChangeText={text => {
                   setBaseUrl(text);
                   setConnectionStatus(null);
                 }}
-                placeholder="https://mi-servidor.com"
+                placeholder={envUrl || 'https://mi-servidor.com'}
                 placeholderTextColor={theme.colors.textLight}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -122,7 +144,9 @@ const SettingsScreen = () => {
                 style={styles.input}
               />
               <Text style={styles.inputHint}>
-                Ingresa la URL base de tu API (sin / al final)
+                {saved
+                  ? 'Usando URL personalizada. Deja vacío para volver a la embebida.'
+                  : `Usando URL embebida. Escribe otra para sobreescribir.`}
               </Text>
             </View>
 
@@ -165,7 +189,7 @@ const SettingsScreen = () => {
                 activeOpacity={0.8}>
                 <Icon name="wifi-outline" size={18} color={theme.colors.text} />
                 <Text style={styles.actionButtonText}>
-                  {testing ? 'Probando...' : 'Probar conexión'}
+                  {testing ? 'Probando...' : 'Probar'}
                 </Text>
               </TouchableOpacity>
 
@@ -180,6 +204,19 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Botón restaurar env */}
+          {saved && (
+            <TouchableOpacity
+              onPress={handleResetToEnv}
+              style={styles.resetButton}
+              activeOpacity={0.8}>
+              <Icon name="refresh-outline" size={18} color={theme.colors.accent} />
+              <Text style={styles.resetButtonText}>
+                Restaurar URL embebida
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Info de la app */}
@@ -211,21 +248,6 @@ const SettingsScreen = () => {
             </View>
           </View>
         </View>
-
-        {/* Limpiar config */}
-        {saved && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              onPress={handleClearConfig}
-              style={styles.dangerButton}
-              activeOpacity={0.8}>
-              <Icon name="trash-outline" size={18} color={theme.colors.accent} />
-              <Text style={styles.dangerButtonText}>
-                Limpiar configuración del servidor
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -350,6 +372,53 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.text,
+  },
+  envCard: {
+    backgroundColor: '#FFF8F0',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#FFD6A0',
+    marginBottom: theme.spacing.sm,
+  },
+  envCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  envCardTitle: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: '#CC7A00',
+  },
+  envUrlText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+    fontFamily: 'monospace',
+  },
+  envHint: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.xs,
+    backgroundColor: '#FDE8EC',
+  },
+  resetButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.accent,
   },
   aboutRow: {
     flexDirection: 'row',
