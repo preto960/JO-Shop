@@ -26,3 +26,22 @@ Stage Summary:
 - App funcional con: listado de productos, búsqueda, categorías, carrito persistente, checkout, configuración de backend
 - Nombre: "JO-Shop" - comienza con "JO-", estilo minimalista
 - Dependencias: React Native 0.73, React Navigation 6, Axios, AsyncStorage, Vector Icons
+---
+Task ID: 1
+Agent: main
+Task: Fix Android build, JS bundle crash, and icon issues for JO-Shop React Native app
+
+Work Log:
+- Investigated Android "Activity class does not exist" error — confirmed all config (applicationId, namespace, package, file path) is correct; issue is stale build artifacts
+- Performed complete audit of all 28 JS files — zero broken imports found
+- Confirmed `StyleSheet doesn't exist` is a Metro bundler cache issue (not code)
+- Fixed react-native.config.js: removed `dependencies` block that set `android: null` and `ios: null`, which was blocking react-native-vector-icons font linking
+- Fixed android/app/build.gradle: added `apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")` to copy icon fonts during build
+- Verified all 6 admin views exist and are complete (Login, AdminDashboard, AdminProducts, AdminCategories, AdminOrders, AdminRoles)
+- Verified permission-based navigation is implemented with `canViewModule()` checks
+- Pushed fixes to GitHub
+
+Stage Summary:
+- Icon fix committed and pushed (68eacb7)
+- All admin screens verified complete — no missing views
+- User needs to: clean build + clear Metro cache + rebuild on their Windows machine
