@@ -1,0 +1,278 @@
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Ionicons';
+import {useAuth} from '@context/AuthContext';
+import theme from '@theme/styles';
+
+const RegisterScreen = ({navigation}) => {
+  const {register, isLoading, error, clearError} = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState('');
+
+  const handleRegister = async () => {
+    setLocalError('');
+
+    if (!name.trim() || name.trim().length < 2) {
+      setLocalError('El nombre debe tener al menos 2 caracteres');
+      return;
+    }
+    if (!email.trim()) {
+      setLocalError('Ingresa tu correo electrónico');
+      return;
+    }
+    if (password.length < 6) {
+      setLocalError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setLocalError('La contraseña debe tener al menos una mayúscula');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setLocalError('La contraseña debe tener al menos un número');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('Las contraseñas no coinciden');
+      return;
+    }
+
+    const result = await register(name.trim(), email.trim().toLowerCase(), password);
+    if (!result.success) {
+      setLocalError(result.error);
+    }
+  };
+
+  const errorMessage = localError || error;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            activeOpacity={0.7}>
+            <Icon name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+
+          <View style={styles.header}>
+            <Text style={styles.title}>Crear cuenta</Text>
+            <Text style={styles.subtitle}>Regístrate para empezar a comprar</Text>
+          </View>
+
+          {/* Error */}
+          {errorMessage ? (
+            <View style={styles.errorBox}>
+              <Icon name="alert-circle" size={18} color={theme.colors.accent} />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+              <TouchableOpacity onPress={() => {setLocalError(''); clearError();}}>
+                <Icon name="close" size={16} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* Form */}
+          <View style={styles.form}>
+            <Text style={styles.label}>Nombre completo</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="person-outline" size={20} color={theme.colors.textSecondary} />
+              <TextInput
+                value={name}
+                onChangeText={text => {setName(text); setLocalError('');}}
+                placeholder="Tu nombre"
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.input}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <Text style={styles.label}>Correo electrónico</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="mail-outline" size={20} color={theme.colors.textSecondary} />
+              <TextInput
+                value={email}
+                onChangeText={text => {setEmail(text); setLocalError('');}}
+                placeholder="tu@correo.com"
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.input}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <Text style={styles.label}>Contraseña</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />
+              <TextInput
+                value={password}
+                onChangeText={text => {setPassword(text); setLocalError('');}}
+                placeholder="Mínimo 6 caracteres, 1 mayúscula, 1 número"
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.input}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} activeOpacity={0.7}>
+                <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Confirmar contraseña</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />
+              <TextInput
+                value={confirmPassword}
+                onChangeText={text => {setConfirmPassword(text); setLocalError('');}}
+                placeholder="Repite tu contraseña"
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.input}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={handleRegister}
+              style={[styles.registerButton, isLoading && styles.buttonDisabled]}
+              disabled={isLoading}
+              activeOpacity={0.8}>
+              <Text style={styles.registerButtonText}>
+                {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>¿Ya tienes cuenta? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} activeOpacity={0.7}>
+                <Text style={styles.loginLink}>Inicia sesión</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xxl,
+  },
+  backButton: {
+    marginBottom: theme.spacing.md,
+  },
+  header: {
+    marginBottom: theme.spacing.lg,
+  },
+  title: {
+    fontSize: theme.fontSize.title,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  subtitle: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FDE8EC',
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.sm + 2,
+    marginBottom: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '500',
+  },
+  form: {
+    gap: theme.spacing.sm,
+  },
+  label: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    height: 52,
+    gap: theme.spacing.sm,
+  },
+  input: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    height: '100%',
+  },
+  registerButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.md + 4,
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  registerButtonText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: theme.spacing.lg,
+  },
+  loginText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  loginLink: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+});
+
+export default RegisterScreen;

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 const API_CONFIG_KEY = '@joshop_api_config';
+let authToken = null;
 
 const defaultConfig = {
   baseUrl: '',
@@ -16,7 +17,6 @@ const getApiConfig = async () => {
     }
     return defaultConfig;
   } catch (error) {
-    console.error('Error reading API config:', error);
     return defaultConfig;
   }
 };
@@ -25,8 +25,7 @@ const saveApiConfig = async config => {
   try {
     await AsyncStorage.setItem(API_CONFIG_KEY, JSON.stringify(config));
     return true;
-  } catch (error) {
-    console.error('Error saving API config:', error);
+  } catch {
     return false;
   }
 };
@@ -35,10 +34,13 @@ const clearApiConfig = async () => {
   try {
     await AsyncStorage.removeItem(API_CONFIG_KEY);
     return true;
-  } catch (error) {
-    console.error('Error clearing API config:', error);
+  } catch {
     return false;
   }
+};
+
+const setAuthToken = token => {
+  authToken = token;
 };
 
 const createApiClient = async () => {
@@ -48,16 +50,21 @@ const createApiClient = async () => {
     return null;
   }
 
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
   const client = axios.create({
     baseURL: config.baseUrl,
     timeout: config.timeout,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    headers,
   });
 
-  // Interceptor de respuesta
   client.interceptors.response.use(
     response => response.data,
     error => {
@@ -78,102 +85,122 @@ const createApiClient = async () => {
 
 // ==================== ENDPOINTS ====================
 
-/**
- * Obtener productos del backend
- * GET /products
- */
 const fetchProducts = async (params = {}) => {
   const api = await createApiClient();
-  if (!api) {
-    throw new Error('No hay URL del servidor configurada');
-  }
+  if (!api) throw new Error('No hay URL del servidor configurada');
   return api.get('/products', {params});
 };
 
-/**
- * Obtener un producto por ID
- * GET /products/:id
- */
 const fetchProductById = async productId => {
   const api = await createApiClient();
-  if (!api) {
-    throw new Error('No hay URL del servidor configurada');
-  }
+  if (!api) throw new Error('No hay URL del servidor configurada');
   return api.get(`/products/${productId}`);
 };
 
-/**
- * Obtener categorías
- * GET /categories
- */
 const fetchCategories = async () => {
   const api = await createApiClient();
-  if (!api) {
-    throw new Error('No hay URL del servidor configurada');
-  }
+  if (!api) throw new Error('No hay URL del servidor configurada');
   return api.get('/categories');
 };
 
-/**
- * Buscar productos
- * GET /products/search?q=query
- */
 const searchProducts = async (query, params = {}) => {
   const api = await createApiClient();
-  if (!api) {
-    throw new Error('No hay URL del servidor configurada');
-  }
-  return api.get('/products/search', {
-    params: {q: query, ...params},
-  });
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/products/search', {params: {q: query, ...params}});
 };
 
-/**
- * Crear un pedido
- * POST /orders
- */
 const createOrder = async orderData => {
   const api = await createApiClient();
-  if (!api) {
-    throw new Error('No hay URL del servidor configurada');
-  }
+  if (!api) throw new Error('No hay URL del servidor configurada');
   return api.post('/orders', orderData);
 };
 
-/**
- * Verificar conexión con el backend
- * GET /health o GET /
- */
 const checkConnection = async baseUrl => {
   try {
-    const client = axios.create({
-      baseURL: baseUrl,
-      timeout: 10000,
-    });
+    const client = axios.create({baseURL: baseUrl, timeout: 10000});
     await client.get('/health');
     return {success: true, message: 'Conexión exitosa'};
-  } catch (error) {
+  } catch {
     try {
-      // Intentar con endpoint raíz
-      const client = axios.create({
-        baseURL: baseUrl,
-        timeout: 10000,
-      });
+      const client = axios.create({baseURL: baseUrl, timeout: 10000});
       await client.get('/');
       return {success: true, message: 'Conexión exitosa'};
     } catch {
-      return {
-        success: false,
-        message: 'No se pudo conectar. Verifica la URL y que el servidor esté activo.',
-      };
+      return {success: false, message: 'No se pudo conectar. Verifica la URL.'};
     }
   }
+};
+
+// ==================== CRUD ADMIN ====================
+
+// Products CRUD
+const createProduct = async productData => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/products', productData);
+};
+
+const updateProduct = async (productId, productData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/products/${productId}`, productData);
+};
+
+const deleteProduct = async productId => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/products/${productId}`);
+};
+
+// Categories CRUD
+const createCategory = async categoryData => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/categories', categoryData);
+};
+
+const updateCategory = async (categoryId, categoryData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/categories/${categoryId}`, categoryData);
+};
+
+const deleteCategory = async categoryId => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/categories/${categoryId}`);
+};
+
+// Orders management
+const fetchOrders = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/orders', {params});
+};
+
+const updateOrderStatus = async (orderId, status) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/orders/${orderId}/status`, {status});
+};
+
+const cancelOrder = async orderId => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/orders/${orderId}`);
+};
+
+const fetchDashboard = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/orders/stats/dashboard');
 };
 
 const apiService = {
   getApiConfig,
   saveApiConfig,
   clearApiConfig,
+  setAuthToken,
   createApiClient,
   fetchProducts,
   fetchProductById,
@@ -181,6 +208,16 @@ const apiService = {
   searchProducts,
   createOrder,
   checkConnection,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  fetchOrders,
+  updateOrderStatus,
+  cancelOrder,
+  fetchDashboard,
 };
 
 export default apiService;

@@ -3,48 +3,40 @@ import {View, Text, StyleSheet} from 'react-native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {useAuth} from '@context/AuthContext';
 import {useCart} from '@context/CartContext';
 import theme from '@theme/styles';
 
-// Pantallas
+// Screens
+import LoginScreen from '@screens/LoginScreen';
+import RegisterScreen from '@screens/RegisterScreen';
 import HomeScreen from '@screens/HomeScreen';
 import CartScreen from '@screens/CartScreen';
 import SettingsScreen from '@screens/SettingsScreen';
 import ProductDetailScreen from '@screens/ProductDetailScreen';
 import OrderConfirmationScreen from '@screens/OrderConfirmationScreen';
+import ProfileScreen from '@screens/ProfileScreen';
+import AdminDashboardScreen from '@screens/AdminDashboardScreen';
+import AdminProductsScreen from '@screens/AdminProductsScreen';
+import AdminCategoriesScreen from '@screens/AdminCategoriesScreen';
+import AdminOrdersScreen from '@screens/AdminOrdersScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Iconos de tabs
-const tabIcons = {
-  Home: 'storefront-outline',
-  Cart: 'cart-outline',
-  Settings: 'settings-outline',
-};
-
-const tabIconsActive = {
-  Home: 'storefront',
-  Cart: 'cart',
-  Settings: 'settings',
-};
-
-// Componente para badge del carrito
+// Badge del carrito
 const CartBadge = () => {
   const {totalItems} = useCart();
   if (totalItems === 0) return null;
-
   return (
     <View style={styles.badge}>
-      <Text style={styles.badgeText}>
-        {totalItems > 99 ? '99+' : totalItems}
-      </Text>
+      <Text style={styles.badgeText}>{totalItems > 99 ? '99+' : totalItems}</Text>
     </View>
   );
 };
 
-// Navegación por tabs
-const TabNavigator = () => {
+// Tabs del cliente
+const CustomerTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
@@ -54,44 +46,75 @@ const TabNavigator = () => {
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({color, size}) => (
-          <View>
-            <Icon
-              name={tabIcons[route.name]}
-              size={size}
-              color={color}
-            />
-            {route.name === 'Cart' && <CartBadge />}
-          </View>
-        ),
+        tabBarIcon: ({color, size}) => {
+          const icons = {
+            Home: 'storefront-outline',
+            Cart: 'cart-outline',
+            Profile: 'person-outline',
+          };
+          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
+        },
       })}>
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Inicio',
-        }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} options={{tabBarLabel: 'Inicio'}} />
       <Tab.Screen
         name="Cart"
         component={CartScreen}
         options={{
           tabBarLabel: 'Carrito',
+          tabBarIcon: ({color, size}) => (
+            <View>
+              <Icon name="cart-outline" size={size} color={color} />
+              <CartBadge />
+            </View>
+          ),
         }}
       />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: 'Ajustes',
-        }}
-      />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{tabBarLabel: 'Perfil'}} />
     </Tab.Navigator>
   );
 };
 
-// Navegación principal (stack)
+// Tabs del admin
+const AdminTabs = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={({route}) => ({
+        headerShown: false,
+        tabBarActiveTintColor: theme.colors.accent,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarIcon: ({color, size}) => {
+          const icons = {
+            AdminDashboard: 'grid-outline',
+            AdminProducts: 'pricetag-outline',
+            AdminOrders: 'receipt-outline',
+          };
+          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
+        },
+      })}>
+      <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{tabBarLabel: 'Dashboard'}} />
+      <Tab.Screen name="AdminProducts" component={AdminProductsScreen} options={{tabBarLabel: 'Productos'}} />
+      <Tab.Screen name="AdminOrders" component={AdminOrdersScreen} options={{tabBarLabel: 'Pedidos'}} />
+    </Tab.Navigator>
+  );
+};
+
+// Pantalla de loading al verificar sesión
+const LoadingScreen = () => (
+  <View style={styles.loadingContainer}>
+    <Text style={styles.loadingText}>Cargando...</Text>
+  </View>
+);
+
+// Navegación principal
 const AppNavigator = () => {
+  const {isLoading, isAuthenticated, isAdmin} = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -99,9 +122,28 @@ const AppNavigator = () => {
         animation: 'slide_from_right',
         contentStyle: {backgroundColor: theme.colors.background},
       }}>
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
-      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-      <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+      {!isAuthenticated ? (
+        // No autenticado: Login / Register
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+        </>
+      ) : isAdmin ? (
+        // Admin: Dashboard + CRUDs
+        <>
+          <Stack.Screen name="AdminMainTabs" component={AdminTabs} />
+          <Stack.Screen name="AdminCategories" component={AdminCategoriesScreen} />
+          <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+        </>
+      ) : (
+        // Cliente: Home + Carrito + Perfil
+        <>
+          <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+          <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+          <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+        </>
+      )}
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 };
@@ -139,6 +181,16 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: 10,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  loadingText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
   },
 });
 
