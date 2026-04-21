@@ -17,15 +17,12 @@ export const truncateText = (text, maxLength = 80) => {
 };
 
 /**
- * Valida si una URL es válida
+ * Valida si una URL es válida (compatible con React Native / Hermes)
  */
 export const isValidUrl = string => {
-  try {
-    const url = new URL(string);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  if (!string || typeof string !== 'string') return false;
+  const pattern = /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/.*)?$/;
+  return pattern.test(string.trim());
 };
 
 /**
