@@ -59,3 +59,6 @@ dependencies {
 // Auto-linking: genera PackageList.java automáticamente
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle");
 applyNativeModulesAppBuildGradle(project)
+
+// react-native-vector-icons: copy font files to assets/fonts
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle");
