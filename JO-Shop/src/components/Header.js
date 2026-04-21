@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -71,5 +70,61 @@ const SearchBar = ({value, onChangeText, placeholder = 'Buscar productos...'}) =
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.white,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    ...theme.shadows.sm,
+  },
+  leftContainer: {
+    width: 40,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+    flex: 1,
+  },
+  rightContainer: {
+    width: 40,
+    alignItems: 'flex-end',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: '100%',
+  },
+  inputText: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    height: '100%',
+  },
+});
 
 export {Header, SearchBar};
