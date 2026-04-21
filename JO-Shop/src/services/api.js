@@ -292,6 +292,20 @@ const deleteAddress = async (addressId) => {
   return api.delete(`/addresses/${addressId}`);
 };
 
+// ==================== DELIVERY ASSIGNMENT ====================
+
+const assignOrderDelivery = async (orderId, deliveryId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/orders/${orderId}/assign`, {deliveryId});
+};
+
+const fetchDeliveryUsers = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/auth/users');
+};
+
 // ==================== ADMIN USER EDIT ====================
 
 const updateUser = async (userId, userData) => {
@@ -340,6 +354,9 @@ const apiService = {
   deleteAddress,
   // Admin user edit
   updateUser,
+  // Delivery assignment
+  assignOrderDelivery,
+  fetchDeliveryUsers,
 };
 
 export default apiService;

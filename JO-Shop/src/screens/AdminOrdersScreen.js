@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -62,6 +63,10 @@ const AdminOrdersScreen = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [deliveryUsers, setDeliveryUsers] = useState([]);
+  const [loadingDeliveryUsers, setLoadingDeliveryUsers] = useState(false);
+  const [assigningDelivery, setAssigningDelivery] = useState(false);
   const flatListRef = useRef(null);
 
   const fetchOrders = useCallback(
@@ -134,6 +139,52 @@ const AdminOrdersScreen = () => {
 
   const handleCloseDetail = () => {
     setSelectedOrder(null);
+  };
+
+  const loadDeliveryUsers = useCallback(async () => {
+    try {
+      setLoadingDeliveryUsers(true);
+      const res = await apiService.fetchDeliveryUsers();
+      const users = Array.isArray(res) ? res : res.data || [];
+      // Filter only users with delivery role
+      const deliveryList = users.filter(u =>
+        (u.roles || []).some(r => r.name === 'delivery'),
+      );
+      setDeliveryUsers(deliveryList);
+    } catch {
+      setDeliveryUsers([]);
+    } finally {
+      setLoadingDeliveryUsers(false);
+    }
+  }, []);
+
+  const handleOpenAssignModal = () => {
+    if (!selectedOrder) return;
+    loadDeliveryUsers();
+    setAssignModalVisible(true);
+  };
+
+  const handleCloseAssignModal = () => {
+    setAssignModalVisible(false);
+  };
+
+  const handleAssignDelivery = async (deliveryId) => {
+    if (!selectedOrder || assigningDelivery) return;
+
+    try {
+      setAssigningDelivery(true);
+      const res = await apiService.assignOrderDelivery(selectedOrder.id, deliveryId);
+      const updatedOrder = res.order || { ...selectedOrder, deliveryId, status: 'confirmed' };
+      setSelectedOrder(updatedOrder);
+      setOrders(prev =>
+        prev.map(o => (o.id === selectedOrder.id ? updatedOrder : o)),
+      );
+      setAssignModalVisible(false);
+    } catch (err) {
+      Alert.alert('Error', err?.message || 'No se pudo asignar el delivery.');
+    } finally {
+      setAssigningDelivery(false);
+    }
   };
 
   const handleOpenStatusModal = () => {
@@ -391,6 +442,51 @@ const AdminOrdersScreen = () => {
               <Text style={styles.detailTotalLabel}>Total</Text>
               <Text style={styles.detailTotalValue}>{formatPrice(selectedOrder.total)}</Text>
             </View>
+
+            {/* Delivery Assignment Section */}
+            <View style={styles.detailSection}>
+              <Text style={styles.detailSectionTitle}>Repartidor asignado</Text>
+              <View style={styles.detailInfoCard}>
+                {selectedOrder.delivery ? (
+                  <View style={styles.detailInfoRow}>
+                    <Icon name="bicycle-outline" size={18} color={theme.colors.accent} />
+                    <View style={styles.detailDeliveryInfo}>
+                      <Text style={styles.detailDeliveryName}>{selectedOrder.delivery.name}</Text>
+                      {selectedOrder.delivery.phone && (
+                        <Text style={styles.detailDeliveryPhone}>{selectedOrder.delivery.phone}</Text>
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.detailNoDelivery}>
+                    <Icon name="bicycle-outline" size={20} color={theme.colors.textLight} />
+                    <Text style={styles.detailNoDeliveryText}>
+                      Sin repartidor asignado
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.detailAssignBtn}
+                      onPress={handleOpenAssignModal}
+                      activeOpacity={0.8}
+                      disabled={selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
+                    >
+                      <Icon name="person-add-outline" size={18} color={theme.colors.white} />
+                      <Text style={styles.detailAssignBtnText}>Asignar repartidor</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedOrder.delivery && (
+                  <TouchableOpacity
+                    style={styles.detailReassignBtn}
+                    onPress={handleOpenAssignModal}
+                    activeOpacity={0.8}
+                    disabled={selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
+                  >
+                    <Icon name="swap-horizontal-outline" size={16} color={theme.colors.accent} />
+                    <Text style={styles.detailReassignBtnText}>Reasignar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           </ScrollView>
 
           <View style={styles.detailFooter}>
@@ -423,6 +519,85 @@ const AdminOrdersScreen = () => {
             )}
           </View>
         </SafeAreaView>
+      </Modal>
+    );
+  };
+
+  const renderAssignModal = () => {
+    if (!selectedOrder) return null;
+
+    return (
+      <Modal
+        visible={assignModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={handleCloseAssignModal}
+      >
+        <TouchableOpacity
+          style={styles.assignModalOverlay}
+          onPress={handleCloseAssignModal}
+          activeOpacity={1}
+        >
+          <View style={styles.assignModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.assignModalTitle}>Asignar Repartidor</Text>
+            <Text style={styles.modalCurrentLabel}>
+              Pedido #{selectedOrder.id} — {selectedOrder.customerName}
+            </Text>
+
+            {loadingDeliveryUsers ? (
+              <ActivityIndicator size="large" color={theme.colors.accent} style={{ paddingVertical: 20 }} />
+            ) : deliveryUsers.length === 0 ? (
+              <Text style={styles.assignEmptyText}>
+                No hay repartidores disponibles. Crea un usuario con el rol "delivery" desde Gestión de Usuarios.
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+                {deliveryUsers.map(user => {
+                  const isCurrentDelivery = selectedOrder.deliveryId === user.id;
+                  return (
+                    <TouchableOpacity
+                      key={user.id}
+                      style={[
+                        styles.assignUserCard,
+                        isCurrentDelivery && styles.assignUserCardActive,
+                      ]}
+                      onPress={() => handleAssignDelivery(user.id)}
+                      disabled={assigningDelivery || isCurrentDelivery}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.assignUserAvatar}>
+                        <Text style={styles.assignUserAvatarText}>
+                          {(user.name || 'U').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.assignUserInfo}>
+                        <Text style={styles.assignUserName}>{user.name}</Text>
+                        {user.phone && (
+                          <Text style={styles.assignUserPhone}>{user.phone}</Text>
+                        )}
+                      </View>
+                      {isCurrentDelivery && (
+                        <Icon name="checkmark-circle" size={22} color={theme.colors.accent} />
+                      )}
+                      {!isCurrentDelivery && assigningDelivery && (
+                        <ActivityIndicator size="small" color={theme.colors.accent} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={handleCloseAssignModal}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalCloseBtnText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     );
   };
@@ -610,6 +785,7 @@ const AdminOrdersScreen = () => {
 
       {renderOrderDetail()}
       {renderStatusModal()}
+      {renderAssignModal()}
     </SafeAreaView>
   );
 };
@@ -1165,6 +1341,128 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: theme.colors.textSecondary,
+  },
+  // Delivery assignment
+  detailDeliveryInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  detailDeliveryName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  detailDeliveryPhone: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  detailNoDelivery: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  detailNoDeliveryText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+  detailAssignBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.accent,
+    marginTop: 4,
+  },
+  detailAssignBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  detailReassignBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: theme.colors.accent + '12',
+    marginTop: 12,
+  },
+  detailReassignBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+  // Assign modal
+  assignModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  assignModalContent: {
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    maxHeight: '60%',
+  },
+  assignModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 16,
+  },
+  assignUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 8,
+  },
+  assignUserCardActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent + '08',
+  },
+  assignUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.accent + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignUserAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.accent,
+  },
+  assignUserInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  assignUserName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  assignUserPhone: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  assignEmptyText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 });
 

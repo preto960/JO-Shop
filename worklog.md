@@ -92,3 +92,21 @@ Stage Summary:
 - All app changes ready: bug fixes, address system in cart and profile, API service updates
 - User needs to run: `npx prisma db push` and `npx prisma db seed` on their local machine
 - Files modified: 8 backend files, 6 app files
+
+---
+Task ID: 2-1
+Agent: Super Z (main)
+Task: Fix Prisma @db.Double error + add Google Places API key to backend + fix edit modal bug + add delivery assignment to AdminOrdersScreen
+
+Work Log:
+- Fixed P1012 error: removed @db.Double from Address.lat and Address.lng in schema.prisma (PostgreSQL doesn't support Double native type; Float already maps to DoublePrecision)
+- Added GOOGLE_PLACES_API_KEY to backend .env file
+- Fixed AdminUsersScreen edit modal bug: changed openEdit() to use setTimeout(300ms) for setEditVisible(true) to prevent Android conflict when two modals animate simultaneously
+- Added assignOrderDelivery() and fetchDeliveryUsers() to api.js
+- Added delivery assignment UI to AdminOrdersScreen: shows assigned delivery person info, "Asignar repartidor" button, reassignment option, delivery user selection modal
+
+Stage Summary:
+- Schema fix resolves `npx prisma db push` error
+- Edit modal fix: user clicks "Editar usuario" and edit modal opens immediately without requiring double click
+- AdminOrdersScreen now supports full delivery assignment workflow
+- Backend .env now has GOOGLE_PLACES_API_KEY for future server-side Places API usage

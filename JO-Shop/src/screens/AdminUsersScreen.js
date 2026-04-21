@@ -191,7 +191,6 @@ const AdminUsersScreen = () => {
       });
       // Asegurar que selectedUser sigue seteado antes de abrir el edit
       setSelectedUser(userData);
-      setEditVisible(true);
       setEditLoading(true);
 
       // Roles and permissions already loaded from detail modal
@@ -213,6 +212,12 @@ const AdminUsersScreen = () => {
       } else {
         setEditLoading(false);
       }
+
+      // Abrir el edit modal DESPUES de que el detail modal se cierre
+      // Esto evita el conflicto en Android donde dos modales animan al mismo tiempo
+      setTimeout(() => {
+        setEditVisible(true);
+      }, 300);
     },
     [availableRoles.length, allPermissions.length],
   );
