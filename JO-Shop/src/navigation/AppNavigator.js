@@ -21,6 +21,8 @@ import AdminProductsScreen from '@screens/AdminProductsScreen';
 import AdminCategoriesScreen from '@screens/AdminCategoriesScreen';
 import AdminOrdersScreen from '@screens/AdminOrdersScreen';
 import AdminRolesScreen from '@screens/AdminRolesScreen';
+import AdminUsersScreen from '@screens/AdminUsersScreen';
+import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -127,6 +129,16 @@ const AdminTabs = () => {
     });
   }
 
+  // Users tab only for admin
+  if (hasRole('admin')) {
+    tabs.push({
+      name: 'AdminUsers',
+      component: AdminUsersScreen,
+      label: 'Usuarios',
+      icon: 'people-outline',
+    });
+  }
+
   // Si no hay tabs visibles, al menos mostrar dashboard
   if (tabs.length === 0) {
     tabs.push({
@@ -157,6 +169,30 @@ const AdminTabs = () => {
   );
 };
 
+// Tabs del delivery - solo entregas
+const DeliveryTabs = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={({route}) => ({
+        headerShown: false,
+        tabBarActiveTintColor: theme.colors.accent,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarIcon: ({color, size}) => {
+          const icons = {
+            DeliveryOrders: 'bicycle-outline',
+            DeliveryProfile: 'person-outline',
+          };
+          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
+        },
+      })}>
+      <Tab.Screen name="DeliveryOrders" component={DeliveryOrdersScreen} options={{tabBarLabel: 'Entregas'}} />
+      <Tab.Screen name="DeliveryProfile" component={ProfileScreen} options={{tabBarLabel: 'Perfil'}} />
+    </Tab.Navigator>
+  );
+};
+
 // Pantalla de loading al verificar sesión
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
@@ -170,6 +206,7 @@ const AppNavigator = () => {
 
   // Verificar si el usuario tiene algún permiso de admin (o rol admin)
   const isStaff = hasRole('admin') || hasRole('editor');
+  const isDelivery = hasRole('delivery');
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -187,6 +224,11 @@ const AppNavigator = () => {
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+        </>
+      ) : isDelivery ? (
+        // Delivery: solo gestión de entregas
+        <>
+          <Stack.Screen name="DeliveryMainTabs" component={DeliveryTabs} />
         </>
       ) : isStaff ? (
         // Staff (admin/editor): Panel + CRUDs con permisos

@@ -12,12 +12,14 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
 import theme from '@theme/styles';
 
 const SettingsScreen = () => {
+  const {isAdmin} = useAuth();
   const [baseUrl, setBaseUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -107,7 +109,8 @@ const SettingsScreen = () => {
           <Text style={styles.headerSubtitle}>Configuración del servidor y preferencias</Text>
         </View>
 
-        {/* URL del entorno (embebida en compilación) */}
+        {/* URL del entorno (embebida en compilación) — SOLO ADMIN */}
+        {isAdmin && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Servidor Backend</Text>
 
@@ -218,6 +221,7 @@ const SettingsScreen = () => {
             </TouchableOpacity>
           )}
         </View>
+        )}
 
         {/* Info de la app */}
         <View style={styles.section}>

@@ -575,12 +575,13 @@ const AdminOrdersScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header fijo (fuera del FlatList) */}
+      {renderHeader()}
       <FlatList
         ref={flatListRef}
         data={orders}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderOrderCard}
-        ListHeaderComponent={renderHeader}
         ListEmptyComponent={error ? renderErrorState() : renderEmptyState()}
         contentContainerStyle={[
           styles.listContent,
