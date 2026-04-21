@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   TextInput,
   Modal,
   ActivityIndicator,
@@ -22,6 +21,7 @@ import {formatPrice} from '@utils/helpers';
 import apiService from '@services/api';
 import theme from '@theme/styles';
 import ENV from '@config/env';
+import ConfirmModal from '@components/ConfirmModal';
 
 const CartScreen = () => {
   const navigation = useNavigation();
@@ -34,6 +34,17 @@ const CartScreen = () => {
   const [customerNotes, setCustomerNotes] = useState('');
   const [ordering, setOrdering] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+
+  // Custom modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    type: 'confirm',
+    title: '',
+    message: '',
+    confirmText: 'Confirmar',
+    cancelText: 'Cancelar',
+    onConfirm: () => {},
+  });
 
   // Address system
   const [addresses, setAddresses] = useState([]);
@@ -161,9 +172,19 @@ const CartScreen = () => {
     setShowCheckoutModal(true);
   };
 
+  const showCustomModal = (config) => {
+    setModalConfig(config);
+    setModalVisible(true);
+  };
+
   const handleSaveNewAddress = async () => {
     if (!newAddressLabel.trim() || !newAddressText.trim()) {
-      Alert.alert('Datos requeridos', 'Ingresa una etiqueta y la dirección.');
+      showCustomModal({
+        type: 'alert',
+        title: 'Datos requeridos',
+        message: 'Ingresa una etiqueta y la dirección.',
+        confirmText: 'Entendido',
+      });
       return;
     }
 
@@ -191,9 +212,20 @@ const CartScreen = () => {
       setNewAddressLat(null);
       setNewAddressLng(null);
 
-      Alert.alert('Dirección guardada', 'La dirección se guardó correctamente.');
+      showCustomModal({
+        type: 'alert',
+        icon: 'checkmark-circle',
+        title: 'Dirección guardada',
+        message: 'La dirección se guardó correctamente.',
+        confirmText: 'Entendido',
+      });
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo guardar la dirección.');
+      showCustomModal({
+        type: 'alert',
+        title: 'Error',
+        message: err.message || 'No se pudo guardar la dirección.',
+        confirmText: 'Entendido',
+      });
     }
   };
 
@@ -205,11 +237,21 @@ const CartScreen = () => {
 
   const handleConfirmOrder = async () => {
     if (!customerName.trim()) {
-      Alert.alert('Datos requeridos', 'Por favor ingresa tu nombre.');
+      showCustomModal({
+        type: 'alert',
+        title: 'Datos requeridos',
+        message: 'Por favor ingresa tu nombre.',
+        confirmText: 'Entendido',
+      });
       return;
     }
     if (!customerPhone.trim()) {
-      Alert.alert('Datos requeridos', 'Por favor ingresa tu teléfono de contacto.');
+      showCustomModal({
+        type: 'alert',
+        title: 'Datos requeridos',
+        message: 'Por favor ingresa tu teléfono de contacto.',
+        confirmText: 'Entendido',
+      });
       return;
     }
 
@@ -219,21 +261,24 @@ const CartScreen = () => {
         : customerAddress.trim();
 
     if (!finalAddress) {
-      Alert.alert(
-        'Datos requeridos',
-        'Por favor selecciona o ingresa una dirección de entrega.',
-      );
+      showCustomModal({
+        type: 'alert',
+        title: 'Datos requeridos',
+        message: 'Por favor selecciona o ingresa una dirección de entrega.',
+        confirmText: 'Entendido',
+      });
       return;
     }
 
-    Alert.alert(
-      'Confirmar pedido',
-      `¿Deseas confirmar tu pedido por ${formatPrice(totalPrice)}?`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {text: 'Confirmar', onPress: processOrder},
-      ],
-    );
+    showCustomModal({
+      type: 'confirm',
+      icon: 'cart',
+      title: 'Confirmar pedido',
+      message: `¿Deseas confirmar tu pedido por ${formatPrice(totalPrice)}?`,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      onConfirm: processOrder,
+    });
   };
 
   const processOrder = async () => {
@@ -287,7 +332,12 @@ const CartScreen = () => {
         savedToServer,
       });
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo procesar el pedido.');
+      showCustomModal({
+        type: 'alert',
+        title: 'Error',
+        message: err.message || 'No se pudo procesar el pedido.',
+        confirmText: 'Entendido',
+      });
     } finally {
       setOrdering(false);
     }
@@ -753,6 +803,23 @@ const CartScreen = () => {
 
       {/* Checkout Modal */}
       {renderCheckoutModal()}
+
+      {/* Custom Confirm Modal */}
+      <ConfirmModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onConfirm={() => {
+          setModalVisible(false);
+          modalConfig.onConfirm();
+        }}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+        type={modalConfig.type}
+        icon={modalConfig.icon}
+        loading={ordering}
+      />
     </SafeAreaView>
   );
 };
