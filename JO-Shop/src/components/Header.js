@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import theme from '@theme/styles';
@@ -70,8 +71,5 @@ const SearchBar = ({value, onChangeText, placeholder = 'Buscar productos...'}) =
     </View>
   );
 };
-
-// Necesitamos importar TextInput
-import {TextInput} from 'react-native';
 
 export {Header, SearchBar};
