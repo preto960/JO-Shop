@@ -13,15 +13,8 @@ react {
     debuggableVariants = ["debug"]
 
     /* Bundling */
-    //   The name of the generated asset file containing your JS bundle
     bundleAssetName = "index.android.bundle"
-    //   The entry file for bundle generation
     entryFile = file("../../index.js")
-
-    //   A list of extra flags to pass to the `bundle` commands.
-    //   See https://facebook.github.io/react-native/docs/bundling
-    //   We use custom CLI by default
-    cliPath = "node_modules/react-native/local-cli/cli.js"
 }
 
 android {
