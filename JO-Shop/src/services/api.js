@@ -260,6 +260,46 @@ const revokeUserPermission = async (userId, permissionId) => {
   return api.delete(`/auth/users/${userId}/permissions/${permissionId}`);
 };
 
+// ==================== DIRECCIONES ====================
+
+const fetchAddresses = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/addresses');
+};
+
+const createAddress = async (addressData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/addresses', addressData);
+};
+
+const updateAddress = async (addressId, addressData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/addresses/${addressId}`, addressData);
+};
+
+const setDefaultAddress = async (addressId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/addresses/${addressId}/default`);
+};
+
+const deleteAddress = async (addressId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/addresses/${addressId}`);
+};
+
+// ==================== ADMIN USER EDIT ====================
+
+const updateUser = async (userId, userData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/auth/users/${userId}`, userData);
+};
+
 const apiService = {
   getApiConfig,
   saveApiConfig,
@@ -292,6 +332,14 @@ const apiService = {
   updateUserRoles,
   grantUserPermission,
   revokeUserPermission,
+  // Direcciones
+  fetchAddresses,
+  createAddress,
+  updateAddress,
+  setDefaultAddress,
+  deleteAddress,
+  // Admin user edit
+  updateUser,
 };
 
 export default apiService;

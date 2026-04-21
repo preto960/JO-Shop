@@ -60,6 +60,7 @@ const AdminUsersScreen = () => {
   // ─── Edit modal ──────────────────────────────────────────────────────────
   const [editVisible, setEditVisible] = useState(false);
   const [editForm, setEditForm] = useState({
+    name: '',
     phone: '',
     birthdate: '',
     active: true,
@@ -177,14 +178,19 @@ const AdminUsersScreen = () => {
 
   const openEdit = useCallback(
     userData => {
-      closeDetail();
+      // Solo ocultar el modal de detalle, NO limpiar selectedUser
+      // (renderEditModal necesita selectedUser para renderizar)
+      setDetailVisible(false);
       setEditForm({
+        name: userData.name || '',
         phone: userData.phone || '',
         birthdate: userData.birthdate
           ? String(userData.birthdate).substring(0, 10)
           : '',
         active: userData.active !== false,
       });
+      // Asegurar que selectedUser sigue seteado antes de abrir el edit
+      setSelectedUser(userData);
       setEditVisible(true);
       setEditLoading(true);
 
@@ -208,7 +214,7 @@ const AdminUsersScreen = () => {
         setEditLoading(false);
       }
     },
-    [closeDetail, availableRoles.length, allPermissions.length],
+    [availableRoles.length, allPermissions.length],
   );
 
   const closeEdit = useCallback(() => {
@@ -230,6 +236,7 @@ const AdminUsersScreen = () => {
       if (!api) throw new Error('No hay URL del servidor configurada');
 
       await api.put(`/auth/users/${selectedUser.id}`, {
+        name: editForm.name || undefined,
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
@@ -285,6 +292,7 @@ const AdminUsersScreen = () => {
                 if (!api) throw new Error('No hay URL del servidor configurada');
 
                 await api.put(`/auth/users/${userData.id}`, {
+                  name: userData.name,
                   active: newStatus,
                 });
 
@@ -1061,6 +1069,19 @@ const AdminUsersScreen = () => {
                   thumbColor={theme.colors.white}
                 />
               </View>
+
+              {/* Name */}
+              <Text style={styles.editLabel}>Nombre</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editForm.name}
+                onChangeText={val => updateEditField('name', val)}
+                placeholder="Nombre del usuario"
+                placeholderTextColor={theme.colors.textLight}
+                returnKeyType="next"
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
 
               {/* Phone */}
               <Text style={styles.editLabel}>Teléfono</Text>

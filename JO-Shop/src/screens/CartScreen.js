@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {EmptyState} from '@components/StateViews';
 import {formatPrice} from '@utils/helpers';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import ENV from '@config/env';
 
 const CartScreen = () => {
   const navigation = useNavigation();
@@ -30,23 +31,176 @@ const CartScreen = () => {
   // Customer data — pre-fill from user profile
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [ordering, setOrdering] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+
+  // Address system
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [addressMode, setAddressMode] = useState('saved'); // 'saved' | 'new'
+  const [addressesLoading, setAddressesLoading] = useState(false);
+
+  // New address form
+  const [newAddressLabel, setNewAddressLabel] = useState('');
+  const [newAddressText, setNewAddressText] = useState('');
+  const [newAddressCity, setNewAddressCity] = useState('');
+  const [newAddressNotes, setNewAddressNotes] = useState('');
+  const [newAddressLat, setNewAddressLat] = useState(null);
+  const [newAddressLng, setNewAddressLng] = useState(null);
+
+  // Google Places search
+  const [showPlaceSearch, setShowPlaceSearch] = useState(false);
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
+  const [placeResults, setPlaceResults] = useState([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
 
   // Pre-fill from user profile when screen mounts
   useEffect(() => {
     if (user) {
       setCustomerName(user.name || '');
       setCustomerPhone(user.phone || '');
-      setCustomerAddress(user.address || '');
     }
   }, [user]);
+
+  // Load saved addresses
+  const loadAddresses = useCallback(async () => {
+    try {
+      setAddressesLoading(true);
+      const res = await apiService.fetchAddresses();
+      const list = res.data || res || [];
+      setAddresses(Array.isArray(list) ? list : []);
+
+      // Auto-select default address
+      const defaultAddr = list.find(a => a.isDefault);
+      if (defaultAddr) {
+        setSelectedAddressId(defaultAddr.id);
+        setCustomerAddress(defaultAddr.address);
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setAddressesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAddresses();
+  }, [loadAddresses]);
+
+  // ─── Google Places Autocomplete ──────────────────────────────────────────
+
+  const searchPlaces = useCallback(async (query) => {
+    if (!query || query.length < 3) {
+      setPlaceResults([]);
+      return;
+    }
+
+    try {
+      setPlacesLoading(true);
+      const apiKey = ENV.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) {
+        setPlaceResults([]);
+        setPlacesLoading(false);
+        return;
+      }
+
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${apiKey}&language=es&components=country:ve`,
+      );
+      const data = await response.json();
+
+      if (data.predictions) {
+        setPlaceResults(
+          data.predictions.map(p => ({
+            place_id: p.place_id,
+            description: p.description,
+            structured_formatting: p.structured_formatting,
+          })),
+        );
+      }
+    } catch {
+      setPlaceResults([]);
+    } finally {
+      setPlacesLoading(false);
+    }
+  }, []);
+
+  const selectPlace = useCallback(async (place) => {
+    try {
+      setPlacesLoading(true);
+      const apiKey = ENV.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) return;
+
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=formatted_address,geometry&key=${apiKey}`,
+      );
+      const data = await response.json();
+
+      if (data.result) {
+        setNewAddressText(data.result.formatted_address || place.description);
+        if (data.result.geometry?.location) {
+          setNewAddressLat(data.result.geometry.location.lat);
+          setNewAddressLng(data.result.geometry.location.lng);
+        }
+      }
+
+      setShowPlaceSearch(false);
+      setPlaceSearchQuery('');
+      setPlaceResults([]);
+    } catch {
+      setShowPlaceSearch(false);
+    } finally {
+      setPlacesLoading(false);
+    }
+  }, []);
 
   const handleOpenCheckout = () => {
     if (items.length === 0) return;
     setShowCheckoutModal(true);
+  };
+
+  const handleSaveNewAddress = async () => {
+    if (!newAddressLabel.trim() || !newAddressText.trim()) {
+      Alert.alert('Datos requeridos', 'Ingresa una etiqueta y la dirección.');
+      return;
+    }
+
+    try {
+      const res = await apiService.createAddress({
+        label: newAddressLabel.trim(),
+        address: newAddressText.trim(),
+        city: newAddressCity.trim() || null,
+        notes: newAddressNotes.trim() || null,
+        lat: newAddressLat,
+        lng: newAddressLng,
+      });
+
+      const newAddr = res.address || res;
+      setAddresses(prev => [...prev, newAddr]);
+      setSelectedAddressId(newAddr.id);
+      setCustomerAddress(newAddr.address);
+      setAddressMode('saved');
+
+      // Reset form
+      setNewAddressLabel('');
+      setNewAddressText('');
+      setNewAddressCity('');
+      setNewAddressNotes('');
+      setNewAddressLat(null);
+      setNewAddressLng(null);
+
+      Alert.alert('Dirección guardada', 'La dirección se guardó correctamente.');
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo guardar la dirección.');
+    }
+  };
+
+  const handleSelectSavedAddress = (addr) => {
+    setSelectedAddressId(addr.id);
+    setCustomerAddress(addr.address);
+    setAddressMode('saved');
   };
 
   const handleConfirmOrder = async () => {
@@ -58,8 +212,17 @@ const CartScreen = () => {
       Alert.alert('Datos requeridos', 'Por favor ingresa tu teléfono de contacto.');
       return;
     }
-    if (!customerAddress.trim()) {
-      Alert.alert('Datos requeridos', 'Por favor ingresa la dirección de entrega.');
+
+    const finalAddress =
+      addressMode === 'saved' && selectedAddressId
+        ? customerAddress
+        : customerAddress.trim();
+
+    if (!finalAddress) {
+      Alert.alert(
+        'Datos requeridos',
+        'Por favor selecciona o ingresa una dirección de entrega.',
+      );
       return;
     }
 
@@ -92,11 +255,10 @@ const CartScreen = () => {
         })),
         total: totalPrice,
         totalItems,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
+        addressId: addressMode === 'saved' ? selectedAddressId : null,
       };
 
-      // Try to save to server
+      // Save to server
       let savedToServer = false;
       try {
         await apiService.createOrder(orderData);
@@ -105,17 +267,16 @@ const CartScreen = () => {
         console.log('Pedido guardado localmente (servidor no disponible)');
       }
 
-      // Save address to user profile for future orders
+      // Save phone to user profile for future orders
       try {
         const api = await apiService.createApiClient();
         if (api && user) {
           await api.put('/auth/profile', {
             phone: customerPhone.trim(),
-            address: customerAddress.trim(),
           });
         }
       } catch {
-        // Non-critical — don't block the order
+        // Non-critical
       }
 
       clearCart();
@@ -188,27 +349,287 @@ const CartScreen = () => {
               maxLength={20}
             />
 
-            {/* Address */}
-            <Text style={styles.formLabel}>
+            {/* ─── Address Section ──────────────────────────────────────── */}
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionTitle}>
+              <Icon
+                name="location-outline"
+                size={18}
+                color={theme.colors.accent}
+              />{' '}
               Dirección de entrega <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
-              value={customerAddress}
-              onChangeText={setCustomerAddress}
-              placeholder="Dirección completa (calle, número, ciudad)"
-              style={[styles.input, styles.addressInput]}
-              placeholderTextColor={theme.colors.textLight}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
+
+            {/* Toggle saved / new */}
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  addressMode === 'saved' && styles.modeButtonActive,
+                ]}
+                onPress={() => setAddressMode('saved')}
+                activeOpacity={0.7}>
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    addressMode === 'saved' && styles.modeButtonTextActive,
+                  ]}>
+                  Guardadas
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  addressMode === 'new' && styles.modeButtonActive,
+                ]}
+                onPress={() => setAddressMode('new')}
+                activeOpacity={0.7}>
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    addressMode === 'new' && styles.modeButtonTextActive,
+                  ]}>
+                  Nueva
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Saved addresses list */}
+            {addressMode === 'saved' && (
+              <View style={styles.addressesSection}>
+                {addressesLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.accent}
+                  />
+                ) : addresses.length > 0 ? (
+                  addresses.map(addr => (
+                    <TouchableOpacity
+                      key={addr.id}
+                      style={[
+                        styles.addressCard,
+                        selectedAddressId === addr.id &&
+                          styles.addressCardSelected,
+                      ]}
+                      onPress={() => handleSelectSavedAddress(addr)}
+                      activeOpacity={0.7}>
+                      <View style={styles.addressRadio}>
+                        {selectedAddressId === addr.id && (
+                          <View style={styles.addressRadioInner} />
+                        )}
+                      </View>
+                      <View style={styles.addressInfo}>
+                        <View style={styles.addressLabelRow}>
+                          <Text style={styles.addressLabel}>
+                            {addr.label}
+                          </Text>
+                          {addr.isDefault && (
+                            <View style={styles.defaultBadge}>
+                              <Text style={styles.defaultBadgeText}>
+                                Principal
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.addressText} numberOfLines={2}>
+                          {addr.address}
+                        </Text>
+                        {addr.city && (
+                          <Text style={styles.addressCity}>{addr.city}</Text>
+                        )}
+                      </View>
+                      <Icon
+                        name={
+                          selectedAddressId === addr.id
+                            ? 'checkmark-circle'
+                            : 'ellipse-outline'
+                        }
+                        size={22}
+                        color={
+                          selectedAddressId === addr.id
+                            ? theme.colors.accent
+                            : theme.colors.textLight
+                        }
+                      />
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyAddresses}>
+                    <Icon
+                      name="location-outline"
+                      size={32}
+                      color={theme.colors.textLight}
+                    />
+                    <Text style={styles.emptyAddressesText}>
+                      No tienes direcciones guardadas
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setAddressMode('new')}
+                      activeOpacity={0.7}>
+                      <Text style={styles.addNewLink}>
+                        + Agregar nueva dirección
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* New address form */}
+            {addressMode === 'new' && (
+              <View style={styles.newAddressSection}>
+                <Text style={styles.formLabel}>Etiqueta</Text>
+                <TextInput
+                  value={newAddressLabel}
+                  onChangeText={setNewAddressLabel}
+                  placeholder="Ej: Casa, Oficina, Apartamento..."
+                  style={styles.input}
+                  placeholderTextColor={theme.colors.textLight}
+                />
+
+                {/* Google Places search */}
+                <Text style={styles.formLabel}>Dirección</Text>
+                <View style={styles.placeSearchRow}>
+                  <TextInput
+                    value={newAddressText}
+                    onChangeText={(text) => {
+                      setNewAddressText(text);
+                      searchPlaces(text);
+                    }}
+                    placeholder="Escribe o busca una dirección..."
+                    style={[styles.input, styles.placeInput]}
+                    placeholderTextColor={theme.colors.textLight}
+                    multiline
+                    numberOfLines={2}
+                    textAlignVertical="top"
+                    onFocus={() => {
+                      if (ENV.GOOGLE_PLACES_API_KEY) {
+                        setShowPlaceSearch(true);
+                      }
+                    }}
+                  />
+                  {ENV.GOOGLE_PLACES_API_KEY && (
+                    <TouchableOpacity
+                      style={styles.searchIcon}
+                      onPress={() => {
+                        if (newAddressText.length >= 3) {
+                          searchPlaces(newAddressText);
+                          setShowPlaceSearch(true);
+                        }
+                      }}>
+                      <Icon
+                        name="search"
+                        size={20}
+                        color={theme.colors.accent}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Place results dropdown */}
+                {showPlaceSearch && placeResults.length > 0 && (
+                  <View style={styles.placeResults}>
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      style={{maxHeight: 200}}>
+                      {placesLoading ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.colors.accent}
+                        />
+                      ) : (
+                        placeResults.map(place => (
+                          <TouchableOpacity
+                            key={place.place_id}
+                            style={styles.placeResultItem}
+                            onPress={() => selectPlace(place)}>
+                            <Icon
+                              name="location-outline"
+                              size={16}
+                              color={theme.colors.textSecondary}
+                            />
+                            <Text style={styles.placeResultText} numberOfLines={2}>
+                              {place.description}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {newAddressLat && newAddressLng && (
+                  <View style={styles.coordsRow}>
+                    <Icon
+                      name="navigate-outline"
+                      size={14}
+                      color={theme.colors.success}
+                    />
+                    <Text style={styles.coordsText}>
+                      Ubicación verificada en Google Maps
+                    </Text>
+                  </View>
+                )}
+
+                <Text style={styles.formLabel}>Ciudad</Text>
+                <TextInput
+                  value={newAddressCity}
+                  onChangeText={setNewAddressCity}
+                  placeholder="Ej: Caracas"
+                  style={styles.input}
+                  placeholderTextColor={theme.colors.textLight}
+                />
+
+                <Text style={styles.formLabel}>Notas (opcional)</Text>
+                <TextInput
+                  value={newAddressNotes}
+                  onChangeText={setNewAddressNotes}
+                  placeholder="Punto de referencia, apartamento, etc."
+                  style={[styles.input, styles.notesInput]}
+                  placeholderTextColor={theme.colors.textLight}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                />
+
+                <TouchableOpacity
+                  onPress={handleSaveNewAddress}
+                  style={styles.saveAddressBtn}
+                  activeOpacity={0.8}>
+                  <Icon
+                    name="save-outline"
+                    size={18}
+                    color={theme.colors.white}
+                  />
+                  <Text style={styles.saveAddressBtnText}>
+                    Guardar dirección
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Selected address display (when in saved mode) */}
+            {addressMode === 'saved' && customerAddress && (
+              <View style={styles.selectedAddressDisplay}>
+                <Icon
+                  name="checkmark-circle"
+                  size={18}
+                  color={theme.colors.success}
+                />
+                <Text style={styles.selectedAddressText}>
+                  {customerAddress}
+                </Text>
+              </View>
+            )}
 
             {/* Notes */}
-            <Text style={styles.formLabel}>Notas (opcional)</Text>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.formLabel}>Notas del pedido (opcional)</Text>
             <TextInput
               value={customerNotes}
               onChangeText={setCustomerNotes}
-              placeholder="Punto de referencia, apartamento, etc."
+              placeholder="Instrucciones especiales para la entrega..."
               style={[styles.input, styles.notesInput]}
               placeholderTextColor={theme.colors.textLight}
               multiline
@@ -223,7 +644,9 @@ const CartScreen = () => {
                 <Text style={styles.summaryLabel}>
                   Productos ({totalItems})
                 </Text>
-                <Text style={styles.summaryValue}>{formatPrice(totalPrice)}</Text>
+                <Text style={styles.summaryValue}>
+                  {formatPrice(totalPrice)}
+                </Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryRow}>
@@ -246,9 +669,7 @@ const CartScreen = () => {
                     size="small"
                     color={theme.colors.white}
                   />
-                  <Text style={styles.confirmButtonText}>
-                    Procesando...
-                  </Text>
+                  <Text style={styles.confirmButtonText}>Procesando...</Text>
                 </View>
               ) : (
                 <Text style={styles.confirmButtonText}>
@@ -416,7 +837,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
     borderTopLeftRadius: theme.borderRadius.xl,
     borderTopRightRadius: theme.borderRadius.xl,
-    maxHeight: '90%',
+    maxHeight: '92%',
   },
   modalHandle: {
     width: 40,
@@ -465,14 +886,214 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
   },
-  addressInput: {
-    textAlignVertical: 'top',
-    minHeight: 80,
-  },
   notesInput: {
     textAlignVertical: 'top',
     minHeight: 56,
   },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.md,
+  },
+  sectionTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  // Mode toggle (saved / new)
+  modeToggle: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    padding: 3,
+    marginTop: theme.spacing.sm,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.sm,
+  },
+  modeButtonActive: {
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.sm,
+  },
+  modeButtonText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  modeButtonTextActive: {
+    color: theme.colors.accent,
+  },
+  // Saved addresses
+  addressesSection: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  addressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  addressCardSelected: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent + '08',
+  },
+  addressRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.sm,
+  },
+  addressRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.accent,
+  },
+  addressInfo: {
+    flex: 1,
+  },
+  addressLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  addressLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  defaultBadge: {
+    backgroundColor: theme.colors.accent + '18',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.sm,
+  },
+  defaultBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+  addressText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  addressCity: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginTop: 2,
+  },
+  emptyAddresses: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
+  },
+  emptyAddressesText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.sm,
+  },
+  addNewLink: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '600',
+    marginTop: theme.spacing.sm,
+  },
+  // Selected address display
+  selectedAddressDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.success + '10',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  selectedAddressText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    fontWeight: '500',
+  },
+  // New address form
+  newAddressSection: {
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
+  },
+  placeSearchRow: {
+    position: 'relative',
+  },
+  placeInput: {
+    paddingRight: 44,
+    minHeight: 60,
+  },
+  searchIcon: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    top: 14,
+  },
+  placeResults: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginTop: -theme.spacing.xs,
+    ...theme.shadows.sm,
+  },
+  placeResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  placeResultText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+  },
+  coordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+  },
+  coordsText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.success,
+    fontWeight: '600',
+  },
+  saveAddressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.accent + '15',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  saveAddressBtnText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+  // Order summary
   orderSummary: {
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,

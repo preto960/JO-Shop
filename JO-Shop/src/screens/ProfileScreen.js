@@ -9,12 +9,14 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import ENV from '@config/env';
 
 const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile} = useAuth();
@@ -25,7 +27,113 @@ const ProfileScreen = () => {
   const [editForm, setEditForm] = useState({phone: '', birthdate: ''});
   const [saving, setSaving] = useState(false);
 
+  // Addresses state
+  const [addresses, setAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+
+  // Address CRUD modal
+  const [addrModalVisible, setAddrModalVisible] = useState(false);
+  const [addrForm, setAddrForm] = useState({
+    label: '',
+    address: '',
+    city: '',
+    notes: '',
+    lat: null,
+    lng: null,
+  });
+  const [addrSaving, setAddrSaving] = useState(false);
+  const [editingAddrId, setEditingAddrId] = useState(null);
+
+  // Google Places
+  const [showPlaceSearch, setShowPlaceSearch] = useState(false);
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
+  const [placeResults, setPlaceResults] = useState([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
+
   const isStaff = hasRole('admin') || hasRole('editor');
+  const isCustomer = hasRole('customer');
+  const isDeliveryRole = hasRole('delivery');
+
+  // ─── Load addresses ───────────────────────────────────────────────────
+
+  const loadAddresses = useCallback(async () => {
+    try {
+      setAddressesLoading(true);
+      const res = await apiService.fetchAddresses();
+      const list = res.data || res || [];
+      setAddresses(Array.isArray(list) ? list : []);
+    } catch {
+      // Non-critical
+    } finally {
+      setAddressesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isCustomer || isDeliveryRole) {
+      loadAddresses();
+    }
+  }, [isCustomer, isDeliveryRole, loadAddresses]);
+
+  // ─── Google Places Search ─────────────────────────────────────────────
+
+  const searchPlaces = useCallback(async (query) => {
+    if (!query || query.length < 3) {
+      setPlaceResults([]);
+      return;
+    }
+    try {
+      setPlacesLoading(true);
+      const apiKey = ENV.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) {
+        setPlaceResults([]);
+        return;
+      }
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${apiKey}&language=es`,
+      );
+      const data = await response.json();
+      if (data.predictions) {
+        setPlaceResults(
+          data.predictions.map(p => ({
+            place_id: p.place_id,
+            description: p.description,
+          })),
+        );
+      }
+    } catch {
+      setPlaceResults([]);
+    } finally {
+      setPlacesLoading(false);
+    }
+  }, []);
+
+  const selectPlace = useCallback(async (place) => {
+    try {
+      setPlacesLoading(true);
+      const apiKey = ENV.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) return;
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=formatted_address,geometry&key=${apiKey}`,
+      );
+      const data = await response.json();
+      if (data.result) {
+        setAddrForm(prev => ({
+          ...prev,
+          address: data.result.formatted_address || place.description,
+          lat: data.result.geometry?.location?.lat || null,
+          lng: data.result.geometry?.location?.lng || null,
+        }));
+      }
+      setShowPlaceSearch(false);
+      setPlaceSearchQuery('');
+      setPlaceResults([]);
+    } catch {
+      setShowPlaceSearch(false);
+    } finally {
+      setPlacesLoading(false);
+    }
+  }, []);
 
   // ─── Edit profile ──────────────────────────────────────────────────────
 
@@ -59,6 +167,125 @@ const ProfileScreen = () => {
     }
   }, [editForm, fetchProfile]);
 
+  // ─── Address CRUD ──────────────────────────────────────────────────────
+
+  const openAddressModal = useCallback(
+    (addr = null) => {
+      if (addr) {
+        setEditingAddrId(addr.id);
+        setAddrForm({
+          label: addr.label || '',
+          address: addr.address || '',
+          city: addr.city || '',
+          notes: addr.notes || '',
+          lat: addr.lat || null,
+          lng: addr.lng || null,
+        });
+      } else {
+        setEditingAddrId(null);
+        setAddrForm({
+          label: '',
+          address: '',
+          city: '',
+          notes: '',
+          lat: null,
+          lng: null,
+        });
+      }
+      setShowPlaceSearch(false);
+      setPlaceSearchQuery('');
+      setPlaceResults([]);
+      setAddrModalVisible(true);
+    },
+    [],
+  );
+
+  const handleSaveAddress = useCallback(async () => {
+    if (!addrForm.label.trim() || !addrForm.address.trim()) {
+      Alert.alert('Datos requeridos', 'Ingresa etiqueta y dirección.');
+      return;
+    }
+
+    try {
+      setAddrSaving(true);
+
+      if (editingAddrId) {
+        const res = await apiService.updateAddress(editingAddrId, {
+          label: addrForm.label.trim(),
+          address: addrForm.address.trim(),
+          city: addrForm.city.trim() || null,
+          notes: addrForm.notes.trim() || null,
+          lat: addrForm.lat,
+          lng: addrForm.lng,
+        });
+        const updated = res.address || res;
+        setAddresses(prev =>
+          prev.map(a => (a.id === editingAddrId ? updated : a)),
+        );
+      } else {
+        const res = await apiService.createAddress({
+          label: addrForm.label.trim(),
+          address: addrForm.address.trim(),
+          city: addrForm.city.trim() || null,
+          notes: addrForm.notes.trim() || null,
+          lat: addrForm.lat,
+          lng: addrForm.lng,
+        });
+        const newAddr = res.address || res;
+        setAddresses(prev => [...prev, newAddr]);
+      }
+
+      setAddrModalVisible(false);
+      Alert.alert(
+        'Éxito',
+        editingAddrId
+          ? 'Dirección actualizada correctamente.'
+          : 'Dirección guardada correctamente.',
+      );
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo guardar la dirección.');
+    } finally {
+      setAddrSaving(false);
+    }
+  }, [addrForm, editingAddrId]);
+
+  const handleSetDefault = useCallback(async (addrId) => {
+    try {
+      await apiService.setDefaultAddress(addrId);
+      setAddresses(prev =>
+        prev.map(a => ({...a, isDefault: a.id === addrId})),
+      );
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo cambiar la dirección principal.');
+    }
+  }, []);
+
+  const handleDeleteAddress = useCallback(
+    (addr) => {
+      Alert.alert(
+        'Eliminar dirección',
+        `¿Eliminar "${addr.label}"?`,
+        [
+          {text: 'Cancelar', style: 'cancel'},
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await apiService.deleteAddress(addr.id);
+                setAddresses(prev => prev.filter(a => a.id !== addr.id));
+                Alert.alert('Eliminada', 'Dirección eliminada.');
+              } catch {
+                Alert.alert('Error', 'No se pudo eliminar la dirección.');
+              }
+            },
+          },
+        ],
+      );
+    },
+    [],
+  );
+
   // ─── Logout ────────────────────────────────────────────────────────────
 
   const handleLogout = () => {
@@ -83,12 +310,15 @@ const ProfileScreen = () => {
 
   const roleNames = user?.roles?.map(r => r.name) || [];
 
-  // Permisos: solo visible para admin/editor (no para cliente)
-  const permCodes = isStaff ? (user?.permissions?.map(p => p.code) || []) : [];
+  // Permisos: solo visible para staff (no para cliente)
+  const permCodes = isStaff
+    ? user?.permissions?.map(p => p.code) || []
+    : [];
   const moduleLabels = {
     products: 'Productos',
     categories: 'Categorías',
     orders: 'Pedidos',
+    delivery: 'Delivery',
     users: 'Usuarios',
     dashboard: 'Dashboard',
   };
@@ -107,7 +337,6 @@ const ProfileScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
-
         {/* Avatar y nombre */}
         <View style={styles.profileHeader}>
           <View style={styles.avatar}>
@@ -130,7 +359,9 @@ const ProfileScreen = () => {
                       ? 'shield'
                       : role === 'editor'
                         ? 'create'
-                        : 'person'
+                        : role === 'delivery'
+                          ? 'bicycle'
+                          : 'person'
                   }
                   size={14}
                   color={
@@ -198,25 +429,10 @@ const ProfileScreen = () => {
                   color={theme.colors.textSecondary}
                 />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Fecha de nacimiento</Text>
+                  <Text style={styles.infoLabel}>
+                    Fecha de nacimiento
+                  </Text>
                   <Text style={styles.infoValue}>{user.birthdate}</Text>
-                </View>
-              </View>
-            </>
-          )}
-
-          {user?.address && (
-            <>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Icon
-                  name="location-outline"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Dirección</Text>
-                  <Text style={styles.infoValue}>{user.address}</Text>
                 </View>
               </View>
             </>
@@ -250,17 +466,157 @@ const ProfileScreen = () => {
             onPress={openEditModal}
             style={styles.editButton}
             activeOpacity={0.8}>
-            <Icon name="create-outline" size={20} color={theme.colors.accent} />
+            <Icon
+              name="create-outline"
+              size={20}
+              color={theme.colors.accent}
+            />
             <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
+        )}
+
+        {/* ─── Saved Addresses Section (client only) ──────────────── */}
+        {(isCustomer || isDeliveryRole) && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                <Icon
+                  name="location-outline"
+                  size={18}
+                  color={theme.colors.accent}
+                />{' '}
+                Mis direcciones ({addresses.length})
+              </Text>
+              <TouchableOpacity
+                onPress={() => openAddressModal()}
+                activeOpacity={0.7}>
+                <Icon
+                  name="add-circle-outline"
+                  size={24}
+                  color={theme.colors.accent}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {addressesLoading ? (
+              <ActivityIndicator
+                size="small"
+                color={theme.colors.accent}
+              />
+            ) : addresses.length > 0 ? (
+              addresses.map(addr => (
+                <View key={addr.id} style={styles.addressCard}>
+                  <View style={styles.addressCardLeft}>
+                    <View
+                      style={[
+                        styles.addressIcon,
+                        addr.isDefault && styles.addressIconDefault,
+                      ]}>
+                      <Icon
+                        name={
+                          addr.isDefault
+                            ? 'home'
+                            : addr.label.toLowerCase().includes('oficina')
+                              ? 'business'
+                              : 'location'
+                        }
+                        size={18}
+                        color={
+                          addr.isDefault
+                            ? theme.colors.white
+                            : theme.colors.textSecondary
+                        }
+                      />
+                    </View>
+                    <View style={styles.addressCardInfo}>
+                      <View style={styles.addressCardLabelRow}>
+                        <Text style={styles.addressCardLabel}>
+                          {addr.label}
+                        </Text>
+                        {addr.isDefault && (
+                          <View style={styles.defaultTag}>
+                            <Text style={styles.defaultTagText}>
+                              Principal
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.addressCardText} numberOfLines={2}>
+                        {addr.address}
+                      </Text>
+                      {addr.city && (
+                        <Text style={styles.addressCardCity}>
+                          {addr.city}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.addressCardActions}>
+                    <TouchableOpacity
+                      onPress={() => openAddressModal(addr)}
+                      hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+                      <Icon
+                        name="create-outline"
+                        size={20}
+                        color={theme.colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                    {!addr.isDefault && (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => handleSetDefault(addr.id)}
+                          hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+                          <Icon
+                            name="star-outline"
+                            size={20}
+                            color={theme.colors.textSecondary}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteAddress(addr)}
+                          hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+                          <Icon
+                            name="trash-outline"
+                            size={20}
+                            color={theme.colors.accent}
+                          />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                </View>
+              ))
+            ) : (
+              <TouchableOpacity
+                style={styles.emptyAddressCard}
+                onPress={() => openAddressModal()}
+                activeOpacity={0.7}>
+                <Icon
+                  name="add-circle-outline"
+                  size={36}
+                  color={theme.colors.accent}
+                />
+                <Text style={styles.emptyAddressText}>
+                  Agrega tu primera dirección
+                </Text>
+                <Text style={styles.emptyAddressSubtext}>
+                  Para entregas rápidas y precisas
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Permisos (solo para staff, no para cliente) */}
         {isStaff && Object.keys(groupedPerms).length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              <Icon name="key-outline" size={18} color={theme.colors.accent} />
-              {' '}Mis Permisos ({permCodes.length})
+              <Icon
+                name="key-outline"
+                size={18}
+                color={theme.colors.accent}
+              />{' '}
+              Mis Permisos ({permCodes.length})
             </Text>
             {Object.entries(groupedPerms).map(([module, codes]) => (
               <View key={module} style={styles.permModule}>
@@ -290,14 +646,18 @@ const ProfileScreen = () => {
           style={[styles.logoutButton, loggingOut && styles.buttonDisabled]}
           disabled={loggingOut}
           activeOpacity={0.8}>
-          <Icon name="log-out-outline" size={20} color={theme.colors.accent} />
+          <Icon
+            name="log-out-outline"
+            size={20}
+            color={theme.colors.accent}
+          />
           <Text style={styles.logoutText}>
             {loggingOut ? 'Cerrando...' : 'Cerrar sesión'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Edit Profile Modal */}
+      {/* ─── Edit Profile Modal ──────────────────────────────────────── */}
       <Modal
         visible={editModalVisible}
         animationType="slide"
@@ -308,6 +668,7 @@ const ProfileScreen = () => {
           activeOpacity={1}
           onPress={() => setEditModalVisible(false)}>
           <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Editar perfil</Text>
               <TouchableOpacity
@@ -360,6 +721,174 @@ const ProfileScreen = () => {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ─── Address CRUD Modal ────────────────────────────────────────── */}
+      <Modal
+        visible={addrModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setAddrModalVisible(false)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setAddrModalVisible(false)}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingAddrId ? 'Editar dirección' : 'Nueva dirección'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setAddrModalVisible(false)}
+                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                <Icon
+                  name="close"
+                  size={24}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalBody}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+              <Text style={styles.label}>Etiqueta</Text>
+              <TextInput
+                value={addrForm.label}
+                onChangeText={val =>
+                  setAddrForm(prev => ({...prev, label: val}))
+                }
+                placeholder="Ej: Casa, Oficina..."
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.input}
+              />
+
+              <Text style={styles.label}>Dirección</Text>
+              <View style={styles.placeSearchRow}>
+                <TextInput
+                  value={addrForm.address}
+                  onChangeText={text => {
+                    setAddrForm(prev => ({...prev, address: text}));
+                    searchPlaces(text);
+                    if (ENV.GOOGLE_PLACES_API_KEY) {
+                      setShowPlaceSearch(true);
+                    }
+                  }}
+                  placeholder="Escribe o busca dirección..."
+                  placeholderTextColor={theme.colors.textLight}
+                  style={[styles.input, styles.placeInput]}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                {ENV.GOOGLE_PLACES_API_KEY && (
+                  <TouchableOpacity
+                    style={styles.searchIcon}
+                    onPress={() => {
+                      if (addrForm.address.length >= 3) {
+                        searchPlaces(addrForm.address);
+                        setShowPlaceSearch(true);
+                      }
+                    }}>
+                    <Icon
+                      name="search"
+                      size={20}
+                      color={theme.colors.accent}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {showPlaceSearch && placeResults.length > 0 && (
+                <View style={styles.placeResults}>
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    style={{maxHeight: 180}}>
+                    {placesLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.accent}
+                      />
+                    ) : (
+                      placeResults.map(place => (
+                        <TouchableOpacity
+                          key={place.place_id}
+                          style={styles.placeResultItem}
+                          onPress={() => selectPlace(place)}>
+                          <Icon
+                            name="location-outline"
+                            size={16}
+                            color={theme.colors.textSecondary}
+                          />
+                          <Text style={styles.placeResultText} numberOfLines={2}>
+                            {place.description}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                </View>
+              )}
+
+              {addrForm.lat && addrForm.lng && (
+                <View style={styles.coordsRow}>
+                  <Icon
+                    name="checkmark-circle"
+                    size={14}
+                    color={theme.colors.success}
+                  />
+                  <Text style={styles.coordsText}>
+                    Ubicación verificada en Google Maps
+                  </Text>
+                </View>
+              )}
+
+              <Text style={styles.label}>Ciudad</Text>
+              <TextInput
+                value={addrForm.city}
+                onChangeText={val =>
+                  setAddrForm(prev => ({...prev, city: val}))
+                }
+                placeholder="Ej: Caracas"
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.input}
+              />
+
+              <Text style={styles.label}>Notas (opcional)</Text>
+              <TextInput
+                value={addrForm.notes}
+                onChangeText={val =>
+                  setAddrForm(prev => ({...prev, notes: val}))
+                }
+                placeholder="Punto de referencia, apartamento, etc."
+                placeholderTextColor={theme.colors.textLight}
+                style={[styles.input, styles.notesInput]}
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+
+              <TouchableOpacity
+                onPress={handleSaveAddress}
+                style={[styles.saveBtn, addrSaving && styles.buttonDisabled]}
+                disabled={addrSaving}
+                activeOpacity={0.8}>
+                {addrSaving ? (
+                  <ActivityIndicator size="small" color={theme.colors.white} />
+                ) : (
+                  <Text style={styles.saveBtnText}>
+                    {editingAddrId ? 'Actualizar' : 'Guardar dirección'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={{height: theme.spacing.xxl}} />
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -470,8 +999,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.accent,
   },
+  // Section
   section: {
     marginTop: theme.spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
   },
   sectionTitle: {
     fontSize: theme.fontSize.md,
@@ -479,6 +1015,93 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
   },
+  // Address cards
+  addressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadows.sm,
+  },
+  addressCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: theme.spacing.sm,
+  },
+  addressIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addressIconDefault: {
+    backgroundColor: theme.colors.accent,
+  },
+  addressCardInfo: {
+    flex: 1,
+  },
+  addressCardLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  addressCardLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  defaultTag: {
+    backgroundColor: theme.colors.accent + '18',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: theme.borderRadius.sm,
+  },
+  defaultTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+  addressCardText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  addressCardCity: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginTop: 2,
+  },
+  addressCardActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  emptyAddressCard: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.xl,
+    marginTop: theme.spacing.xs,
+  },
+  emptyAddressText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: theme.spacing.sm,
+  },
+  emptyAddressSubtext: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
+  // Permissions
   permModule: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.md,
@@ -531,7 +1154,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.accent,
   },
-  // Edit modal
+  // Modals
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -542,6 +1165,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: theme.borderRadius.xl,
     borderTopRightRadius: theme.borderRadius.xl,
     paddingBottom: theme.spacing.xxl,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+    alignSelf: 'center',
+    marginTop: theme.spacing.sm,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -574,6 +1205,10 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
   },
+  notesInput: {
+    textAlignVertical: 'top',
+    minHeight: 56,
+  },
   saveBtn: {
     backgroundColor: theme.colors.accent,
     borderRadius: theme.borderRadius.md,
@@ -586,6 +1221,51 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: theme.fontSize.md,
     fontWeight: '700',
+  },
+  // Google Places
+  placeSearchRow: {
+    position: 'relative',
+  },
+  placeInput: {
+    paddingRight: 44,
+    minHeight: 70,
+  },
+  searchIcon: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    top: 16,
+  },
+  placeResults: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...theme.shadows.sm,
+  },
+  placeResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  placeResultText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+  },
+  coordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+  },
+  coordsText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.success,
+    fontWeight: '600',
   },
 });
 

@@ -32,6 +32,13 @@ const ENV = {
   DEMO_ADMIN_PASSWORD: 'Admin123',
   DEMO_CLIENT_EMAIL: 'cliente@joshop.com',
   DEMO_CLIENT_PASSWORD: 'Cliente123',
+  DEMO_EDITOR_EMAIL: 'editor@joshop.com',
+  DEMO_EDITOR_PASSWORD: 'Editor123',
+  DEMO_DELIVERY_EMAIL: 'delivery@joshop.com',
+  DEMO_DELIVERY_PASSWORD: 'Delivery123',
+
+  // ── Google Maps / Places API ──
+  GOOGLE_PLACES_API_KEY: 'AIzaSyBJBdrBQpWZeH6Ceh-S5ccRj5-tO4gM6DA',
 };
 
 export default ENV;
