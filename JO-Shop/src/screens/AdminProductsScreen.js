@@ -18,6 +18,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
+import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
@@ -41,6 +42,7 @@ const EMPTY_FORM_ERRORS = {};
 // ─── Component ────────────────────────────────────────────────────────────────
 const AdminProductsScreen = () => {
   const navigation = useNavigation();
+  const {user, logout} = useAuth();
 
   // Data state
   const [products, setProducts] = useState([]);
@@ -388,115 +390,71 @@ const AdminProductsScreen = () => {
 
       return (
         <View style={styles.card}>
-          {/* Product thumbnail */}
-          <View style={styles.cardImageContainer}>
+          {/* Avatar thumbnail */}
+          <View style={styles.cardAvatar}>
             {item.thumbnail || item.image ? (
               <Image
                 source={{uri: item.thumbnail || item.image}}
-                style={styles.cardImage}
+                style={styles.cardAvatarImg}
                 resizeMode="cover"
               />
             ) : (
-              <View style={styles.cardImagePlaceholder}>
+              <View style={styles.cardAvatarPlaceholder}>
                 <Icon
                   name="image-outline"
-                  size={28}
+                  size={20}
                   color={theme.colors.textLight}
                 />
               </View>
             )}
-            {/* Active indicator */}
-            <View
-              style={[
-                styles.activeIndicator,
-                {backgroundColor: isActive ? theme.colors.success : theme.colors.textLight},
-              ]}
-            />
           </View>
 
           {/* Product info */}
-          <View style={styles.cardContent}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <TouchableOpacity
-                onPress={() => handleToggleActive(item)}
-                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-                <Switch
-                  value={isActive}
-                  trackColor={{
-                    false: theme.colors.border,
-                    true: theme.colors.success,
-                  }}
-                  thumbColor={theme.colors.white}
-                  onValueChange={() => {}}
-                  disabled
-                />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
-
-            {item.description ? (
-              <Text style={styles.cardDescription} numberOfLines={2}>
-                {item.description}
-              </Text>
-            ) : null}
-
-            <View style={styles.cardMeta}>
-              {/* Stock */}
-              <View style={styles.metaItem}>
-                <Icon
-                  name="cube-outline"
-                  size={14}
-                  color={theme.colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.metaText,
-                    item.stock === 0 && styles.metaTextDanger,
-                  ]}>
-                  {item.stock === 0 ? 'Agotado' : `Stock: ${item.stock}`}
-                </Text>
-              </View>
-
-              {/* Category */}
+          <View style={styles.cardBody}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <View style={styles.cardSubInfo}>
               {categoryName ? (
-                <View style={styles.metaItem}>
-                  <Icon
-                    name="folder-outline"
-                    size={14}
-                    color={theme.colors.textSecondary}
-                  />
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {categoryName}
-                  </Text>
-                </View>
+                <Text style={styles.cardCategory} numberOfLines={1}>
+                  {categoryName}
+                </Text>
               ) : null}
+              <Text style={styles.cardDot}>{categoryName ? ' · ' : ''}</Text>
+              <Text
+                style={[
+                  styles.cardStock,
+                  item.stock === 0 && styles.cardStockDanger,
+                ]}>
+                {item.stock === 0 ? 'Agotado' : `Stock: ${item.stock}`}
+              </Text>
             </View>
-
-            {/* Status badge */}
-            {!isActive && (
-              <View style={styles.inactiveBadge}>
-                <Text style={styles.inactiveText}>Inactivo</Text>
-              </View>
-            )}
+            <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
           </View>
 
-          {/* Action buttons */}
+          {/* Active toggle + actions */}
           <View style={styles.cardActions}>
             <TouchableOpacity
-              style={[styles.actionBtn, styles.editBtn]}
-              onPress={() => openEditModal(item)}
-              activeOpacity={0.7}>
-              <Icon name="create-outline" size={18} color={theme.colors.white} />
+              onPress={() => handleToggleActive(item)}
+              hitSlop={{top: 4, bottom: 4, left: 4, right: 4}}
+              style={styles.toggleBtn}>
+              <Icon
+                name={isActive ? 'toggle' : 'toggle-outline'}
+                size={28}
+                color={isActive ? theme.colors.success : theme.colors.border}
+              />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, styles.deleteBtn]}
+              style={styles.iconActionBtn}
+              onPress={() => openEditModal(item)}
+              activeOpacity={0.7}>
+              <Icon name="create-outline" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconActionBtn}
               onPress={() => handleDelete(item)}
               activeOpacity={0.7}>
-              <Icon name="trash-outline" size={18} color={theme.colors.white} />
+              <Icon name="trash-outline" size={20} color={theme.colors.accent} />
             </TouchableOpacity>
           </View>
         </View>
@@ -888,16 +846,29 @@ const AdminProductsScreen = () => {
     );
   }
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      [
+        {text: 'Cancelar', style: 'cancel'},
+        {text: 'Cerrar sesión', style: 'destructive', onPress: () => logout()},
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-          style={styles.backBtn}>
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+            style={styles.backBtn}>
+            <Icon name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Productos</Text>
           <Text style={styles.headerSubtitle}>
@@ -909,6 +880,11 @@ const AdminProductsScreen = () => {
             onPress={openCreateModal}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
             <Icon name="add-circle-outline" size={28} color={theme.colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleLogout}
+            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1010,6 +986,10 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
+  headerLeft: {
+    width: 40,
+    justifyContent: 'center',
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -1030,8 +1010,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   headerRight: {
-    width: 40,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
   },
 
   // Loading
@@ -1129,117 +1110,87 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Product card
+  // Product card (list row)
   card: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     ...theme.shadows.sm,
+  },
+  cardAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: theme.borderRadius.sm,
     overflow: 'hidden',
+    backgroundColor: theme.colors.inputBg,
   },
-  cardImageContainer: {
-    width: 90,
-    minHeight: 110,
-    position: 'relative',
-  },
-  cardImage: {
+  cardAvatarImg: {
     width: '100%',
     height: '100%',
   },
-  cardImagePlaceholder: {
-    flex: 1,
-    backgroundColor: theme.colors.inputBg,
+  cardAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeIndicator: {
-    position: 'absolute',
-    top: theme.spacing.sm,
-    left: theme.spacing.sm,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  cardContent: {
+  cardBody: {
     flex: 1,
-    padding: theme.spacing.sm,
+    marginLeft: theme.spacing.md,
     justifyContent: 'center',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   cardName: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.text,
-    flex: 1,
-    marginRight: theme.spacing.sm,
+  },
+  cardSubInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  cardCategory: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  cardDot: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+  },
+  cardStock: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+  },
+  cardStockDanger: {
+    color: theme.colors.accent,
+    fontWeight: '600',
   },
   cardPrice: {
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.sm,
     fontWeight: '700',
     color: theme.colors.accent,
     marginTop: 2,
   },
-  cardDescription: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: theme.spacing.xs,
-    gap: theme.spacing.sm,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  metaText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-  },
-  metaTextDanger: {
-    color: theme.colors.accent,
-    fontWeight: '600',
-  },
-  inactiveBadge: {
-    position: 'absolute',
-    top: theme.spacing.sm,
-    right: theme.spacing.sm,
-    backgroundColor: theme.colors.accent + '18',
-    paddingHorizontal: theme.spacing.xs + 2,
-    paddingVertical: 1,
-    borderRadius: theme.borderRadius.sm,
-  },
-  inactiveText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: '600',
-    color: theme.colors.accent,
-  },
   cardActions: {
-    justifyContent: 'center',
-    gap: theme.spacing.xs,
-    paddingRight: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginLeft: theme.spacing.sm,
   },
-  actionBtn: {
+  toggleBtn: {
+    padding: theme.spacing.xs,
+  },
+  iconActionBtn: {
     width: 34,
     height: 34,
     borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  editBtn: {
-    backgroundColor: '#3498DB',
-  },
-  deleteBtn: {
-    backgroundColor: theme.colors.accent,
   },
 
   // FAB
