@@ -307,12 +307,12 @@ const styles = StyleSheet.create({
   },
   productList: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.xxl,
+    gap: theme.spacing.md,
   },
   row: {
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   productCard: {
     width: '48%',

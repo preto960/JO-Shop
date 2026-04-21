@@ -6,17 +6,19 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  FlatList,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
+import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 
 const AdminDashboardScreen = () => {
   const navigation = useNavigation();
+  const {user, logout} = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,11 +59,27 @@ const AdminDashboardScreen = () => {
     cancelled: theme.colors.accent,
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      [
+        {text: 'Cancelar', style: 'cancel'},
+        {text: 'Cerrar sesión', style: 'destructive', onPress: () => logout()},
+      ],
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Panel Admin</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Panel Admin</Text>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Cargando...</Text>
@@ -73,8 +91,20 @@ const AdminDashboardScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Panel Admin</Text>
-        <Text style={styles.headerSubtitle}>JO-Shop Dashboard</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>Panel Admin</Text>
+            <Text style={styles.headerSubtitle}>{user?.name || 'Administrador'}</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       <ScrollView
@@ -184,6 +214,32 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.inputBg,
+  },
+  logoutBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDE8EC',
   },
   headerTitle: {fontSize: theme.fontSize.title, fontWeight: '700', color: theme.colors.text},
   headerSubtitle: {fontSize: theme.fontSize.sm, color: theme.colors.textSecondary, marginTop: 2},
