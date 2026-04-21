@@ -105,3 +105,23 @@ Stage Summary:
 - Each row: [Avatar] [Name, Category · Stock, Price] [Toggle] [Edit] [Delete]
 - Logout button added to the Products screen header (visible for editor/admin)
 - Committed and pushed to GitHub
+
+---
+Task ID: 2
+Agent: main
+Task: Multiple UI/UX improvements, delivery role, user management
+
+Work Log:
+- Fixed AdminOrdersScreen: moved ListHeaderComponent renderHeader outside FlatList to eliminate top spacing
+- Rewrote CartScreen: replaced full-screen checkout form with bottom sheet modal, pre-fill from user profile, save address/phone to profile after order
+- Rewrote ProfileScreen: hide permissions for non-staff users, add edit modal for phone/birthdate, show address/delivery badges
+- Updated SettingsScreen: wrap API URL section with `{isAdmin && (...)}` to hide from editor/delivery/client
+- Updated AppNavigator: add DeliveryTabs (Entregas + Perfil), AdminUsers tab for admin, import new screens
+- Created DeliveryOrdersScreen: 789 lines, filter tabs (confirmed/shipped/delivered), accept/deliver buttons
+- Created AdminUsersScreen: 2245 lines, user list, search, detail/edit modals, role/permission management
+- Pushed to GitHub (commit a40dc5f)
+
+Stage Summary:
+- 7 files changed, 3626 insertions, 129 deletions
+- All 8 subtasks completed
+- Commit a40dc5f pushed to main
