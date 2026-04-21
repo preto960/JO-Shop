@@ -82,3 +82,26 @@ Stage Summary:
 - Default URL: https://jo-backend-shop.vercel.app (change in src/config/env.js)
 - Settings screen shows env URL vs runtime override with restore capability
 - Single file edit + rebuild is all that's needed to change environments
+
+---
+Task ID: 1
+Agent: main
+Task: Redesign AdminProductsScreen product list layout + add logout
+
+Work Log:
+- Read AdminProductsScreen.js, AuthContext.js, AppNavigator.js, ProfileScreen.js, theme/styles.js
+- Analyzed current product card layout (90px image, horizontal card with Switch toggle)
+- Redesigned renderProductCard to compact list row with 50x50 rounded avatar
+- Added handleLogout with confirmation Alert using useAuth().logout()
+- Added logout icon (log-out-outline) to header right alongside add button
+- Updated headerRight style to flexDirection: 'row' with gap
+- Replaced old card styles (cardImageContainer, activeIndicator, cardContent, etc.) with new list styles (cardAvatar, cardBody, cardSubInfo, etc.)
+- Replaced React Native Switch with Ionicons toggle/toggle-outline icon for active status
+- Cleaned up unused style definitions (actionBtn, editBtn, deleteBtn, inactiveBadge, etc.)
+- Pushed to GitHub (commit 4be3cb7)
+
+Stage Summary:
+- AdminProductsScreen now shows products as compact list rows with 50x50 avatar images
+- Each row: [Avatar] [Name, Category · Stock, Price] [Toggle] [Edit] [Delete]
+- Logout button added to the Products screen header (visible for editor/admin)
+- Committed and pushed to GitHub
