@@ -45,3 +45,21 @@ Stage Summary:
 - Icon fix committed and pushed (68eacb7)
 - All admin screens verified complete — no missing views
 - User needs to: clean build + clear Metro cache + rebuild on their Windows machine
+
+---
+Task ID: 2
+Agent: main
+Task: Find and fix the root cause of 'StyleSheet doesn't exist' crash
+
+Work Log:
+- Found that AdminOrdersScreen.js was using StyleSheet.create() (line 615) WITHOUT importing StyleSheet from react-native
+- This caused ReferenceError at module evaluation time, which cascaded to prevent AppRegistry.registerComponent from executing
+- Fixed by adding StyleSheet to the react-native import block in AdminOrdersScreen.js
+- Also found and fixed Header.js: was using styles.header, styles.leftContainer, etc. without any StyleSheet.create() definition
+- Removed unused ActivityIndicator import from Header.js
+- Committed and pushed to GitHub (4cc0217)
+
+Stage Summary:
+- ROOT CAUSE FOUND: AdminOrdersScreen.js missing StyleSheet import was causing the entire app crash
+- Header.js missing styles definition was a secondary bug (would crash when Header/SearchBar rendered)
+- Both fixes committed and pushed to GitHub
