@@ -63,3 +63,22 @@ Stage Summary:
 - ROOT CAUSE FOUND: AdminOrdersScreen.js missing StyleSheet import was causing the entire app crash
 - Header.js missing styles definition was a secondary bug (would crash when Header/SearchBar rendered)
 - Both fixes committed and pushed to GitHub
+
+---
+Task ID: 3
+Agent: main
+Task: Implement embedded environment config system for API URL
+
+Work Log:
+- Created src/config/env.js with pre-build configuration (API_URL, demo credentials, timeouts)
+- Updated api.js to use ENV.API_URL as default baseUrl instead of empty string
+- Updated SettingsScreen to show embedded URL in amber card, allow runtime override, and restore to env
+- Updated LoginScreen to pull demo credentials from ENV config
+- Added @config path alias to babel.config.js and metro.config.js
+- Committed and pushed (e5cf162)
+
+Stage Summary:
+- App now works OUT OF THE BOX — no need to configure URL before login
+- Default URL: https://jo-backend-shop.vercel.app (change in src/config/env.js)
+- Settings screen shows env URL vs runtime override with restore capability
+- Single file edit + rebuild is all that's needed to change environments
