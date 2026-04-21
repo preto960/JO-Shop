@@ -20,6 +20,7 @@ import AdminDashboardScreen from '@screens/AdminDashboardScreen';
 import AdminProductsScreen from '@screens/AdminProductsScreen';
 import AdminCategoriesScreen from '@screens/AdminCategoriesScreen';
 import AdminOrdersScreen from '@screens/AdminOrdersScreen';
+import AdminRolesScreen from '@screens/AdminRolesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -74,8 +75,68 @@ const CustomerTabs = () => {
   );
 };
 
-// Tabs del admin
+// Tabs del admin - dinámicos según permisos
 const AdminTabs = () => {
+  const {canViewModule, hasPermission, hasRole} = useAuth();
+
+  // Determinar qué tabs mostrar según permisos
+  const tabs = [];
+
+  if (canViewModule('dashboard')) {
+    tabs.push({
+      name: 'AdminDashboard',
+      component: AdminDashboardScreen,
+      label: 'Panel',
+      icon: 'grid-outline',
+    });
+  }
+
+  if (canViewModule('products')) {
+    tabs.push({
+      name: 'AdminProducts',
+      component: AdminProductsScreen,
+      label: 'Productos',
+      icon: 'pricetag-outline',
+    });
+  }
+
+  if (canViewModule('categories')) {
+    tabs.push({
+      name: 'AdminCategories',
+      component: AdminCategoriesScreen,
+      label: 'Categorías',
+      icon: 'folder-outline',
+    });
+  }
+
+  if (canViewModule('orders')) {
+    tabs.push({
+      name: 'AdminOrders',
+      component: AdminOrdersScreen,
+      label: 'Pedidos',
+      icon: 'receipt-outline',
+    });
+  }
+
+  if (hasRole('admin') || canViewModule('users')) {
+    tabs.push({
+      name: 'AdminRoles',
+      component: AdminRolesScreen,
+      label: 'Roles',
+      icon: 'shield-outline',
+    });
+  }
+
+  // Si no hay tabs visibles, al menos mostrar dashboard
+  if (tabs.length === 0) {
+    tabs.push({
+      name: 'AdminDashboard',
+      component: AdminDashboardScreen,
+      label: 'Panel',
+      icon: 'grid-outline',
+    });
+  }
+
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
@@ -85,17 +146,13 @@ const AdminTabs = () => {
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({color, size}) => {
-          const icons = {
-            AdminDashboard: 'grid-outline',
-            AdminProducts: 'pricetag-outline',
-            AdminOrders: 'receipt-outline',
-          };
-          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
+          const tab = tabs.find(t => t.name === route.name);
+          return <Icon name={tab?.icon || 'circle-outline'} size={size} color={color} />;
         },
       })}>
-      <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{tabBarLabel: 'Dashboard'}} />
-      <Tab.Screen name="AdminProducts" component={AdminProductsScreen} options={{tabBarLabel: 'Productos'}} />
-      <Tab.Screen name="AdminOrders" component={AdminOrdersScreen} options={{tabBarLabel: 'Pedidos'}} />
+      {tabs.map(tab => (
+        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={{tabBarLabel: tab.label}} />
+      ))}
     </Tab.Navigator>
   );
 };
@@ -109,7 +166,10 @@ const LoadingScreen = () => (
 
 // Navegación principal
 const AppNavigator = () => {
-  const {isLoading, isAuthenticated, isAdmin} = useAuth();
+  const {isLoading, isAuthenticated, isAdmin, hasRole} = useAuth();
+
+  // Verificar si el usuario tiene algún permiso de admin (o rol admin)
+  const isStaff = hasRole('admin') || hasRole('editor');
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -128,11 +188,10 @@ const AppNavigator = () => {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
-      ) : isAdmin ? (
-        // Admin: Dashboard + CRUDs
+      ) : isStaff ? (
+        // Staff (admin/editor): Panel + CRUDs con permisos
         <>
           <Stack.Screen name="AdminMainTabs" component={AdminTabs} />
-          <Stack.Screen name="AdminCategories" component={AdminCategoriesScreen} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
         </>
       ) : (

@@ -70,7 +70,6 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({children}) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Persistir sesión
   const saveSession = useCallback(async (data) => {
     try {
       await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(data));
@@ -209,8 +208,15 @@ export const AuthProvider = ({children}) => {
 
       const profile = await api.get('/auth/me');
       dispatch({type: ACTIONS.SET_USER, payload: profile});
+
+      // Actualizar sesión persistida
+      await saveSession({
+        user: profile,
+        token: state.token,
+        refreshToken: state.refreshToken,
+      });
     } catch {}
-  }, []);
+  }, [state.token, state.refreshToken, saveSession]);
 
   // Actualizar token en headers del apiService
   useEffect(() => {
@@ -221,6 +227,35 @@ export const AuthProvider = ({children}) => {
     }
   }, [state.token]);
 
+  // ─── Helpers de permisos ───────────────────────────────────────────────────
+
+  const permissionCodes = state.user?.permissions?.map(p => p.code) || [];
+  const roleNames = state.user?.roles?.map(r => r.name) || [];
+
+  const hasPermission = useCallback((code) => {
+    return permissionCodes.includes(code);
+  }, [permissionCodes]);
+
+  const hasAnyPermission = useCallback((codes) => {
+    return codes.some(c => permissionCodes.includes(c));
+  }, [permissionCodes]);
+
+  const hasRole = useCallback((roleName) => {
+    return roleNames.includes(roleName);
+  }, [roleNames]);
+
+  const isAdmin = roleNames.includes('admin');
+
+  // Obtener permisos de un módulo específico
+  const getModulePermissions = useCallback((moduleName) => {
+    return permissionCodes.filter(code => code.startsWith(`${moduleName}.`));
+  }, [permissionCodes]);
+
+  // Verificar si puede ver un módulo en el menú
+  const canViewModule = useCallback((moduleName) => {
+    return permissionCodes.includes(`${moduleName}.view_menu`);
+  }, [permissionCodes]);
+
   const value = {
     ...state,
     login,
@@ -228,7 +263,12 @@ export const AuthProvider = ({children}) => {
     logout,
     refreshAccessToken,
     fetchProfile,
-    isAdmin: state.user?.role === 'admin',
+    isAdmin,
+    hasPermission,
+    hasAnyPermission,
+    hasRole,
+    getModulePermissions,
+    canViewModule,
     clearError: () => dispatch({type: ACTIONS.CLEAR_ERROR}),
   };
 

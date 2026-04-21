@@ -83,7 +83,7 @@ const createApiClient = async () => {
   return client;
 };
 
-// ==================== ENDPOINTS ====================
+// ==================== ENDPOINTS PÚBLICOS ====================
 
 const fetchProducts = async (params = {}) => {
   const api = await createApiClient();
@@ -196,6 +196,62 @@ const fetchDashboard = async () => {
   return api.get('/orders/stats/dashboard');
 };
 
+// ==================== ROLES Y PERMISOS ====================
+
+const fetchPermissions = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/auth/permissions');
+};
+
+const fetchRoles = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/auth/roles');
+};
+
+const createRole = async (roleData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/auth/roles', roleData);
+};
+
+const updateRole = async (roleId, roleData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/auth/roles/${roleId}`, roleData);
+};
+
+const deleteRole = async (roleId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/auth/roles/${roleId}`);
+};
+
+const fetchUsers = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/auth/users', {params});
+};
+
+const updateUserRoles = async (userId, roleIds) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/auth/users/${userId}/roles`, {roleIds});
+};
+
+const grantUserPermission = async (userId, permissionId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post(`/auth/users/${userId}/permissions`, {permissionId});
+};
+
+const revokeUserPermission = async (userId, permissionId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/auth/users/${userId}/permissions/${permissionId}`);
+};
+
 const apiService = {
   getApiConfig,
   saveApiConfig,
@@ -218,6 +274,16 @@ const apiService = {
   updateOrderStatus,
   cancelOrder,
   fetchDashboard,
+  // Roles y permisos
+  fetchPermissions,
+  fetchRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  fetchUsers,
+  updateUserRoles,
+  grantUserPermission,
+  revokeUserPermission,
 };
 
 export default apiService;

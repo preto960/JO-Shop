@@ -16,42 +16,25 @@ import apiService from '@services/api';
 import { formatPrice } from '@utils/helpers';
 import theme from '@theme/styles';
 
-const COLORS = {
-  accent: '#E94560',
-  success: '#2ECC71',
-  text: '#2C3E50',
-  textSecondary: '#7F8C8D',
-  background: '#F8F9FA',
-  card: '#FFFFFF',
-  border: '#E8ECEF',
-  inputBg: '#F0F2F5',
-  pending: '#F39C12',
-  confirmed: '#3498DB',
-  preparing: '#9B59B6',
-  shipped: '#1ABC9C',
-  delivered: '#2ECC71',
-  cancelled: '#E74C3C',
-};
-
 const STATUS_TABS = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'preparing', label: 'Preparing' },
-  { key: 'shipped', label: 'Shipped' },
-  { key: 'delivered', label: 'Delivered' },
-  { key: 'cancelled', label: 'Cancelled' },
+  { key: 'all', label: 'Todos' },
+  { key: 'pending', label: 'Pendientes' },
+  { key: 'confirmed', label: 'Confirmados' },
+  { key: 'preparing', label: 'Preparando' },
+  { key: 'shipped', label: 'Enviados' },
+  { key: 'delivered', label: 'Entregados' },
+  { key: 'cancelled', label: 'Cancelados' },
 ];
 
 const STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'shipped', 'delivered'];
 
 const STATUS_CONFIG = {
-  pending: { label: 'Pending', color: COLORS.pending, icon: 'time-outline' },
-  confirmed: { label: 'Confirmed', color: COLORS.confirmed, icon: 'checkmark-circle-outline' },
-  preparing: { label: 'Preparing', color: COLORS.preparing, icon: 'restaurant-outline' },
-  shipped: { label: 'Shipped', color: COLORS.shipped, icon: 'bicycle-outline' },
-  delivered: { label: 'Delivered', color: COLORS.delivered, icon: 'checkmark-done-outline' },
-  cancelled: { label: 'Cancelled', color: COLORS.cancelled, icon: 'close-circle-outline' },
+  pending: { label: 'Pendiente', color: theme.colors.warning, icon: 'time-outline' },
+  confirmed: { label: 'Confirmado', color: '#3498DB', icon: 'checkmark-circle-outline' },
+  preparing: { label: 'Preparando', color: '#9B59B6', icon: 'restaurant-outline' },
+  shipped: { label: 'Enviado', color: '#1ABC9C', icon: 'bicycle-outline' },
+  delivered: { label: 'Entregado', color: theme.colors.success, icon: 'checkmark-done-outline' },
+  cancelled: { label: 'Cancelado', color: theme.colors.accent, icon: 'close-circle-outline' },
 };
 
 const formatDate = (dateStr) => {
@@ -113,7 +96,7 @@ const AdminOrdersScreen = () => {
           setHasMore(response.data.length >= 20);
         }
       } catch (err) {
-        setError(err?.message || 'Failed to load orders. Please try again.');
+        setError(err?.message || 'Error al cargar pedidos. Intenta de nuevo.');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -181,7 +164,7 @@ const AdminOrdersScreen = () => {
       );
       setStatusModalVisible(false);
     } catch (err) {
-      setError(err?.message || 'Failed to update order status.');
+      setError(err?.message || 'Error al actualizar estado del pedido.');
     } finally {
       setUpdatingStatus(false);
     }
@@ -202,9 +185,9 @@ const AdminOrdersScreen = () => {
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
-          <Icon name="arrow-back" size={24} color={COLORS.text} />
+          <Icon name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Orders Management</Text>
+        <Text style={styles.headerTitle}>Gestión de Pedidos</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -277,32 +260,32 @@ const AdminOrdersScreen = () => {
 
         <View style={styles.orderCardBody}>
           <View style={styles.orderInfoRow}>
-            <Icon name="person-outline" size={16} color={COLORS.textSecondary} />
+            <Icon name="person-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.orderInfoText} numberOfLines={1}>
               {item.customerName}
             </Text>
           </View>
 
           <View style={styles.orderInfoRow}>
-            <Icon name="call-outline" size={16} color={COLORS.textSecondary} />
+            <Icon name="call-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.orderInfoText} numberOfLines={1}>
               {item.customerPhone}
             </Text>
           </View>
 
           <View style={styles.orderInfoRow}>
-            <Icon name="location-outline" size={16} color={COLORS.textSecondary} />
+            <Icon name="location-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.orderInfoText} numberOfLines={1}>
-              {item.customerAddr}
+              {item.customerAddr || 'Sin dirección'}
             </Text>
           </View>
         </View>
 
         <View style={styles.orderCardFooter}>
           <View style={styles.itemsCountContainer}>
-            <Icon name="cube-outline" size={14} color={COLORS.textSecondary} />
+            <Icon name="cube-outline" size={14} color={theme.colors.textSecondary} />
             <Text style={styles.itemsCountText}>
-              {item.totalItems} {item.totalItems === 1 ? 'item' : 'items'}
+              {item.totalItems} producto{item.totalItems !== 1 ? 's' : ''}
             </Text>
           </View>
           <Text style={styles.orderTotalText}>{formatPrice(item.total)}</Text>
@@ -322,7 +305,7 @@ const AdminOrdersScreen = () => {
         visible={!!selectedOrder}
         animationType="slide"
         transparent={false}
-        onRequestRequestClose={handleCloseDetail}
+        onRequestClose={handleCloseDetail}
       >
         <SafeAreaView style={styles.detailContainer} edges={['top']}>
           <View style={styles.detailHeader}>
@@ -331,15 +314,15 @@ const AdminOrdersScreen = () => {
               onPress={handleCloseDetail}
               activeOpacity={0.7}
             >
-              <Icon name="close" size={24} color={COLORS.text} />
+              <Icon name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
-            <Text style={styles.detailTitle}>Order Details</Text>
+            <Text style={styles.detailTitle}>Detalle del Pedido</Text>
             <TouchableOpacity
               style={styles.detailEditButton}
               onPress={handleOpenStatusModal}
               activeOpacity={0.7}
             >
-              <Text style={styles.detailEditButtonText}>Update</Text>
+              <Text style={styles.detailEditButtonText}>Actualizar</Text>
             </TouchableOpacity>
           </View>
 
@@ -358,32 +341,32 @@ const AdminOrdersScreen = () => {
                 <Icon name={statusInfo.icon} size={22} color="#FFFFFF" />
                 <Text style={styles.detailStatusText}>{statusInfo.label}</Text>
               </View>
-              <Text style={styles.detailOrderId}>Order #{selectedOrder.id}</Text>
+              <Text style={styles.detailOrderId}>Pedido #{selectedOrder.id}</Text>
               <Text style={styles.detailDate}>{formatDate(selectedOrder.createdAt)}</Text>
             </View>
 
             <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Customer Info</Text>
+              <Text style={styles.detailSectionTitle}>Datos del Cliente</Text>
               <View style={styles.detailInfoCard}>
                 <View style={styles.detailInfoRow}>
-                  <Icon name="person-outline" size={18} color={COLORS.textSecondary} />
+                  <Icon name="person-outline" size={18} color={theme.colors.textSecondary} />
                   <Text style={styles.detailInfoText}>{selectedOrder.customerName}</Text>
                 </View>
                 <View style={styles.detailInfoRow}>
-                  <Icon name="call-outline" size={18} color={COLORS.textSecondary} />
+                  <Icon name="call-outline" size={18} color={theme.colors.textSecondary} />
                   <Text style={styles.detailInfoText}>{selectedOrder.customerPhone}</Text>
                 </View>
                 <View style={styles.detailInfoRow}>
-                  <Icon name="location-outline" size={18} color={COLORS.textSecondary} />
+                  <Icon name="location-outline" size={18} color={theme.colors.textSecondary} />
                   <Text style={[styles.detailInfoText, styles.detailAddrText]}>
-                    {selectedOrder.customerAddr}
+                    {selectedOrder.customerAddr || 'Sin dirección'}
                   </Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.detailSection}>
-              <Text style={styles.detailSectionTitle}>Items ({selectedOrder.items?.length || 0})</Text>
+              <Text style={styles.detailSectionTitle}>Productos ({selectedOrder.items?.length || 0})</Text>
               <View style={styles.detailItemsCard}>
                 {(selectedOrder.items || []).map((item, index) => (
                   <View key={index} style={styles.detailItemRow}>
@@ -416,8 +399,8 @@ const AdminOrdersScreen = () => {
               disabled={selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
               activeOpacity={0.7}
             >
-              <Icon name="close-circle-outline" size={20} color={COLORS.cancelled} />
-              <Text style={styles.detailCancelBtnText}>Cancel Order</Text>
+              <Icon name="close-circle-outline" size={20} color={theme.colors.accent} />
+              <Text style={styles.detailCancelBtnText}>Cancelar Pedido</Text>
             </TouchableOpacity>
 
             {nextStatuses.length > 0 && (
@@ -433,7 +416,7 @@ const AdminOrdersScreen = () => {
                   <Icon name="arrow-forward-outline" size={20} color="#FFFFFF" />
                 )}
                 <Text style={styles.detailNextStatusBtnText}>
-                  Mark as {STATUS_CONFIG[nextStatuses[0]]?.label || nextStatuses[0]}
+                  Marcar como {STATUS_CONFIG[nextStatuses[0]]?.label || nextStatuses[0]}
                 </Text>
               </TouchableOpacity>
             )}
@@ -464,10 +447,10 @@ const AdminOrdersScreen = () => {
           <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHandle} />
 
-            <Text style={styles.modalTitle}>Update Order Status</Text>
+            <Text style={styles.modalTitle}>Actualizar Estado del Pedido</Text>
 
             <View style={styles.modalCurrentStatus}>
-              <Text style={styles.modalCurrentLabel}>Current Status</Text>
+              <Text style={styles.modalCurrentLabel}>Estado actual</Text>
               <View
                 style={[
                   styles.statusBadge,
@@ -481,7 +464,7 @@ const AdminOrdersScreen = () => {
               </View>
             </View>
 
-            <Text style={styles.modalActionsLabel}>Change to</Text>
+            <Text style={styles.modalActionsLabel}>Cambiar a</Text>
 
             <View style={styles.modalActionsGrid}>
               {nextStatuses.map((statusKey) => {
@@ -509,7 +492,7 @@ const AdminOrdersScreen = () => {
 
               {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
                 <TouchableOpacity
-                  style={[styles.modalActionBtn, { borderColor: COLORS.cancelled + '40' }]}
+                  style={[styles.modalActionBtn, { borderColor: theme.colors.accent + '40' }]}
                   onPress={() => handleUpdateStatus('cancelled')}
                   disabled={updatingStatus}
                   activeOpacity={0.7}
@@ -517,13 +500,13 @@ const AdminOrdersScreen = () => {
                   <View
                     style={[
                       styles.modalActionIcon,
-                      { backgroundColor: COLORS.cancelled + '15' },
+                      { backgroundColor: theme.colors.accent + '15' },
                     ]}
                   >
-                    <Icon name="close-circle-outline" size={20} color={COLORS.cancelled} />
+                    <Icon name="close-circle-outline" size={20} color={theme.colors.accent} />
                   </View>
-                  <Text style={[styles.modalActionLabel, { color: COLORS.cancelled }]}>
-                    Cancel
+                  <Text style={[styles.modalActionLabel, { color: theme.colors.accent }]}>
+                    Cancelar
                   </Text>
                 </TouchableOpacity>
               )}
@@ -531,8 +514,8 @@ const AdminOrdersScreen = () => {
 
             {updatingStatus && (
               <View style={styles.modalLoading}>
-                <ActivityIndicator size="small" color={COLORS.accent} />
-                <Text style={styles.modalLoadingText}>Updating status...</Text>
+                <ActivityIndicator size="small" color={theme.colors.accent} />
+                <Text style={styles.modalLoadingText}>Actualizando estado...</Text>
               </View>
             )}
 
@@ -541,7 +524,7 @@ const AdminOrdersScreen = () => {
               onPress={handleCloseStatusModal}
               activeOpacity={0.7}
             >
-              <Text style={styles.modalCloseBtnText}>Close</Text>
+              <Text style={styles.modalCloseBtnText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -551,28 +534,28 @@ const AdminOrdersScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="receipt-outline" size={64} color={COLORS.border} />
-      <Text style={styles.emptyTitle}>No orders found</Text>
+      <Icon name="receipt-outline" size={64} color={theme.colors.border} />
+      <Text style={styles.emptyTitle}>No hay pedidos</Text>
       <Text style={styles.emptySubtitle}>
         {activeTab === 'all'
-          ? 'There are no orders yet.'
-          : `No ${activeTab} orders at the moment.`}
+          ? 'Aún no hay pedidos registrados.'
+          : `No hay pedidos ${STATUS_CONFIG[activeTab]?.label?.toLowerCase() || ''} en este momento.`}
       </Text>
       <TouchableOpacity style={styles.emptyRetryBtn} onPress={onRefresh} activeOpacity={0.7}>
-        <Icon name="refresh" size={18} color={COLORS.accent} />
-        <Text style={styles.emptyRetryBtnText}>Refresh</Text>
+        <Icon name="refresh" size={18} color={theme.colors.accent} />
+        <Text style={styles.emptyRetryBtnText}>Actualizar</Text>
       </TouchableOpacity>
     </View>
   );
 
   const renderErrorState = () => (
     <View style={styles.errorContainer}>
-      <Icon name="alert-circle-outline" size={64} color={COLORS.cancelled} />
-      <Text style={styles.errorTitle}>Something went wrong</Text>
+      <Icon name="alert-circle-outline" size={64} color={theme.colors.accent} />
+      <Text style={styles.errorTitle}>Algo salió mal</Text>
       <Text style={styles.errorSubtitle}>{error}</Text>
       <TouchableOpacity style={styles.errorRetryBtn} onPress={onRefresh} activeOpacity={0.7}>
         <Icon name="refresh" size={18} color="#FFFFFF" />
-        <Text style={styles.errorRetryBtnText}>Try Again</Text>
+        <Text style={styles.errorRetryBtnText}>Reintentar</Text>
       </TouchableOpacity>
     </View>
   );
@@ -582,8 +565,8 @@ const AdminOrdersScreen = () => {
       <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         {renderHeader()}
         <View style={styles.fullLoader}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
-          <Text style={styles.loadingText}>Loading orders...</Text>
+          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <Text style={styles.loadingText}>Cargando pedidos...</Text>
         </View>
       </SafeAreaView>
     );
@@ -606,8 +589,8 @@ const AdminOrdersScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={COLORS.accent}
-            colors={[COLORS.accent]}
+            tintColor={theme.colors.accent}
+            colors={[theme.colors.accent]}
           />
         }
         onEndReached={handleLoadMore}
@@ -615,8 +598,8 @@ const AdminOrdersScreen = () => {
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadMoreContainer}>
-              <ActivityIndicator size="small" color={COLORS.accent} />
-              <Text style={styles.loadMoreText}>Loading more orders...</Text>
+              <ActivityIndicator size="small" color={theme.colors.accent} />
+              <Text style={styles.loadMoreText}>Cargando más pedidos...</Text>
             </View>
           ) : null
         }
@@ -629,14 +612,14 @@ const AdminOrdersScreen = () => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.colors.background,
   },
   fullLoader: {
     flex: 1,
@@ -646,7 +629,7 @@ const styles = {
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -654,28 +637,28 @@ const styles = {
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: theme.colors.inputBg,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   headerSpacer: {
     width: 40,
   },
   filterTabsContainer: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.colors.border,
   },
   filterTabsScroll: {
     paddingHorizontal: 16,
@@ -688,16 +671,16 @@ const styles = {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: theme.colors.inputBg,
     gap: 6,
   },
   filterTabActive: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.colors.accent,
   },
   filterTabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   filterTabLabelActive: {
     color: '#FFFFFF',
@@ -721,10 +704,10 @@ const styles = {
     flex: 1,
   },
   orderCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     overflow: 'hidden',
   },
   orderCardHeader: {
@@ -735,7 +718,7 @@ const styles = {
     paddingTop: 14,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.colors.border,
   },
   orderIdContainer: {
     gap: 2,
@@ -743,11 +726,11 @@ const styles = {
   orderIdLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   orderDateText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -773,7 +756,7 @@ const styles = {
   },
   orderInfoText: {
     fontSize: 13,
-    color: COLORS.text,
+    color: theme.colors.text,
     flex: 1,
   },
   orderCardFooter: {
@@ -784,7 +767,7 @@ const styles = {
     paddingTop: 10,
     paddingBottom: 14,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: theme.colors.border,
   },
   itemsCountContainer: {
     flexDirection: 'row',
@@ -793,12 +776,12 @@ const styles = {
   },
   itemsCountText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   orderTotalText: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.colors.accent,
   },
   loadMoreContainer: {
     flexDirection: 'row',
@@ -809,7 +792,7 @@ const styles = {
   },
   loadMoreText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
@@ -821,12 +804,12 @@ const styles = {
     marginTop: 16,
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   emptySubtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     maxWidth: 240,
   },
@@ -838,12 +821,12 @@ const styles = {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: COLORS.accent + '12',
+    backgroundColor: theme.colors.accent + '12',
   },
   emptyRetryBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.accent,
+    color: theme.colors.accent,
   },
   errorContainer: {
     flex: 1,
@@ -855,12 +838,12 @@ const styles = {
     marginTop: 16,
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   errorSubtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     maxWidth: 280,
   },
@@ -872,7 +855,7 @@ const styles = {
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.colors.accent,
   },
   errorRetryBtnText: {
     fontSize: 14,
@@ -881,7 +864,7 @@ const styles = {
   },
   detailContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.colors.background,
   },
   detailHeader: {
     flexDirection: 'row',
@@ -889,28 +872,28 @@ const styles = {
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.colors.border,
   },
   detailCloseButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: theme.colors.inputBg,
     justifyContent: 'center',
     alignItems: 'center',
   },
   detailTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   detailEditButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.colors.accent,
   },
   detailEditButtonText: {
     fontSize: 13,
@@ -926,10 +909,10 @@ const styles = {
     paddingBottom: 100,
   },
   detailStatusCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     padding: 16,
     alignItems: 'center',
     gap: 8,
@@ -950,11 +933,11 @@ const styles = {
   detailOrderId: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   detailDate: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   detailSection: {
     gap: 8,
@@ -962,14 +945,14 @@ const styles = {
   detailSectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.text,
+    color: theme.colors.text,
     paddingHorizontal: 4,
   },
   detailInfoCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     padding: 14,
     gap: 10,
   },
@@ -980,17 +963,17 @@ const styles = {
   },
   detailInfoText: {
     fontSize: 14,
-    color: COLORS.text,
+    color: theme.colors.text,
     flex: 1,
   },
   detailAddrText: {
     flexWrap: 'wrap',
   },
   detailItemsCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     overflow: 'hidden',
   },
   detailItemRow: {
@@ -1000,7 +983,7 @@ const styles = {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.colors.border,
   },
   detailItemInfo: {
     flex: 1,
@@ -1010,36 +993,36 @@ const styles = {
   detailItemName: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   detailItemMeta: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   detailItemSubtotal: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   detailTotalCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     padding: 16,
   },
   detailTotalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
   },
   detailTotalValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: theme.colors.accent,
   },
   detailFooter: {
     position: 'absolute',
@@ -1049,11 +1032,11 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: theme.colors.border,
     gap: 12,
   },
   detailCancelBtn: {
@@ -1063,14 +1046,14 @@ const styles = {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: COLORS.cancelled + '12',
+    backgroundColor: theme.colors.accent + '12',
     flex: 1,
     justifyContent: 'center',
   },
   detailCancelBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.cancelled,
+    color: theme.colors.accent,
   },
   detailNextStatusBtn: {
     flexDirection: 'row',
@@ -1079,7 +1062,7 @@ const styles = {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: COLORS.accent,
+    backgroundColor: theme.colors.accent,
     flex: 1,
     justifyContent: 'center',
   },
@@ -1094,7 +1077,7 @@ const styles = {
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: theme.colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -1104,14 +1087,14 @@ const styles = {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.border,
+    backgroundColor: theme.colors.border,
     alignSelf: 'center',
     marginBottom: 16,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
+    color: theme.colors.text,
     marginBottom: 16,
   },
   modalCurrentStatus: {
@@ -1122,12 +1105,12 @@ const styles = {
   },
   modalCurrentLabel: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   modalActionsLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   modalActionsGrid: {
@@ -1143,7 +1126,7 @@ const styles = {
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1.5,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.colors.background,
     flex: 1,
     minWidth: '45%',
   },
@@ -1167,20 +1150,20 @@ const styles = {
   },
   modalLoadingText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   modalCloseBtn: {
     marginTop: 16,
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: theme.colors.inputBg,
   },
   modalCloseBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
-};
+});
 
 export default AdminOrdersScreen;
