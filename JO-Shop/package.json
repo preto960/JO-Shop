@@ -21,7 +21,9 @@
     "react-native-screens": "3.29.0",
     "react-native-vector-icons": "10.0.3",
     "react-native-maps": "1.14.0",
-    "react-native-webview": "^13.16.1"
+    "react-native-webview": "^13.16.1",
+    "@react-native-firebase/app": "18.8.0",
+    "@react-native-firebase/messaging": "18.8.0"
   },
   "devDependencies": {
     "@babel/core": "7.24.5",
