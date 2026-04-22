@@ -35,7 +35,16 @@ const LoginScreen = ({navigation}) => {
 
     const result = await login(email.trim().toLowerCase(), password);
     if (!result.success) {
-      setLocalError(result.error);
+      if (result.requiresOtp) {
+        // Redirigir a verificación 2FA
+        navigation.navigate('Verification', {
+          email: result.email,
+          type: 'login',
+          otpCode: result.otpCode,
+        });
+      } else {
+        setLocalError(result.error);
+      }
     }
   };
 

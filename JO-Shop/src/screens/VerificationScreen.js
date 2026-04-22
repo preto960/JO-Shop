@@ -12,13 +12,15 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
+import {useAuth} from '@context/AuthContext';
 import theme from '@theme/styles';
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
 
 const VerificationScreen = ({route, navigation}) => {
-  const {email, type = 'login', user, token, refreshToken, onComplete} = route.params || {};
+  const {email, type = 'login', user, token, refreshToken, otpCode, onComplete} = route.params || {};
+  const {loginWithOtp} = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -51,10 +53,24 @@ const VerificationScreen = ({route, navigation}) => {
     setTimeout(() => inputRefs.current[0]?.focus(), 300);
   }, []);
 
-  // Generar OTP al montar
+  // Generar OTP al montar (solo para tipos que no son login, ya que el login envía el OTP)
   useEffect(() => {
-    handleGenerateOtp();
+    if (type !== 'login') {
+      handleGenerateOtp();
+    }
   }, []);
+
+  // Auto-rellenar OTP en modo desarrollo
+  useEffect(() => {
+    if (otpCode && type === 'login') {
+      const codeStr = String(otpCode);
+      const newOtp = ['' , '', '', '', '', ''];
+      for (let i = 0; i < codeStr.length && i < OTP_LENGTH; i++) {
+        newOtp[i] = codeStr[i];
+      }
+      setOtp(newOtp);
+    }
+  }, [otpCode, type]);
 
   const handleGenerateOtp = useCallback(async () => {
     if (!displayEmail) return;
@@ -131,19 +147,30 @@ const VerificationScreen = ({route, navigation}) => {
 
     setLoading(true);
     try {
-      const api = await apiService.createApiClient();
-      await api.post('/auth/otp/verify', {
-        email: displayEmail,
-        code,
-        type: type || 'login',
-      });
+      if (type === 'login') {
+        // Flujo de login: verificar OTP via loginWithOtp
+        const result = await loginWithOtp(displayEmail, code);
+        if (!result.success) {
+          Alert.alert('Error', result.error || 'Error al verificar el código');
+          if (mountedRef.current) setLoading(false);
+          return;
+        }
+        // Login exitoso: el estado de autenticación cambia y AppNavigator redirige automáticamente
+      } else {
+        // Flujo de registro / reset: verificar OTP via endpoint general
+        const api = await apiService.createApiClient();
+        await api.post('/auth/otp/verify', {
+          email: displayEmail,
+          code,
+          type: type || 'login',
+        });
 
-      // Verificacion exitosa
-      if (onComplete) {
-        onComplete();
-      } else if (navigation) {
-        // Volver con resultado de verificacion
-        navigation.navigate('Login', {verified: true});
+        // Verificacion exitosa
+        if (onComplete) {
+          onComplete();
+        } else if (navigation) {
+          navigation.navigate('Login', {verified: true});
+        }
       }
     } catch (err) {
       const errorMessage = err.response?.data?.error || err.message || 'Error al verificar el codigo';

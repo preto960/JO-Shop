@@ -54,16 +54,19 @@ dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "com.facebook.react:react-android:+"
     implementation "com.facebook.react:hermes-android:+"
-    implementation platform('com.google.firebase:firebase-bom:33.1.2')
-    implementation 'com.google.firebase:firebase-messaging'
 }
 
 // Auto-linking: genera PackageList.java automáticamente
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle");
 applyNativeModulesAppBuildGradle(project)
 
-// Google Services (Firebase)
-apply plugin: 'com.google.gms.google-services'
+// NOTA: Firebase se habilitara cuando configures tu proyecto de Firebase.
+// Para habilitar notificaciones push:
+// 1. Crea un proyecto en https://console.firebase.google.com
+// 2. Agrega una app Android con package name "com.joshop"
+// 3. Descarga google-services.json y colocalo en android/app/
+// 4. Descomenta las lineas de Firebase abajo
+// apply plugin: 'com.google.gms.google-services'
 
 // react-native-vector-icons: copy font files to assets/fonts
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle");

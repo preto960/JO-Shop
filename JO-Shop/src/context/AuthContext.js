@@ -120,6 +120,18 @@ export const AuthProvider = ({children}) => {
       }
 
       const response = await api.post('/auth/login', {email, password});
+
+      // Verificar si se requiere 2FA (OTP)
+      if (response.requiresOtp) {
+        dispatch({type: ACTIONS.SET_LOADING, payload: false});
+        return {
+          success: false,
+          requiresOtp: true,
+          email: response.email,
+          otpCode: response.code,
+        };
+      }
+
       const {user, token, refreshToken} = response;
 
       await saveSession({user, token, refreshToken});
@@ -132,6 +144,38 @@ export const AuthProvider = ({children}) => {
       return {success: true};
     } catch (err) {
       const message = err.response?.data?.error || err.message || 'Error al iniciar sesión';
+      dispatch({type: ACTIONS.SET_ERROR, payload: message});
+      return {success: false, error: message};
+    }
+  }, [saveSession]);
+
+  // Login con OTP (2FA)
+  const loginWithOtp = useCallback(async (email, otpCode) => {
+    try {
+      dispatch({type: ACTIONS.SET_LOADING, payload: true});
+      dispatch({type: ACTIONS.CLEAR_ERROR});
+
+      const api = await apiService.createApiClient();
+      if (!api) {
+        throw new Error('Configura la URL del servidor en Ajustes');
+      }
+
+      const response = await api.post('/auth/login-verify', {
+        email,
+        code: otpCode,
+      });
+      const {user, token, refreshToken} = response;
+
+      await saveSession({user, token, refreshToken});
+
+      dispatch({
+        type: ACTIONS.LOGIN,
+        payload: {user, token, refreshToken},
+      });
+
+      return {success: true};
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'Error al verificar el código';
       dispatch({type: ACTIONS.SET_ERROR, payload: message});
       return {success: false, error: message};
     }
@@ -287,6 +331,7 @@ export const AuthProvider = ({children}) => {
   const value = {
     ...state,
     login,
+    loginWithOtp,
     register,
     logout,
     refreshAccessToken,
