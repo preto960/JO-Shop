@@ -165,3 +165,29 @@ Stage Summary:
 - ConfirmModal used consistently across all screens
 - Map now opens inline in the app via WebView instead of external Google Maps
 - User needs to run: npx pod-install (iOS) and rebuild the app for the webview changes
+---
+Task ID: 1
+Agent: main
+Task: Colocar logos en carpetas Android mipmap + implementar notificaciones push
+
+Work Log:
+- Generado iconos JO-Shop en todas las densidades (mdpi 48px, hdpi 72px, xhdpi 96px, xxhdpi 144px, xxxhdpi 192px)
+- Creado iconos redondos (ic_launcher_round) para cada densidad
+- Generado foreground PNG para adaptive icon (432x432px)
+- Actualizado XML de adaptive icon para usar PNG foreground
+- Backend: modelo PushToken en Prisma, servicio FCM con firebase-admin
+- Backend: rutas POST/DELETE /notifications/token para registro de device tokens
+- Backend: notificaciones integradas en todos los eventos de ordenes (crear, aceptar, asignar, cambiar estado, cancelar)
+- Frontend: @react-native-firebase/app + messaging v18.8.0
+- Frontend: Google Services plugin en build.gradle, permiso POST_NOTIFICATIONS
+- Frontend: servicio de notificaciones con registro/desregistro de token
+- Frontend: AuthContext registra token al login, desregistra al logout
+- Frontend: App.js NotificationHandler para foreground/background/quit
+
+Stage Summary:
+- Logos colocados en android/app/src/main/res/mipmap-*/ + drawable/ic_launcher_foreground.png
+- 7 archivos modificados en JO-Shop, 6 archivos modificados en JO-backend-shop
+- Todo subido a repositorios (JO-Shop y JO-backend-shop)
+- Falta: google-services.json que el usuario debe obtener de Firebase Console
+- Falta: FIREBASE_SERVICE_ACCOUNT en .env del backend que el usuario debe configurar
+
