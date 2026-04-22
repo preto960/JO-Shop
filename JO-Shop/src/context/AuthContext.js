@@ -1,6 +1,7 @@
-import React, {createContext, useContext, useReducer, useCallback, useEffect} from 'react';
+import React, {createContext, useContext, useReducer, useCallback, useEffect, useRef} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '@services/api';
+import pushNotifications from '@services/notifications';
 
 const AUTH_KEY = '@joshop_auth';
 
@@ -167,6 +168,8 @@ export const AuthProvider = ({children}) => {
 
   // Logout
   const logout = useCallback(async () => {
+    // Desregistrar token FCM antes de cerrar sesion
+    pushNotifications.unregisterPushToken().catch(() => {});
     await clearSession();
     dispatch({type: ACTIONS.LOGOUT});
   }, [clearSession]);
@@ -226,6 +229,31 @@ export const AuthProvider = ({children}) => {
       apiService.setAuthToken(null);
     }
   }, [state.token]);
+
+  // Registrar token FCM al iniciar sesion / restaurar sesion
+  const tokenRegisteredRef = useRef(false);
+  useEffect(() => {
+    if (state.isAuthenticated && !tokenRegisteredRef.current) {
+      tokenRegisteredRef.current = true;
+      // Registrar despues de un breve delay para asegurar que el authToken este configurado
+      const timer = setTimeout(() => {
+        pushNotifications.registerPushToken().catch(() => {});
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+    if (!state.isAuthenticated) {
+      tokenRegisteredRef.current = false;
+    }
+  }, [state.isAuthenticated]);
+
+  // Escuchar refresh del token FCM
+  useEffect(() => {
+    if (!state.isAuthenticated) return;
+    const unsubscribe = pushNotifications.onTokenRefresh((newToken) => {
+      console.log('[Auth] Token FCM refrescado:', newToken?.substring(0, 20) + '...');
+    });
+    return unsubscribe;
+  }, [state.isAuthenticated]);
 
   // ─── Helpers de permisos ───────────────────────────────────────────────────
 
