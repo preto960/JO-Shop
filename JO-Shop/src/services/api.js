@@ -109,6 +109,12 @@ const fetchCategories = async () => {
   return api.get('/categories');
 };
 
+const fetchStores = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/stores', {params: {limit: 50, active: true}});
+};
+
 const searchProducts = async (query, params = {}) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
@@ -338,6 +344,7 @@ const apiService = {
   fetchProductById,
   fetchCategories,
   searchProducts,
+  fetchStores,
   createOrder,
   checkConnection,
   createProduct,
