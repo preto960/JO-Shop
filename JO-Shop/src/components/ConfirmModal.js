@@ -71,7 +71,7 @@ const ConfirmModal = ({
     if (icon) return icon;
     switch (type) {
       case 'danger':
-        return 'alert-triangle';
+        return 'warning';
       case 'alert':
         return 'information-circle';
       default:

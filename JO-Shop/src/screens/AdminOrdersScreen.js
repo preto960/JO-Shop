@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
 import { formatPrice } from '@utils/helpers';
 import theme from '@theme/styles';
+import ConfirmModal from '@components/ConfirmModal';
 
 const STATUS_TABS = [
   { key: 'all', label: 'Todos' },
@@ -68,6 +68,7 @@ const AdminOrdersScreen = () => {
   const [loadingDeliveryUsers, setLoadingDeliveryUsers] = useState(false);
   const [assigningDelivery, setAssigningDelivery] = useState(false);
   const flatListRef = useRef(null);
+  const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
   const fetchOrders = useCallback(
     async (pageNum = 1, isRefresh = false) => {
@@ -181,7 +182,7 @@ const AdminOrdersScreen = () => {
       );
       setAssignModalVisible(false);
     } catch (err) {
-      Alert.alert('Error', err?.message || 'No se pudo asignar el delivery.');
+      setModal({visible: true, type: 'alert', title: 'Error', message: err?.message || 'No se pudo asignar el delivery.', confirmText: 'Aceptar', onConfirm: null});
     } finally {
       setAssigningDelivery(false);
     }
@@ -786,6 +787,18 @@ const AdminOrdersScreen = () => {
       {renderOrderDetail()}
       {renderStatusModal()}
       {renderAssignModal()}
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };

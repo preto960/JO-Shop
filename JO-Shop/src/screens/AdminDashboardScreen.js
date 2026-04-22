@@ -6,7 +6,6 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -15,6 +14,7 @@ import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import ConfirmModal from '@components/ConfirmModal';
 
 const AdminDashboardScreen = () => {
   const navigation = useNavigation();
@@ -22,6 +22,7 @@ const AdminDashboardScreen = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
   const loadDashboard = useCallback(async (isRefresh = false) => {
     try {
@@ -60,14 +61,14 @@ const AdminDashboardScreen = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {text: 'Cerrar sesión', style: 'destructive', onPress: () => logout()},
-      ],
-    );
+    setModal({
+      visible: true,
+      type: 'danger',
+      title: 'Cerrar sesión',
+      message: `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => logout(),
+    });
   };
 
   if (loading) {
@@ -202,6 +203,18 @@ const AdminDashboardScreen = () => {
           )}
         </View>
       </ScrollView>
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };

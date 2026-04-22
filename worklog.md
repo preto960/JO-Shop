@@ -139,3 +139,29 @@ Stage Summary:
 - App changes ready at /home/z/my-project/JO-Shop/
 - User needs: git pull in backend, npx prisma db push, npx prisma db seed
 - App: copy updated files to local JO-Shop project
+
+---
+Task ID: 1
+Agent: Main
+Task: Replace ALL Alert.alert with ConfirmModal + Fix icon error + Inline map
+
+Work Log:
+- Fixed ConfirmModal.js icon: 'alert-triangle' → 'warning' (invalid Ionicons name)
+- Replaced 39 Alert.alert calls across 7 files with ConfirmModal:
+  - ProfileScreen.js: 11 calls (profile CRUD, addresses, logout)
+  - SettingsScreen.js: 5 calls (URL config validations)
+  - AdminUsersScreen.js: 12 calls (user management, roles, permissions, logout)
+  - AdminProductsScreen.js: 6 calls (product CRUD, toggle, logout)
+  - AdminCategoriesScreen.js: 3 calls (category CRUD)
+  - AdminDashboardScreen.js: 1 call (logout)
+  - AdminOrdersScreen.js: 1 call (delivery assignment error)
+- Cleaned up unused Alert imports in 3 additional files (ProductCard, ProductDetailScreen, AdminRolesScreen)
+- Added inline map modal to DeliveryOrdersScreen using react-native-webview (WebView with embedded Google Maps)
+- Installed react-native-webview v13.16.1
+
+Stage Summary:
+- Zero Alert.alert calls remain in the entire app
+- Zero unused Alert imports remain
+- ConfirmModal used consistently across all screens
+- Map now opens inline in the app via WebView instead of external Google Maps
+- User needs to run: npx pod-install (iOS) and rebuild the app for the webview changes

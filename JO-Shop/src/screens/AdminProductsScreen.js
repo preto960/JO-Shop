@@ -11,7 +11,6 @@ import {
   Switch,
   StyleSheet,
   RefreshControl,
-  Alert,
   Image,
   Platform,
 } from 'react-native';
@@ -22,6 +21,7 @@ import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import ConfirmModal from '@components/ConfirmModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_LIMIT = 20;
@@ -63,6 +63,9 @@ const AdminProductsScreen = () => {
   const [form, setForm] = useState(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState(EMPTY_FORM_ERRORS);
   const [submitting, setSubmitting] = useState(false);
+
+  // Confirm modal
+  const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
   // Category picker
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
@@ -263,7 +266,7 @@ const AdminProductsScreen = () => {
       closeModal();
       loadProducts(1, true);
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo guardar el producto');
+      setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo guardar el producto', confirmText: 'Aceptar', onConfirm: null});
     } finally {
       setSubmitting(false);
     }
@@ -273,25 +276,21 @@ const AdminProductsScreen = () => {
 
   const handleDelete = useCallback(
     product => {
-      Alert.alert(
-        'Eliminar producto',
-        `¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await apiService.deleteProduct(product.id);
-                setProducts(prev => prev.filter(p => p.id !== product.id));
-              } catch (err) {
-                Alert.alert('Error', err.message || 'No se pudo eliminar el producto');
-              }
-            },
-          },
-        ],
-      );
+      setModal({
+        visible: true,
+        type: 'danger',
+        title: 'Eliminar producto',
+        message: `¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`,
+        confirmText: 'Eliminar',
+        onConfirm: async () => {
+          try {
+            await apiService.deleteProduct(product.id);
+            setProducts(prev => prev.filter(p => p.id !== product.id));
+          } catch (err) {
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo eliminar el producto', confirmText: 'Aceptar', onConfirm: null});
+          }
+        },
+      });
     },
     [],
   );
@@ -303,28 +302,25 @@ const AdminProductsScreen = () => {
       const newStatus = !product.active;
       const label = newStatus ? 'activar' : 'desactivar';
 
-      Alert.alert(
-        `${newStatus ? 'Activar' : 'Desactivar'} producto`,
-        `¿Deseas ${label} "${product.name}"?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: newStatus ? 'Activar' : 'Desactivar',
-            onPress: async () => {
-              try {
-                await apiService.updateProduct(product.id, {active: newStatus});
-                setProducts(prev =>
-                  prev.map(p =>
-                    p.id === product.id ? {...p, active: newStatus} : p,
-                  ),
-                );
-              } catch (err) {
-                Alert.alert('Error', err.message || 'No se pudo actualizar el producto');
-              }
-            },
-          },
-        ],
-      );
+      setModal({
+        visible: true,
+        type: 'confirm',
+        title: `${newStatus ? 'Activar' : 'Desactivar'} producto`,
+        message: `¿Deseas ${label} "${product.name}"?`,
+        confirmText: newStatus ? 'Activar' : 'Desactivar',
+        onConfirm: async () => {
+          try {
+            await apiService.updateProduct(product.id, {active: newStatus});
+            setProducts(prev =>
+              prev.map(p =>
+                p.id === product.id ? {...p, active: newStatus} : p,
+              ),
+            );
+          } catch (err) {
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo actualizar el producto', confirmText: 'Aceptar', onConfirm: null});
+          }
+        },
+      });
     },
     [],
   );
@@ -847,14 +843,14 @@ const AdminProductsScreen = () => {
   }
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {text: 'Cerrar sesión', style: 'destructive', onPress: () => logout()},
-      ],
-    );
+    setModal({
+      visible: true,
+      type: 'danger',
+      title: 'Cerrar sesión',
+      message: `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => logout(),
+    });
   };
 
   return (
@@ -958,6 +954,19 @@ const AdminProductsScreen = () => {
 
       {/* Form modal */}
       {renderFormModal()}
+
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };

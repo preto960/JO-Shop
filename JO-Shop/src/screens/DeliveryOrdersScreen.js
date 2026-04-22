@@ -8,10 +8,12 @@ import {
   RefreshControl,
   StyleSheet,
   Linking,
+  Modal,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {WebView} from 'react-native-webview';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
@@ -97,6 +99,13 @@ const DeliveryOrdersScreen = () => {
     visible: false,
     message: '',
     type: 'success',
+  });
+
+  // Map modal state
+  const [mapModal, setMapModal] = useState({
+    visible: false,
+    address: '',
+    query: '',
   });
 
   const flatListRef = useRef(null);
@@ -195,12 +204,12 @@ const DeliveryOrdersScreen = () => {
 
   const handleOpenMap = useCallback(address => {
     if (!address) return;
-    const encoded = encodeURIComponent(address);
-    const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-    Linking.openURL(url).catch(() => {
-      showToast('No se pudo abrir el mapa', 'error');
+    setMapModal({
+      visible: true,
+      address: address,
+      query: encodeURIComponent(address),
     });
-  }, [showToast]);
+  }, []);
 
   const handleAcceptOrder = useCallback(
     order => {
@@ -518,6 +527,74 @@ const DeliveryOrdersScreen = () => {
     );
   }, [activeTab, handleTabChange]);
 
+  // ─── Render: Map Modal ──────────────────────────────────────────────────
+
+  const renderMapModal = useCallback(() => (
+    <Modal
+      visible={mapModal.visible}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={() => setMapModal(prev => ({...prev, visible: false}))}>
+      <SafeAreaView style={styles.mapSafeArea} edges={['top']}>
+        <View style={styles.mapHeader}>
+          <TouchableOpacity
+            onPress={() => setMapModal(prev => ({...prev, visible: false}))}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+            style={styles.mapBackBtn}>
+            <Icon name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.mapTitle}>Ubicación de entrega</Text>
+          <TouchableOpacity
+            onPress={() => {
+              if (mapModal.address) {
+                const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapModal.address)}`;
+                Linking.openURL(url).catch(() => {});
+              }
+            }}
+            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}
+            style={styles.mapOpenExternal}>
+            <Icon name="open-outline" size={20} color={theme.colors.accent} />
+          </TouchableOpacity>
+        </View>
+        {mapModal.query ? (
+          <WebView
+            source={{uri: `https://www.google.com/maps/search/?api=1&query=${mapModal.query}&output=embed`}}
+            style={styles.mapWebView}
+            javaScriptEnabled
+            domStorageEnabled
+            startInLoadingState
+            renderLoading={() => (
+              <View style={styles.mapLoading}>
+                <ActivityIndicator size="large" color={theme.colors.accent} />
+                <Text style={styles.mapLoadingText}>Cargando mapa...</Text>
+              </View>
+            )}
+            renderError={() => (
+              <View style={styles.mapError}>
+                <Icon name="alert-circle-outline" size={48} color={theme.colors.textSecondary} />
+                <Text style={styles.mapErrorText}>No se pudo cargar el mapa</Text>
+                <TouchableOpacity
+                  style={styles.mapErrorBtn}
+                  onPress={() => {
+                    const url = `https://www.google.com/maps/search/?api=1&query=${mapModal.query}`;
+                    Linking.openURL(url).catch(() => {});
+                  }}
+                  activeOpacity={0.8}>
+                  <Text style={styles.mapErrorBtnText}>Abrir en Google Maps</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+        ) : null}
+        {/* Address pill at bottom */}
+        <View style={styles.mapAddressPill}>
+          <Icon name="location-outline" size={16} color={theme.colors.accent} />
+          <Text style={styles.mapAddressText} numberOfLines={2}>{mapModal.address}</Text>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  ), [mapModal]);
+
   // ─── Loading Screen ──────────────────────────────────────────────────────
 
   if (loading && !refreshing) {
@@ -614,6 +691,9 @@ const DeliveryOrdersScreen = () => {
         type={toast.type}
         onHide={hideToast}
       />
+
+      {/* Map Modal */}
+      {renderMapModal()}
     </SafeAreaView>
   );
 };
@@ -888,6 +968,97 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.success + '18',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Map Modal
+  mapSafeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    ...theme.shadows.sm,
+  },
+  mapBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  mapOpenExternal: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapWebView: {
+    flex: 1,
+  },
+  mapLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+  },
+  mapLoadingText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  mapError: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+  },
+  mapErrorText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  mapErrorBtn: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  mapErrorBtnText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+  mapAddressPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  mapAddressText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    lineHeight: 20,
   },
 });
 

@@ -11,7 +11,6 @@ import {
   Switch,
   StyleSheet,
   RefreshControl,
-  Alert,
   Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import ConfirmModal from '@components/ConfirmModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_LIMIT = 20;
@@ -75,6 +75,9 @@ const AdminUsersScreen = () => {
   // ─── Role management loading state ───────────────────────────────────────
   const [rolesSaving, setRolesSaving] = useState(false);
   const [permSaving, setPermSaving] = useState(null);
+
+  // ─── Confirm modal ──────────────────────────────────────────────────────
+  const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
   // ─── Data Loading ────────────────────────────────────────────────────────
 
@@ -266,9 +269,9 @@ const AdminUsersScreen = () => {
         await fetchProfile();
       }
 
-      Alert.alert('Éxito', 'Usuario actualizado correctamente');
+      setModal({visible: true, type: 'alert', title: 'Éxito', message: 'Usuario actualizado correctamente', confirmText: 'Aceptar', onConfirm: null});
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo guardar los cambios');
+      setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo guardar los cambios', confirmText: 'Aceptar', onConfirm: null});
     } finally {
       setSubmitting(false);
     }
@@ -281,55 +284,48 @@ const AdminUsersScreen = () => {
       const newStatus = !userData.active;
       const label = newStatus ? 'activar' : 'desactivar';
 
-      Alert.alert(
-        `${newStatus ? 'Activar' : 'Desactivar'} usuario`,
-        `${newStatus ? 'Activar' : 'Desactivar'} a "${userData.name}" impide ${
+      setModal({
+        visible: true,
+        type: newStatus ? 'confirm' : 'danger',
+        title: `${newStatus ? 'Activar' : 'Desactivar'} usuario`,
+        message: `${newStatus ? 'Activar' : 'Desactivar'} a "${userData.name}" impide ${
           newStatus ? 'que pueda acceder' : 'el acceso al sistema'
         }. ¿Continuar?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: newStatus ? 'Activar' : 'Desactivar',
-            style: newStatus ? 'default' : 'destructive',
-            onPress: async () => {
-              try {
-                const api = await apiService.createApiClient();
-                if (!api) throw new Error('No hay URL del servidor configurada');
+        confirmText: newStatus ? 'Activar' : 'Desactivar',
+        onConfirm: async () => {
+          try {
+            const api = await apiService.createApiClient();
+            if (!api) throw new Error('No hay URL del servidor configurada');
 
-                await api.put(`/auth/users/${userData.id}`, {
-                  name: userData.name,
-                  active: newStatus,
-                });
+            await api.put(`/auth/users/${userData.id}`, {
+              name: userData.name,
+              active: newStatus,
+            });
 
-                const updated = {
-                  ...userData,
-                  active: newStatus,
-                };
+            const updated = {
+              ...userData,
+              active: newStatus,
+            };
 
-                setSelectedUser(updated);
-                setUsers(prev =>
-                  prev.map(u =>
-                    u.id === userData.id ? {...u, active: newStatus} : u,
-                  ),
-                );
+            setSelectedUser(updated);
+            setUsers(prev =>
+              prev.map(u =>
+                u.id === userData.id ? {...u, active: newStatus} : u,
+              ),
+            );
 
-                if (fromEdit) {
-                  updateEditField('active', newStatus);
-                }
+            if (fromEdit) {
+              updateEditField('active', newStatus);
+            }
 
-                if (currentUser?.id === userData.id) {
-                  await fetchProfile();
-                }
-              } catch (err) {
-                Alert.alert(
-                  'Error',
-                  err.message || 'No se pudo actualizar el estado del usuario',
-                );
-              }
-            },
-          },
-        ],
-      );
+            if (currentUser?.id === userData.id) {
+              await fetchProfile();
+            }
+          } catch (err) {
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo actualizar el estado del usuario', confirmText: 'Aceptar', onConfirm: null});
+          }
+        },
+      });
     },
     [currentUser, fetchProfile, updateEditField],
   );
@@ -341,45 +337,38 @@ const AdminUsersScreen = () => {
       if (!selectedUser) return;
 
       const role = availableRoles.find(r => r.id === roleId);
-      Alert.alert(
-        'Quitar rol',
-        `¿Quitar el rol "${role?.name || roleId}" a "${selectedUser.name}"?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: 'Quitar',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                setRolesSaving(true);
-                const currentIds = (selectedUser.roles || []).map(r => r.id);
-                const newIds = currentIds.filter(id => id !== roleId);
-                await apiService.updateUserRoles(userId, newIds);
+      setModal({
+        visible: true,
+        type: 'danger',
+        title: 'Quitar rol',
+        message: `¿Quitar el rol "${role?.name || roleId}" a "${selectedUser.name}"?`,
+        confirmText: 'Quitar',
+        onConfirm: async () => {
+          try {
+            setRolesSaving(true);
+            const currentIds = (selectedUser.roles || []).map(r => r.id);
+            const newIds = currentIds.filter(id => id !== roleId);
+            await apiService.updateUserRoles(userId, newIds);
 
-                const updatedUser = {
-                  ...selectedUser,
-                  roles: (selectedUser.roles || []).filter(r => r.id !== roleId),
-                };
-                setSelectedUser(updatedUser);
-                setUsers(prev =>
-                  prev.map(u =>
-                    u.id === userId
-                      ? {...u, roles: updatedUser.roles}
-                      : u,
-                  ),
-                );
-              } catch (err) {
-                Alert.alert(
-                  'Error',
-                  err.message || 'No se pudo quitar el rol',
-                );
-              } finally {
-                setRolesSaving(false);
-              }
-            },
-          },
-        ],
-      );
+            const updatedUser = {
+              ...selectedUser,
+              roles: (selectedUser.roles || []).filter(r => r.id !== roleId),
+            };
+            setSelectedUser(updatedUser);
+            setUsers(prev =>
+              prev.map(u =>
+                u.id === userId
+                  ? {...u, roles: updatedUser.roles}
+                  : u,
+              ),
+            );
+          } catch (err) {
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo quitar el rol', confirmText: 'Aceptar', onConfirm: null});
+          } finally {
+            setRolesSaving(false);
+          }
+        },
+      });
     },
     [selectedUser, availableRoles],
   );
@@ -389,47 +378,41 @@ const AdminUsersScreen = () => {
       if (!selectedUser) return;
 
       const role = availableRoles.find(r => r.id === roleId);
-      Alert.alert(
-        'Asignar rol',
-        `¿Asignar el rol "${role?.name || roleId}" a "${selectedUser.name}"?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: 'Asignar',
-            onPress: async () => {
-              try {
-                setRolesSaving(true);
-                const currentIds = (selectedUser.roles || []).map(r => r.id);
-                const newIds = [...currentIds, roleId];
-                await apiService.updateUserRoles(userId, newIds);
+      setModal({
+        visible: true,
+        type: 'confirm',
+        title: 'Asignar rol',
+        message: `¿Asignar el rol "${role?.name || roleId}" a "${selectedUser.name}"?`,
+        confirmText: 'Asignar',
+        onConfirm: async () => {
+          try {
+            setRolesSaving(true);
+            const currentIds = (selectedUser.roles || []).map(r => r.id);
+            const newIds = [...currentIds, roleId];
+            await apiService.updateUserRoles(userId, newIds);
 
-                const updatedUser = {
-                  ...selectedUser,
-                  roles: [
-                    ...(selectedUser.roles || []),
-                    role || {id: roleId, name: roleId},
-                  ],
-                };
-                setSelectedUser(updatedUser);
-                setUsers(prev =>
-                  prev.map(u =>
-                    u.id === userId
-                      ? {...u, roles: updatedUser.roles}
-                      : u,
-                  ),
-                );
-              } catch (err) {
-                Alert.alert(
-                  'Error',
-                  err.message || 'No se pudo asignar el rol',
-                );
-              } finally {
-                setRolesSaving(false);
-              }
-            },
-          },
-        ],
-      );
+            const updatedUser = {
+              ...selectedUser,
+              roles: [
+                ...(selectedUser.roles || []),
+                role || {id: roleId, name: roleId},
+              ],
+            };
+            setSelectedUser(updatedUser);
+            setUsers(prev =>
+              prev.map(u =>
+                u.id === userId
+                  ? {...u, roles: updatedUser.roles}
+                  : u,
+              ),
+            );
+          } catch (err) {
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo asignar el rol', confirmText: 'Aceptar', onConfirm: null});
+          } finally {
+            setRolesSaving(false);
+          }
+        },
+      });
     },
     [selectedUser, availableRoles],
   );
@@ -483,10 +466,7 @@ const AdminUsersScreen = () => {
           );
         }
       } catch (err) {
-        Alert.alert(
-          'Error',
-          err.message || 'No se pudo actualizar el permiso',
-        );
+        setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo actualizar el permiso', confirmText: 'Aceptar', onConfirm: null});
       } finally {
         setPermSaving(null);
       }
@@ -1360,18 +1340,14 @@ const AdminUsersScreen = () => {
   // ─── Logout handler ─────────────────────────────────────────────────────
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      `¿Cerrar sesión de ${currentUser?.name || 'la cuenta'}?`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: () => logout(),
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: 'danger',
+      title: 'Cerrar sesión',
+      message: `¿Cerrar sesión de ${currentUser?.name || 'la cuenta'}?`,
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => logout(),
+    });
   };
 
   // ─── Loading state ──────────────────────────────────────────────────────
@@ -1511,6 +1487,19 @@ const AdminUsersScreen = () => {
 
       {/* Edit full-screen modal */}
       {renderEditModal()}
+
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };

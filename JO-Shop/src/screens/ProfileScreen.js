@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -17,6 +16,7 @@ import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
 import ENV from '@config/env';
+import ConfirmModal from '@components/ConfirmModal';
 
 const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile} = useAuth();
@@ -49,6 +49,16 @@ const ProfileScreen = () => {
   const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [placeResults, setPlaceResults] = useState([]);
   const [placesLoading, setPlacesLoading] = useState(false);
+
+  // ConfirmModal state
+  const [modal, setModal] = useState({
+    visible: false,
+    type: 'alert',
+    title: '',
+    message: '',
+    confirmText: 'Aceptar',
+    onConfirm: null,
+  });
 
   const isStaff = hasRole('admin') || hasRole('editor');
   const isCustomer = hasRole('customer');
@@ -150,7 +160,7 @@ const ProfileScreen = () => {
       setSaving(true);
       const api = await apiService.createApiClient();
       if (!api) {
-        Alert.alert('Error', 'No hay conexión con el servidor.');
+        setModal({ visible: true, type: 'alert', title: 'Error', message: 'No hay conexión con el servidor.', confirmText: 'Aceptar', onConfirm: null });
         return;
       }
       await api.put('/auth/profile', {
@@ -159,9 +169,9 @@ const ProfileScreen = () => {
       });
       await fetchProfile();
       setEditModalVisible(false);
-      Alert.alert('Perfil actualizado', 'Tus datos han sido guardados.');
+      setModal({ visible: true, type: 'alert', title: 'Perfil actualizado', message: 'Tus datos han sido guardados.', confirmText: 'Aceptar', onConfirm: null });
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo actualizar el perfil.');
+      setModal({ visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo actualizar el perfil.', confirmText: 'Aceptar', onConfirm: null });
     } finally {
       setSaving(false);
     }
@@ -202,7 +212,7 @@ const ProfileScreen = () => {
 
   const handleSaveAddress = useCallback(async () => {
     if (!addrForm.label.trim() || !addrForm.address.trim()) {
-      Alert.alert('Datos requeridos', 'Ingresa etiqueta y dirección.');
+      setModal({ visible: true, type: 'alert', title: 'Datos requeridos', message: 'Ingresa etiqueta y dirección.', confirmText: 'Aceptar', onConfirm: null });
       return;
     }
 
@@ -236,14 +246,9 @@ const ProfileScreen = () => {
       }
 
       setAddrModalVisible(false);
-      Alert.alert(
-        'Éxito',
-        editingAddrId
-          ? 'Dirección actualizada correctamente.'
-          : 'Dirección guardada correctamente.',
-      );
+      setModal({ visible: true, type: 'alert', title: 'Éxito', message: editingAddrId ? 'Dirección actualizada correctamente.' : 'Dirección guardada correctamente.', confirmText: 'Aceptar', onConfirm: null });
     } catch (err) {
-      Alert.alert('Error', err.message || 'No se pudo guardar la dirección.');
+      setModal({ visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo guardar la dirección.', confirmText: 'Aceptar', onConfirm: null });
     } finally {
       setAddrSaving(false);
     }
@@ -256,32 +261,26 @@ const ProfileScreen = () => {
         prev.map(a => ({...a, isDefault: a.id === addrId})),
       );
     } catch (err) {
-      Alert.alert('Error', 'No se pudo cambiar la dirección principal.');
+      setModal({ visible: true, type: 'alert', title: 'Error', message: 'No se pudo cambiar la dirección principal.', confirmText: 'Aceptar', onConfirm: null });
     }
   }, []);
 
   const handleDeleteAddress = useCallback(
     (addr) => {
-      Alert.alert(
-        'Eliminar dirección',
-        `¿Eliminar "${addr.label}"?`,
-        [
-          {text: 'Cancelar', style: 'cancel'},
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await apiService.deleteAddress(addr.id);
-                setAddresses(prev => prev.filter(a => a.id !== addr.id));
-                Alert.alert('Eliminada', 'Dirección eliminada.');
-              } catch {
-                Alert.alert('Error', 'No se pudo eliminar la dirección.');
-              }
-            },
-          },
-        ],
-      );
+      setModal({
+        visible: true, type: 'danger', title: 'Eliminar dirección',
+        message: `¿Eliminar "${addr.label}"?`,
+        confirmText: 'Eliminar',
+        onConfirm: async () => {
+          try {
+            await apiService.deleteAddress(addr.id);
+            setAddresses(prev => prev.filter(a => a.id !== addr.id));
+            setModal({ visible: true, type: 'alert', title: 'Eliminada', message: 'Dirección eliminada.', confirmText: 'Aceptar', onConfirm: null });
+          } catch {
+            setModal({ visible: true, type: 'alert', title: 'Error', message: 'No se pudo eliminar la dirección.', confirmText: 'Aceptar', onConfirm: null });
+          }
+        },
+      });
     },
     [],
   );
@@ -289,21 +288,15 @@ const ProfileScreen = () => {
   // ─── Logout ────────────────────────────────────────────────────────────
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Estás seguro de que deseas cerrar sesión?',
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: () => {
-            setLoggingOut(true);
-            setTimeout(() => logout(), 300);
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true, type: 'danger', title: 'Cerrar sesión',
+      message: '¿Estás seguro de que deseas cerrar sesión?',
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => {
+        setLoggingOut(true);
+        setTimeout(() => logout(), 300);
+      },
+    });
   };
 
   // ─── Data ──────────────────────────────────────────────────────────────
@@ -892,6 +885,20 @@ const ProfileScreen = () => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* ConfirmModal */}
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };

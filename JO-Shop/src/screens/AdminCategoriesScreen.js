@@ -8,7 +8,6 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
@@ -17,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import ConfirmModal from '@components/ConfirmModal';
 
 const AdminCategoriesScreen = () => {
   const navigation = useNavigation();
@@ -36,6 +36,7 @@ const AdminCategoriesScreen = () => {
   const [formImage, setFormImage] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
   const loadCategories = useCallback(async (isRefresh = false) => {
     try {
@@ -131,11 +132,14 @@ const AdminCategoriesScreen = () => {
       loadCategories(true);
     } catch (err) {
       console.error('Error saving category:', err.message);
-      Alert.alert(
-        'Error',
-        err.message || 'No se pudo guardar la categoría. Intenta de nuevo.',
-        [{text: 'OK'}],
-      );
+      setModal({
+        visible: true,
+        type: 'alert',
+        title: 'Error',
+        message: err.message || 'No se pudo guardar la categoría. Intenta de nuevo.',
+        confirmText: 'Aceptar',
+        onConfirm: null,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -143,34 +147,34 @@ const AdminCategoriesScreen = () => {
 
   // ── Delete ──────────────────────────────────────────────────
   const handleDelete = (category) => {
-    Alert.alert(
-      'Eliminar categoría',
-      `¿Estás seguro de eliminar "${category.name}"?${
+    setModal({
+      visible: true,
+      type: 'danger',
+      title: 'Eliminar categoría',
+      message: `¿Estás seguro de eliminar "${category.name}"?${
         category._count?.products
           ? `\n\nEsta categoría tiene ${category._count.products} producto(s) asociado(s).`
           : ''
       }`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiService.deleteCategory(category.id);
-              loadCategories(true);
-            } catch (err) {
-              console.error('Error deleting category:', err.message);
-              Alert.alert(
-                'Error',
-                err.message || 'No se pudo eliminar la categoría.',
-                [{text: 'OK'}],
-              );
-            }
-          },
-        },
-      ],
-    );
+      confirmText: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          await apiService.deleteCategory(category.id);
+          setModal(prev => ({...prev, visible: false}));
+          loadCategories(true);
+        } catch (err) {
+          console.error('Error deleting category:', err.message);
+          setModal({
+            visible: true,
+            type: 'alert',
+            title: 'Error',
+            message: err.message || 'No se pudo eliminar la categoría.',
+            confirmText: 'Aceptar',
+            onConfirm: null,
+          });
+        }
+      },
+    });
   };
 
   // ── Render helpers ──────────────────────────────────────────
@@ -410,6 +414,18 @@ const AdminCategoriesScreen = () => {
           </View>
         </View>
       </Modal>
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };

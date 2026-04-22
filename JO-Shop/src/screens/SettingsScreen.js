@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Linking,
   ScrollView,
 } from 'react-native';
@@ -16,6 +15,7 @@ import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
+import ConfirmModal from '@components/ConfirmModal';
 import theme from '@theme/styles';
 
 const SettingsScreen = () => {
@@ -25,6 +25,7 @@ const SettingsScreen = () => {
   const [saved, setSaved] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
   const envUrl = ENV.API_URL || '';
+  const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
   // Cargar configuración guardada (puede ser override del env)
   useEffect(() => {
@@ -44,7 +45,7 @@ const SettingsScreen = () => {
   const handleTestConnection = async () => {
     const url = normalizeUrl(baseUrl);
     if (!isValidUrl(url)) {
-      Alert.alert('URL inválida', 'Ingresa una URL válida (ej: https://mi-api.com)');
+      setModal({visible: true, type: 'alert', title: 'URL inválida', message: 'Ingresa una URL válida (ej: https://mi-api.com)', confirmText: 'Aceptar', onConfirm: null});
       return;
     }
 
@@ -58,7 +59,7 @@ const SettingsScreen = () => {
   const handleSave = async () => {
     const url = normalizeUrl(baseUrl);
     if (!url || !isValidUrl(url)) {
-      Alert.alert('URL inválida', 'Ingresa una URL válida para el servidor.');
+      setModal({visible: true, type: 'alert', title: 'URL inválida', message: 'Ingresa una URL válida para el servidor.', confirmText: 'Aceptar', onConfirm: null});
       return;
     }
 
@@ -69,29 +70,26 @@ const SettingsScreen = () => {
 
     if (success) {
       setSaved(true);
-      Alert.alert('Guardado', 'Se usará esta URL como servidor.\n\nReinicia la app para aplicar los cambios completamente.');
+      setModal({visible: true, type: 'alert', title: 'Guardado', message: 'Se usará esta URL como servidor.\n\nReinicia la app para aplicar los cambios completamente.', confirmText: 'Aceptar', onConfirm: null});
     } else {
-      Alert.alert('Error', 'No se pudo guardar la configuración.');
+      setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo guardar la configuración.', confirmText: 'Aceptar', onConfirm: null});
     }
   };
 
   const handleResetToEnv = () => {
-    Alert.alert(
-      'Restaurar URL por defecto',
-      `Se eliminará la URL personalizada y se usará:\n${envUrl}`,
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {
-          text: 'Restaurar',
-          onPress: async () => {
-            await apiService.clearApiConfig();
-            setBaseUrl(envUrl);
-            setSaved(false);
-            setConnectionStatus(null);
-          },
-        },
-      ],
-    );
+    setModal({
+      visible: true,
+      type: 'confirm',
+      title: 'Restaurar URL por defecto',
+      message: `Se eliminará la URL personalizada y se usará:\n${envUrl}`,
+      confirmText: 'Restaurar',
+      onConfirm: async () => {
+        await apiService.clearApiConfig();
+        setBaseUrl(envUrl);
+        setSaved(false);
+        setConnectionStatus(null);
+      },
+    });
   };
 
   const openPrivacyPolicy = () => {
@@ -255,6 +253,18 @@ const SettingsScreen = () => {
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <ConfirmModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        onClose={() => setModal(prev => ({...prev, visible: false}))}
+        onConfirm={() => {
+          if (modal.onConfirm) modal.onConfirm();
+          else setModal(prev => ({...prev, visible: false}));
+        }}
+      />
     </SafeAreaView>
   );
 };
