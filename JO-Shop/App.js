@@ -1,4 +1,4 @@
-import React, {useRef, useEffect, useState} from 'react';
+import React, {createRef, useEffect, useState} from 'react';
 import {StatusBar, StyleSheet, View, Alert} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer} from '@react-navigation/native';
@@ -9,7 +9,7 @@ import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 
 // Ref de navegacion accesible fuera del componente
-export const navigationRef = useRef(null);
+export const navigationRef = createRef();
 
 // Componente que maneja notificaciones push
 const NotificationHandler = () => {
