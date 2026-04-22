@@ -70,6 +70,37 @@ const AdminOrdersScreen = () => {
   const flatListRef = useRef(null);
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
+  // Scroll arrow states for status tabs
+  const tabsScrollRef = useRef(null);
+  const tabsWrapperLayout = useRef(null);
+  const [tabsCanScrollLeft, setTabsCanScrollLeft] = useState(false);
+  const [tabsCanScrollRight, setTabsCanScrollRight] = useState(false);
+  const TABS_SCROLL_AMOUNT = 160;
+
+  const scrollTabsBy = useCallback((direction) => {
+    if (!tabsScrollRef.current) return;
+    tabsScrollRef.current.scrollTo({
+      x: (direction === 'left' ? -TABS_SCROLL_AMOUNT : TABS_SCROLL_AMOUNT),
+      animated: true,
+    });
+  }, []);
+
+  const handleTabsScroll = useCallback((event) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    setTabsCanScrollLeft(contentOffset.x > 5);
+    setTabsCanScrollRight(contentOffset.x + layoutMeasurement.width < contentSize.width - 5);
+  }, []);
+
+  const handleTabsContentResize = useCallback((contentWidth) => {
+    if (tabsWrapperLayout.current && contentWidth > tabsWrapperLayout.current.width) {
+      setTabsCanScrollRight(true);
+    }
+  }, []);
+
+  const handleTabsLayout = useCallback((event) => {
+    tabsWrapperLayout.current = event.nativeEvent.layout;
+  }, []);
+
   const fetchOrders = useCallback(
     async (pageNum = 1, isRefresh = false) => {
       try {
@@ -245,41 +276,67 @@ const AdminOrdersScreen = () => {
       </View>
 
       <View style={styles.filterTabsContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterTabsScroll}
-        >
-          {STATUS_TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            const count =
-              tab.key === 'all'
-                ? null
-                : orders.filter((o) => o.status === tab.key).length;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={[styles.filterTab, isActive && styles.filterTabActive]}
-                onPress={() => handleTabChange(tab.key)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterTabLabel,
-                    isActive && styles.filterTabLabelActive,
-                  ]}
+        <View style={styles.tabsScrollWrapper} onLayout={handleTabsLayout}>
+          {tabsCanScrollLeft && (
+            <TouchableOpacity
+              style={styles.tabsArrowLeft}
+              onPress={() => scrollTabsBy('left')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+            >
+              <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+            </TouchableOpacity>
+          )}
+          <ScrollView
+            ref={tabsScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleTabsScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.filterTabsScroll}
+            onContentSizeChange={(w) => handleTabsContentResize(w)}
+          >
+            {STATUS_TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              const count =
+                tab.key === 'all'
+                  ? null
+                  : orders.filter((o) => o.status === tab.key).length;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.filterTab, isActive && styles.filterTabActive]}
+                  onPress={() => handleTabChange(tab.key)}
+                  activeOpacity={0.7}
                 >
-                  {tab.label}
-                </Text>
-                {isActive && count !== null && (
-                  <View style={styles.filterTabCount}>
-                    <Text style={styles.filterTabCountText}>{count}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                  <Text
+                    style={[
+                      styles.filterTabLabel,
+                      isActive && styles.filterTabLabelActive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                  {isActive && count !== null && (
+                    <View style={styles.filterTabCount}>
+                      <Text style={styles.filterTabCountText}>{count}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {tabsCanScrollRight && (
+            <TouchableOpacity
+              style={styles.tabsArrowRight}
+              onPress={() => scrollTabsBy('right')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+            >
+              <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -850,6 +907,45 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+  },
+  tabsScrollWrapper: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tabsArrowLeft: {
+    position: 'absolute',
+    left: 4,
+    top: 0,
+    bottom: 0,
+    width: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 17,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: -1, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  tabsArrowRight: {
+    position: 'absolute',
+    right: 4,
+    top: 0,
+    bottom: 0,
+    width: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 17,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   filterTabsScroll: {
     paddingHorizontal: 16,
