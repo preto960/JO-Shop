@@ -143,7 +143,13 @@ export const AuthProvider = ({children}) => {
 
       return {success: true};
     } catch (err) {
-      const message = err.response?.data?.error || err.message || 'Error al iniciar sesión';
+      let message = 'Error al iniciar sesión';
+      if (err.response?.data) {
+        const data = err.response.data;
+        message = typeof data.error === 'string' ? data.error : (data.message || message);
+      } else if (err.message) {
+        message = err.message;
+      }
       dispatch({type: ACTIONS.SET_ERROR, payload: message});
       return {success: false, error: message};
     }
@@ -175,7 +181,13 @@ export const AuthProvider = ({children}) => {
 
       return {success: true};
     } catch (err) {
-      const message = err.response?.data?.error || err.message || 'Error al verificar el código';
+      let message = 'Error al verificar el código';
+      if (err.response?.data) {
+        const data = err.response.data;
+        message = typeof data.error === 'string' ? data.error : (data.message || message);
+      } else if (err.message) {
+        message = err.message;
+      }
       dispatch({type: ACTIONS.SET_ERROR, payload: message});
       return {success: false, error: message};
     }
