@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
+  Switch,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -21,6 +22,10 @@ import ConfirmModal from '@components/ConfirmModal';
 const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile} = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // 2FA toggle state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
 
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -84,6 +89,57 @@ const ProfileScreen = () => {
       loadAddresses();
     }
   }, [isCustomer, isDeliveryRole, loadAddresses]);
+
+  // Sincronizar twoFactorEnabled cuando se actualiza el perfil
+  useEffect(() => {
+    if (user?.twoFactorEnabled !== undefined) {
+      setTwoFactorEnabled(user.twoFactorEnabled);
+    }
+  }, [user?.twoFactorEnabled]);
+
+  // ─── Toggle 2FA ─────────────────────────────────────────────────────
+
+  const handleToggle2FA = useCallback(async (newValue) => {
+    setTwoFactorLoading(true);
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) {
+        setModal({
+          visible: true, type: 'alert', title: 'Error',
+          message: 'No hay conexion con el servidor.',
+          confirmText: 'Aceptar', onConfirm: null,
+        });
+        setTwoFactorEnabled(!newValue);
+        return;
+      }
+
+      const res = await api.put('/auth/two-factor', { enabled: newValue });
+
+      if (res.twoFactorEnabled !== undefined) {
+        setTwoFactorEnabled(res.twoFactorEnabled);
+      }
+      await fetchProfile();
+
+      setModal({
+        visible: true, type: 'alert',
+        title: newValue ? '2FA Activado' : '2FA Desactivado',
+        message: newValue
+          ? 'Se ha activado la autenticacion en 2 pasos. A partir de ahora se te pedira un codigo al iniciar sesion.'
+          : 'Se ha desactivado la autenticacion en 2 pasos.',
+        confirmText: 'Aceptar', onConfirm: null,
+      });
+    } catch (err) {
+      setTwoFactorEnabled(!newValue);
+      const errorMessage = err.response?.data?.error || err.message || 'No se pudo cambiar la configuracion.';
+      setModal({
+        visible: true, type: 'alert', title: 'Error',
+        message: errorMessage,
+        confirmText: 'Aceptar', onConfirm: null,
+      });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }, [fetchProfile]);
 
   // ─── Google Places Search ─────────────────────────────────────────────
 
@@ -466,6 +522,55 @@ const ProfileScreen = () => {
             />
             <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
+        )}
+
+        {/* ─── Security Section ──────────────────────────────────────── */}
+        {!isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Icon name="shield-checkmark-outline" size={18} color={theme.colors.accent} />{' '}
+              Seguridad
+            </Text>
+            <View style={styles.securityCard}>
+              <View style={styles.securityRow}>
+                <View style={styles.securityInfo}>
+                  <View style={styles.securityIconWrap}>
+                    <Icon
+                      name={twoFactorEnabled ? 'shield-checkmark' : 'shield-outline'}
+                      size={22}
+                      color={twoFactorEnabled ? theme.colors.success : theme.colors.textSecondary}
+                    />
+                  </View>
+                  <View style={styles.securityTextWrap}>
+                    <Text style={styles.securityLabel}>Autenticacion en 2 pasos</Text>
+                    <Text style={styles.securityDescription}>
+                      {twoFactorEnabled
+                        ? 'Activada: se te pedira un codigo al iniciar sesion'
+                        : 'Desactivada: tu sesion inicia solo con correo y contrasena'}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={twoFactorEnabled}
+                  onValueChange={handleToggle2FA}
+                  disabled={twoFactorLoading}
+                  trackColor={{
+                    false: theme.colors.border,
+                    true: theme.colors.success,
+                  }}
+                  thumbColor={theme.colors.white}
+                  ios_backgroundColor={theme.colors.border}
+                />
+              </View>
+              {twoFactorLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.accent}
+                  style={styles.securityLoader}
+                />
+              )}
+            </View>
+          </View>
         )}
 
         {/* ─── Saved Addresses Section (client only) ──────────────── */}
@@ -1021,6 +1126,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
+  },
+  // Security card
+  securityCard: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  securityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  securityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: theme.spacing.md,
+  },
+  securityIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  securityTextWrap: {
+    flex: 1,
+  },
+  securityLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  securityDescription: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  securityLoader: {
+    marginTop: theme.spacing.sm,
   },
   // Address cards
   addressCard: {
