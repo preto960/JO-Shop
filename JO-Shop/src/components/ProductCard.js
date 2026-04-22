@@ -39,13 +39,23 @@ const ProductCard = ({product, onPress, containerStyle}) => {
 
       {/* Info del producto */}
       <View style={styles.info}>
+        {/* Store badge */}
+        {product.store?.name && (
+          <View style={styles.storeBadge}>
+            <Icon name="storefront" size={10} color={theme.colors.textLight} />
+            <Text style={styles.storeName} numberOfLines={1}>
+              {product.store.name}
+            </Text>
+          </View>
+        )}
+
         <Text style={styles.name} numberOfLines={2}>
           {product.name || product.title || 'Sin nombre'}
         </Text>
 
         {product.description && (
-          <Text style={styles.description} numberOfLines={2}>
-            {truncateText(product.description, 60)}
+          <Text style={styles.description} numberOfLines={1}>
+            {truncateText(product.description, 50)}
           </Text>
         )}
 
@@ -92,7 +102,20 @@ const styles = StyleSheet.create({
   info: {
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    },
+  },
+  storeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginBottom: 4,
+  },
+  storeName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   name: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
