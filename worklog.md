@@ -255,3 +255,27 @@ Stage Summary:
 - Registration email already works (needs SMTP env vars: SMTP_HOST, SMTP_USER, SMTP_PASS)
 - User needs to: npm install, cd android && ./gradlew clean, react-native run-android
 - Backend changes need: push to repo, deploy to Vercel
+---
+Task ID: 4
+Agent: Super Z (main)
+Task: Configurar Firebase Cloud Messaging - fix error "Cannot read property 'setBackgroundMessageHandler' of undefined"
+
+Work Log:
+- Diagnosed root cause: user installed Firebase packages but notifications.js had import que fallaba cuando el modulo nativo no estaba compilado, haciendo que todo el modulo sea undefined
+- Rewrote src/services/notifications.js with defensive Firebase import using try-catch
+- Added @react-native-firebase/app@18.8.0 and @react-native-firebase/messaging@18.8.0 to package.json
+- Added classpath("com.google.gms:google-services:4.4.0") to android/build.gradle
+- Added apply plugin: "com.google.gms.google-services" to android/app/build.gradle
+- Added Firebase BOM 32.7.0 and firebase-messaging to android/app/build.gradle dependencies
+- Copied google-services.json (from user's Firebase Console) to android/app/
+- Kept auto-linking gradle lines (critical for React Native native modules)
+- Verified backend already has complete Firebase integration (no changes needed)
+- Committed and pushed to JO-Shop repository (commit d4026a9)
+
+Stage Summary:
+- Error fixed: notifications.js now uses try-catch around Firebase import
+- App will NOT crash even if Firebase native modules aren't compiled yet
+- All Firebase Gradle config properly set up
+- google-services.json in place with correct package_name "com.joshop"
+- Backend already complete: firebase-admin, PushToken model, notification routes
+- User needs: git pull, npm install, cd android && gradlew clean, react-native run-android
