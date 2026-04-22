@@ -9,11 +9,13 @@ import {
   StyleSheet,
   Linking,
   Modal,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {WebView} from 'react-native-webview';
+import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
@@ -66,6 +68,134 @@ const formatDate = dateStr => {
   return `${d}/${m}/${y} ${h}:${min}`;
 };
 
+// ─── Google Maps API Helpers ──────────────────────────────────────────────────
+
+const geocodeAddress = async address => {
+  try {
+    const apiKey = ENV.GOOGLE_PLACES_API_KEY;
+    if (!apiKey || !address) return null;
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=es`,
+    );
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      const {lat, lng} = data.results[0].geometry.location;
+      return {latitude: lat, longitude: lng};
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchRouteDirections = async (origin, destination) => {
+  try {
+    const apiKey = ENV.GOOGLE_PLACES_API_KEY;
+    if (!apiKey || !origin || !destination) return null;
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${apiKey}&language=es`,
+    );
+    const data = await response.json();
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      const leg = route.legs[0];
+      return {
+        points: decodePolyline(route.overview_polyline.points),
+        distance: leg.distance.text,
+        duration: leg.duration.text,
+        startAddress: leg.start_address,
+        endAddress: leg.end_address,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+/** Decode Google's encoded polyline into array of {latitude, longitude} */
+const decodePolyline = encoded => {
+  if (!encoded) return [];
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let b;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+    points.push({latitude: lat / 1e5, longitude: lng / 1e5});
+  }
+  return points;
+};
+
+/** Fit map region to show two points with padding */
+const fitTwoPoints = (pointA, pointB) => {
+  const padding = 0.01;
+  const minLat = Math.min(pointA.latitude, pointB.latitude) - padding;
+  const maxLat = Math.max(pointA.latitude, pointB.latitude) + padding;
+  const minLng = Math.min(pointA.longitude, pointB.longitude) - padding;
+  const maxLng = Math.max(pointA.longitude, pointB.longitude) + padding;
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: maxLat - minLat,
+    longitudeDelta: maxLng - minLng,
+  };
+};
+
+/** Request Android location permission */
+const requestLocationPermission = async () => {
+  if (Platform.OS !== 'android') return true;
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: 'Permiso de ubicacion',
+        message: 'JO-Shop necesita acceso a tu ubicacion para mostrar la ruta de entrega.',
+        buttonNeutral: 'Preguntar despues',
+        buttonNegative: 'Cancelar',
+        buttonPositive: 'Permitir',
+      },
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch {
+    return false;
+  }
+};
+
+/** Get current device position */
+const getCurrentPosition = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation no disponible'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      position => resolve(position.coords),
+      error => reject(error),
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  });
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const DeliveryOrdersScreen = () => {
@@ -105,10 +235,19 @@ const DeliveryOrdersScreen = () => {
   const [mapModal, setMapModal] = useState({
     visible: false,
     address: '',
-    query: '',
   });
 
+  // Native map state
+  const [mapCoords, setMapCoords] = useState(null);
+  const [mapRegion, setMapRegion] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [routeData, setRouteData] = useState(null);
+  const [routePoints, setRoutePoints] = useState([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [routeLoading, setRouteLoading] = useState(false);
+
   const flatListRef = useRef(null);
+  const mapViewRef = useRef(null);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({visible: true, message, type});
@@ -200,16 +339,108 @@ const DeliveryOrdersScreen = () => {
     [activeTab],
   );
 
-  // ─── Actions ─────────────────────────────────────────────────────────────
+  // ─── Map Actions ─────────────────────────────────────────────────────────
 
-  const handleOpenMap = useCallback(address => {
+  const handleOpenMap = useCallback(async (address) => {
     if (!address) return;
-    setMapModal({
-      visible: true,
-      address: address,
-      query: encodeURIComponent(address),
-    });
+
+    // Open modal immediately
+    setMapModal({visible: true, address});
+    setMapCoords(null);
+    setMapRegion(null);
+    setRouteData(null);
+    setRoutePoints([]);
+    setUserLocation(null);
+    setMapLoading(true);
+
+    // Step 1: Geocode the delivery address
+    const coords = await geocodeAddress(address);
+
+    if (coords) {
+      setMapCoords(coords);
+      setMapRegion({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      });
+
+      // Step 2: Try to get user location and route
+      setRouteLoading(true);
+      try {
+        const hasPermission = await requestLocationPermission();
+        if (hasPermission) {
+          const userCoords = await getCurrentPosition();
+          const userPos = {
+            latitude: userCoords.latitude,
+            longitude: userCoords.longitude,
+          };
+          setUserLocation(userPos);
+
+          // Step 3: Fetch route
+          const route = await fetchRouteDirections(userPos, coords);
+          if (route) {
+            setRoutePoints(route.points);
+            setRouteData({
+              distance: route.distance,
+              duration: route.duration,
+            });
+            // Fit map to show both points
+            const region = fitTwoPoints(userPos, coords);
+            setMapRegion(region);
+          }
+        }
+      } catch {
+        // Cannot get location - just show destination marker
+      } finally {
+        setRouteLoading(false);
+      }
+    } else {
+      // Geocoding failed, show error in map
+      setMapLoading(false);
+    }
+
+    setMapLoading(false);
   }, []);
+
+  const handleCloseMap = useCallback(() => {
+    setMapModal({visible: false, address: ''});
+    setMapCoords(null);
+    setMapRegion(null);
+    setRouteData(null);
+    setRoutePoints([]);
+    setUserLocation(null);
+  }, []);
+
+  const handleNavigateExternal = useCallback(() => {
+    if (!mapCoords) return;
+    const url = Platform.select({
+      ios: `https://maps.apple.com/?daddr=${mapCoords.latitude},${mapCoords.longitude}`,
+      android: `google.navigation:q=${mapCoords.latitude},${mapCoords.longitude}`,
+    });
+    Linking.openURL(url).catch(() => {
+      // Fallback: open in browser
+      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${mapCoords.latitude},${mapCoords.longitude}`).catch(() => {});
+    });
+  }, [mapCoords]);
+
+  const handleCenterOnDestination = useCallback(() => {
+    if (!mapCoords) return;
+    setMapRegion({
+      latitude: mapCoords.latitude,
+      longitude: mapCoords.longitude,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    });
+  }, [mapCoords]);
+
+  const handleShowFullRoute = useCallback(() => {
+    if (!userLocation || !mapCoords) return;
+    const region = fitTwoPoints(userLocation, mapCoords);
+    setMapRegion(region);
+  }, [userLocation, mapCoords]);
+
+  // ─── Order Actions ───────────────────────────────────────────────────────
 
   const handleAcceptOrder = useCallback(
     order => {
@@ -527,73 +758,183 @@ const DeliveryOrdersScreen = () => {
     );
   }, [activeTab, handleTabChange]);
 
-  // ─── Render: Map Modal ──────────────────────────────────────────────────
+  // ─── Render: Native Map Modal ────────────────────────────────────────────
 
   const renderMapModal = useCallback(() => (
     <Modal
       visible={mapModal.visible}
       animationType="slide"
       transparent={false}
-      onRequestClose={() => setMapModal(prev => ({...prev, visible: false}))}>
+      onRequestClose={handleCloseMap}>
       <SafeAreaView style={styles.mapSafeArea} edges={['top']}>
+        {/* Map Header */}
         <View style={styles.mapHeader}>
           <TouchableOpacity
-            onPress={() => setMapModal(prev => ({...prev, visible: false}))}
+            onPress={handleCloseMap}
             hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
             style={styles.mapBackBtn}>
             <Icon name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.mapTitle}>Ubicación de entrega</Text>
+          <Text style={styles.mapTitle} numberOfLines={1}>Ubicación de entrega</Text>
           <TouchableOpacity
-            onPress={() => {
-              if (mapModal.address) {
-                const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapModal.address)}`;
-                Linking.openURL(url).catch(() => {});
-              }
-            }}
+            onPress={handleNavigateExternal}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}
-            style={styles.mapOpenExternal}>
-            <Icon name="open-outline" size={20} color={theme.colors.accent} />
+            disabled={!mapCoords}
+            style={[styles.mapNavigateBtn, !mapCoords && styles.mapBtnDisabled]}>
+            <Icon name="navigate" size={20} color={mapCoords ? theme.colors.white : theme.colors.textLight} />
           </TouchableOpacity>
         </View>
-        {mapModal.query ? (
-          <WebView
-            source={{uri: `https://www.google.com/maps/search/?api=1&query=${mapModal.query}&output=embed`}}
-            style={styles.mapWebView}
-            javaScriptEnabled
-            domStorageEnabled
-            startInLoadingState
-            renderLoading={() => (
-              <View style={styles.mapLoading}>
-                <ActivityIndicator size="large" color={theme.colors.accent} />
-                <Text style={styles.mapLoadingText}>Cargando mapa...</Text>
-              </View>
-            )}
-            renderError={() => (
-              <View style={styles.mapError}>
-                <Icon name="alert-circle-outline" size={48} color={theme.colors.textSecondary} />
-                <Text style={styles.mapErrorText}>No se pudo cargar el mapa</Text>
-                <TouchableOpacity
-                  style={styles.mapErrorBtn}
-                  onPress={() => {
-                    const url = `https://www.google.com/maps/search/?api=1&query=${mapModal.query}`;
+
+        {/* Map View */}
+        <View style={styles.mapContainer}>
+          {mapLoading && !mapCoords ? (
+            <View style={styles.mapLoading}>
+              <ActivityIndicator size="large" color={theme.colors.accent} />
+              <Text style={styles.mapLoadingText}>Buscando ubicación...</Text>
+            </View>
+          ) : mapCoords ? (
+            <MapView
+              ref={mapViewRef}
+              provider={PROVIDER_GOOGLE}
+              style={styles.mapView}
+              region={mapRegion}
+              onRegionChangeComplete={region => setMapRegion(region)}
+              showsUserLocation={!!userLocation}
+              showsMyLocationButton={false}
+              showsCompass
+              showsBuildings
+              showsTraffic
+              loadingEnabled
+              loadingIndicatorColor={theme.colors.accent}>
+              {/* Delivery destination marker */}
+              <Marker
+                coordinate={mapCoords}
+                title="Entrega"
+                description={mapModal.address}
+                anchor={{x: 0.5, y: 1}}>
+                <View style={styles.markerContainer}>
+                  <View style={styles.markerPin}>
+                    <Icon name="location" size={24} color={theme.colors.white} />
+                  </View>
+                  <View style={styles.markerShadow} />
+                </View>
+              </Marker>
+
+              {/* User location marker (if we got it manually) */}
+              {userLocation && (
+                <Marker
+                  coordinate={userLocation}
+                  title="Mi ubicación"
+                  anchor={{x: 0.5, y: 0.5}}
+                  flat>
+                  <View style={styles.userMarker}>
+                    <View style={styles.userMarkerDot} />
+                    <View style={styles.userMarkerPulse} />
+                  </View>
+                </Marker>
+              )}
+
+              {/* Route polyline */}
+              {routePoints.length > 1 && (
+                <Polyline
+                  coordinates={routePoints}
+                  strokeColor="#3498DB"
+                  strokeWidth={5}
+                  strokeCap="round"
+                  strokeJoin="round"
+                />
+              )}
+            </MapView>
+          ) : (
+            <View style={styles.mapError}>
+              <Icon name="alert-circle-outline" size={48} color={theme.colors.textSecondary} />
+              <Text style={styles.mapErrorText}>No se pudo encontrar la ubicación</Text>
+              <TouchableOpacity
+                style={styles.mapErrorBtn}
+                onPress={() => {
+                  if (mapModal.address) {
+                    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapModal.address)}`;
                     Linking.openURL(url).catch(() => {});
-                  }}
-                  activeOpacity={0.8}>
-                  <Text style={styles.mapErrorBtnText}>Abrir en Google Maps</Text>
-                </TouchableOpacity>
+                  }
+                }}
+                activeOpacity={0.8}>
+                <Text style={styles.mapErrorBtnText}>Abrir en Google Maps</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Route loading overlay */}
+          {routeLoading && mapCoords && (
+            <View style={styles.routeLoadingOverlay}>
+              <View style={styles.routeLoadingBadge}>
+                <ActivityIndicator size="small" color="#3498DB" />
+                <Text style={styles.routeLoadingText}>Calculando ruta...</Text>
               </View>
-            )}
-          />
-        ) : null}
-        {/* Address pill at bottom */}
-        <View style={styles.mapAddressPill}>
-          <Icon name="location-outline" size={16} color={theme.colors.accent} />
-          <Text style={styles.mapAddressText} numberOfLines={2}>{mapModal.address}</Text>
+            </View>
+          )}
+
+          {/* Map controls - floating buttons */}
+          {mapCoords && (
+            <View style={styles.mapControls}>
+              <TouchableOpacity
+                onPress={handleCenterOnDestination}
+                style={styles.mapControlBtn}
+                activeOpacity={0.7}>
+                <Icon name="location" size={22} color={theme.colors.accent} />
+              </TouchableOpacity>
+              {userLocation && routePoints.length > 1 && (
+                <TouchableOpacity
+                  onPress={handleShowFullRoute}
+                  style={[styles.mapControlBtn, {marginTop: theme.spacing.sm}]}
+                  activeOpacity={0.7}>
+                  <Icon name="swap-horizontal" size={22} color="#3498DB" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Bottom info panel */}
+        <View style={styles.mapBottomPanel}>
+          {/* Route info */}
+          {routeData && (
+            <View style={styles.routeInfoBar}>
+              <View style={styles.routeInfoItem}>
+                <Icon name="car-outline" size={16} color="#3498DB" />
+                <Text style={styles.routeInfoText}>{routeData.distance}</Text>
+              </View>
+              <View style={styles.routeInfoDivider} />
+              <View style={styles.routeInfoItem}>
+                <Icon name="time-outline" size={16} color="#3498DB" />
+                <Text style={styles.routeInfoText}>{routeData.duration}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Address row */}
+          <View style={styles.mapAddressRow}>
+            <Icon name="location-outline" size={18} color={theme.colors.accent} />
+            <Text style={styles.mapAddressText} numberOfLines={2}>
+              {mapModal.address}
+            </Text>
+          </View>
+
+          {/* Navigate button */}
+          {mapCoords && (
+            <TouchableOpacity
+              style={styles.navigateButton}
+              onPress={handleNavigateExternal}
+              activeOpacity={0.8}>
+              <Icon name="navigate" size={20} color={theme.colors.white} />
+              <Text style={styles.navigateButtonText}>
+                Navegar con {Platform.OS === 'ios' ? 'Maps' : 'Google Maps'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     </Modal>
-  ), [mapModal]);
+  ), [mapModal, mapCoords, mapRegion, userLocation, routePoints, routeData, mapLoading, routeLoading]);
 
   // ─── Loading Screen ──────────────────────────────────────────────────────
 
@@ -970,10 +1311,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Map Modal
+  // ─── Native Map Modal ─────────────────────────────────────────────────
   mapSafeArea: {
     flex: 1,
-    backgroundColor: theme.colors.white,
+    backgroundColor: '#F5F5F5',
   },
   mapHeader: {
     flexDirection: 'row',
@@ -995,26 +1336,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mapTitle: {
+    flex: 1,
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
     color: theme.colors.text,
+    textAlign: 'center',
+    marginHorizontal: theme.spacing.sm,
   },
-  mapOpenExternal: {
+  mapNavigateBtn: {
     width: 40,
     height: 40,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.inputBg,
+    backgroundColor: theme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mapWebView: {
+  mapBtnDisabled: {
+    backgroundColor: theme.colors.border,
+  },
+  mapContainer: {
     flex: 1,
+    position: 'relative',
+  },
+  mapView: {
+    ...StyleSheet.absoluteFillObject,
   },
   mapLoading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing.md,
+    backgroundColor: '#F5F5F5',
   },
   mapLoadingText: {
     fontSize: theme.fontSize.md,
@@ -1026,6 +1378,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl,
+    backgroundColor: '#F5F5F5',
   },
   mapErrorText: {
     fontSize: theme.fontSize.md,
@@ -1044,21 +1397,151 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
   },
-  mapAddressPill: {
+
+  // Map floating controls
+  mapControls: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    top: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  mapControlBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+
+  // Route loading overlay
+  routeLoadingOverlay: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    left: '50%',
+    transform: [{translateX: -90}],
+  },
+  routeLoadingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
     backgroundColor: theme.colors.white,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 20,
+    ...theme.shadows.md,
+  },
+  routeLoadingText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  // Map markers
+  markerContainer: {
+    alignItems: 'center',
+  },
+  markerPin: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.md,
+  },
+  markerShadow: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    marginTop: -2,
+  },
+  userMarker: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: theme.colors.white,
+    ...theme.shadows.md,
+  },
+  userMarkerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.white,
+  },
+  userMarkerPulse: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 15,
+    backgroundColor: 'rgba(66, 133, 244, 0.2)',
+  },
+
+  // Map bottom panel
+  mapBottomPanel: {
+    backgroundColor: theme.colors.white,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+    ...theme.shadows.md,
+  },
+  routeInfoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.lg,
+  },
+  routeInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  routeInfoText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: '#3498DB',
+  },
+  routeInfoDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: theme.colors.border,
+  },
+  mapAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border + '60',
   },
   mapAddressText: {
     flex: 1,
     fontSize: theme.fontSize.sm,
     color: theme.colors.text,
     lineHeight: 20,
+  },
+  navigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    margin: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    ...theme.shadows.sm,
+  },
+  navigateButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.white,
   },
 });
 
