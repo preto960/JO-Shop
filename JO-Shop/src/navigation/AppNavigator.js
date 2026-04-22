@@ -24,6 +24,7 @@ import AdminRolesScreen from '@screens/AdminRolesScreen';
 import AdminUsersScreen from '@screens/AdminUsersScreen';
 import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
+import VerificationScreen from '@screens/VerificationScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -227,6 +228,7 @@ const AppNavigator = () => {
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="Verification" component={VerificationScreen} />
         </>
       ) : isDelivery ? (
         // Delivery: solo gestión de entregas

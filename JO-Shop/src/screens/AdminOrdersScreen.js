@@ -284,7 +284,7 @@ const AdminOrdersScreen = () => {
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
             >
-              <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+              <Icon name="chevron-back" size={16} color={theme.colors.accent} />
             </TouchableOpacity>
           )}
           <ScrollView
@@ -333,7 +333,7 @@ const AdminOrdersScreen = () => {
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
             >
-              <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+              <Icon name="chevron-forward" size={16} color={theme.colors.accent} />
             </TouchableOpacity>
           )}
         </View>
@@ -916,36 +916,36 @@ const styles = StyleSheet.create({
   tabsArrowLeft: {
     position: 'absolute',
     left: 4,
-    top: 0,
-    bottom: 0,
-    width: 34,
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 17,
-    elevation: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 15,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: -1, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    alignSelf: 'center',
   },
   tabsArrowRight: {
     position: 'absolute',
     right: 4,
-    top: 0,
-    bottom: 0,
-    width: 34,
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 17,
-    elevation: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 15,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    alignSelf: 'center',
   },
   filterTabsScroll: {
     paddingHorizontal: 16,

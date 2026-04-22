@@ -1,36 +1,46 @@
-import messaging from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import apiService from '@services/api';
 
 // Clave para guardar el token registrado en el backend
 const REGISTERED_TOKEN_KEY = '@joshop_fcm_token';
 
+// Flag para saber si Firebase esta disponible
+let firebaseAvailable = null;
+
+/**
+ * Intentar importar Firebase de forma segura
+ */
+async function getMessaging() {
+  if (firebaseAvailable === false) return null;
+
+  try {
+    const messaging = require('@react-native-firebase/messaging').default;
+    // Probar si funciona
+    await messaging().isAutoInitEnabled();
+    firebaseAvailable = true;
+    return messaging;
+  } catch (err) {
+    console.warn('[Push] Firebase no disponible:', err.message);
+    firebaseAvailable = false;
+    return null;
+  }
+}
+
 /**
  * Solicitar permiso de notificaciones al usuario
  */
 export async function requestNotificationPermission() {
   try {
-    if (Platform.OS === 'ios') {
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      return enabled;
-    }
+    const messaging = await getMessaging();
+    if (!messaging) return false;
 
-    // Android 13+ necesita permiso explicito
-    if (Platform.OS === 'android' && Platform.Version >= 33) {
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      return enabled;
-    }
-
-    // Android < 13 no necesita permiso explicito
-    return true;
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+    return enabled;
   } catch (err) {
-    console.error('[Push] Error solicitando permiso:', err.message);
+    console.warn('[Push] Error solicitando permiso:', err.message);
     return false;
   }
 }
@@ -40,6 +50,9 @@ export async function requestNotificationPermission() {
  */
 export async function checkNotificationPermission() {
   try {
+    const messaging = await getMessaging();
+    if (!messaging) return false;
+
     const authStatus = await messaging().hasPermission();
     return (
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
@@ -55,13 +68,13 @@ export async function checkNotificationPermission() {
  */
 export async function getFCMToken() {
   try {
-    // Deshabilitar auto-init para evitar token no autorizado
-    await messaging().setAutoInitEnabled(true);
+    const messaging = await getMessaging();
+    if (!messaging) return null;
 
     const token = await messaging().getToken();
     return token;
   } catch (err) {
-    console.error('[Push] Error obteniendo FCM token:', err.message);
+    console.warn('[Push] Error obteniendo FCM token:', err.message);
     return null;
   }
 }
@@ -71,6 +84,12 @@ export async function getFCMToken() {
  */
 export async function registerPushToken() {
   try {
+    const messaging = await getMessaging();
+    if (!messaging) {
+      console.log('[Push] Firebase no configurado, saltando registro de token');
+      return false;
+    }
+
     const hasPermission = await checkNotificationPermission();
     if (!hasPermission) {
       const granted = await requestNotificationPermission();
@@ -106,7 +125,7 @@ export async function registerPushToken() {
     console.log('[Push] Token registrado en el backend exitosamente');
     return true;
   } catch (err) {
-    console.error('[Push] Error registrando token:', err.message);
+    console.warn('[Push] Error registrando token:', err.message);
     return false;
   }
 }
@@ -123,7 +142,6 @@ export async function unregisterPushToken() {
       const api = await apiService.createApiClient();
       await api.delete('/notifications/token', { data: { token } });
     } catch {
-      // Si falla (ej. 401), eliminar todos los tokens del usuario
       try {
         const api = await apiService.createApiClient();
         await api.delete('/notifications/tokens');
@@ -135,7 +153,7 @@ export async function unregisterPushToken() {
     await _clearStoredToken();
     console.log('[Push] Token eliminado del backend');
   } catch (err) {
-    console.error('[Push] Error eliminando token:', err.message);
+    console.warn('[Push] Error eliminando token:', err.message);
   }
 }
 
@@ -143,47 +161,68 @@ export async function unregisterPushToken() {
  * Escuchar cuando el token se refresca (Firebase lo rota)
  */
 export function onTokenRefresh(callback) {
-  return messaging().onTokenRefresh(async (newToken) => {
-    console.log('[Push] Token refrescado por Firebase');
-    try {
-      const api = await apiService.createApiClient();
-      await api.post('/notifications/token', {
-        token: newToken,
-        platform: Platform.OS,
-      });
-      await _storeToken(newToken);
-      if (callback) callback(newToken);
-    } catch (err) {
-      console.error('[Push] Error re-registrando token refrescado:', err.message);
-    }
-  });
+  try {
+    const messagingMod = require('@react-native-firebase/messaging').default;
+    return messagingMod().onTokenRefresh(async (newToken) => {
+      console.log('[Push] Token refrescado por Firebase');
+      try {
+        const api = await apiService.createApiClient();
+        await api.post('/notifications/token', {
+          token: newToken,
+          platform: Platform.OS,
+        });
+        await _storeToken(newToken);
+        if (callback) callback(newToken);
+      } catch (err) {
+        console.warn('[Push] Error re-registrando token refrescado:', err.message);
+      }
+    });
+  } catch {
+    // Firebase no disponible, devolver unsubscribe vacio
+    return () => {};
+  }
 }
 
 /**
  * Escuchar mensajes en foreground (app abierta)
  */
 export function onForegroundMessage(callback) {
-  return messaging().onMessage(async (remoteMessage) => {
-    console.log('[Push] Mensaje recibido en foreground:', remoteMessage?.notification?.title);
-    if (callback) callback(remoteMessage);
-  });
+  try {
+    const messagingMod = require('@react-native-firebase/messaging').default;
+    return messagingMod().onMessage(async (remoteMessage) => {
+      console.log('[Push] Mensaje recibido en foreground:', remoteMessage?.notification?.title);
+      if (callback) callback(remoteMessage);
+    });
+  } catch {
+    return () => {};
+  }
 }
 
 /**
  * Obtener la notificacion inicial (app abierta desde notificacion)
  */
 export async function getInitialNotification() {
-  return messaging().getInitialNotification();
+  try {
+    const messaging = await getMessaging();
+    if (!messaging) return null;
+    return messaging().getInitialNotification();
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Configurar el handler para background/quit messages
  */
 export function setBackgroundMessageHandler() {
-  messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-    console.log('[Push] Mensaje recibido en background:', remoteMessage?.notification?.title);
-    // No se puede mostrar UI aqui, pero se pueden hacer tareas en background
-  });
+  try {
+    const messagingMod = require('@react-native-firebase/messaging').default;
+    messagingMod().setBackgroundMessageHandler(async (remoteMessage) => {
+      console.log('[Push] Mensaje recibido en background:', remoteMessage?.notification?.title);
+    });
+  } catch {
+    // Firebase no disponible, ignorar
+  }
 }
 
 // ─── HELPERS PARA STORAGE ─────────────────────────────────────────────────
