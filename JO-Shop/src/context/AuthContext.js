@@ -137,7 +137,7 @@ export const AuthProvider = ({children}) => {
   }, [saveSession]);
 
   // Registro
-  const register = useCallback(async (name, email, password) => {
+  const register = useCallback(async (name, email, password, role = 'customer') => {
     try {
       dispatch({type: ACTIONS.SET_LOADING, payload: true});
       dispatch({type: ACTIONS.CLEAR_ERROR});
@@ -147,7 +147,7 @@ export const AuthProvider = ({children}) => {
         throw new Error('Configura la URL del servidor en Ajustes');
       }
 
-      const response = await api.post('/auth/register', {name, email, password});
+      const response = await api.post('/auth/register', {name, email, password, role});
       const {user, token, refreshToken} = response;
 
       await saveSession({user, token, refreshToken});

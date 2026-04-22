@@ -12,7 +12,6 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
-import ENV from '@config/env';
 import theme from '@theme/styles';
 
 const LoginScreen = ({navigation}) => {
@@ -131,24 +130,7 @@ const LoginScreen = ({navigation}) => {
             </View>
           </View>
 
-          {/* Demo credentials */}
-          <View style={styles.demoContainer}>
-            <Text style={styles.demoTitle}>Credenciales de prueba:</Text>
-            <TouchableOpacity
-              onPress={() => {setEmail(ENV.DEMO_ADMIN_EMAIL); setPassword(ENV.DEMO_ADMIN_PASSWORD);}}
-              style={styles.demoButton}
-              activeOpacity={0.7}>
-              <Icon name="shield-outline" size={16} color={theme.colors.accent} />
-              <Text style={styles.demoText}>Admin: {ENV.DEMO_ADMIN_EMAIL}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {setEmail(ENV.DEMO_CLIENT_EMAIL); setPassword(ENV.DEMO_CLIENT_PASSWORD);}}
-              style={styles.demoButton}
-              activeOpacity={0.7}>
-              <Icon name="person-outline" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.demoText}>Cliente: {ENV.DEMO_CLIENT_EMAIL}</Text>
-            </TouchableOpacity>
-          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -260,28 +242,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.accent,
   },
-  demoContainer: {
-    marginTop: theme.spacing.xl,
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.borderRadius.md,
-  },
-  demoTitle: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
-  },
-  demoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-  },
-  demoText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
+
 });
 
 export default LoginScreen;
