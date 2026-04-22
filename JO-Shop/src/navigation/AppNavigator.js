@@ -23,6 +23,7 @@ import AdminOrdersScreen from '@screens/AdminOrdersScreen';
 import AdminRolesScreen from '@screens/AdminRolesScreen';
 import AdminUsersScreen from '@screens/AdminUsersScreen';
 import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
+import MyOrdersScreen from '@screens/MyOrdersScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -53,6 +54,7 @@ const CustomerTabs = () => {
           const icons = {
             Home: 'storefront-outline',
             Cart: 'cart-outline',
+            MyOrders: 'receipt-outline',
             Profile: 'person-outline',
           };
           return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
@@ -72,6 +74,7 @@ const CustomerTabs = () => {
           ),
         }}
       />
+      <Tab.Screen name="MyOrders" component={MyOrdersScreen} options={{tabBarLabel: 'Pedidos'}} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{tabBarLabel: 'Perfil'}} />
     </Tab.Navigator>
   );

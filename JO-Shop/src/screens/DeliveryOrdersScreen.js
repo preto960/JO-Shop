@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  Linking,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -14,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
+import ENV from '@config/env';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
 import Toast from '@components/Toast';
@@ -190,6 +192,15 @@ const DeliveryOrdersScreen = () => {
   );
 
   // ─── Actions ─────────────────────────────────────────────────────────────
+
+  const handleOpenMap = useCallback(address => {
+    if (!address) return;
+    const encoded = encodeURIComponent(address);
+    const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    Linking.openURL(url).catch(() => {
+      showToast('No se pudo abrir el mapa', 'error');
+    });
+  }, [showToast]);
 
   const handleAcceptOrder = useCallback(
     order => {
@@ -370,7 +381,10 @@ const DeliveryOrdersScreen = () => {
               </View>
             ) : null}
 
-            <View style={styles.infoRow}>
+            <TouchableOpacity
+              style={[styles.infoRow, styles.addressRowTouchable]}
+              onPress={() => handleOpenMap(item.address)}
+              activeOpacity={0.7}>
               <Icon
                 name="location-outline"
                 size={16}
@@ -379,7 +393,12 @@ const DeliveryOrdersScreen = () => {
               <Text style={styles.infoText} numberOfLines={2}>
                 {item.address || 'Sin dirección'}
               </Text>
-            </View>
+              <Icon
+                name="navigate-outline"
+                size={16}
+                color={theme.colors.accent}
+              />
+            </TouchableOpacity>
 
             {/* Items summary */}
             {item.items && item.items.length > 0 && (
@@ -409,22 +428,33 @@ const DeliveryOrdersScreen = () => {
             </View>
 
             {/* Action Buttons */}
-            {activeTab === 'available' && item.status !== 'shipped' && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={() => handleAcceptOrder(item)}
-                disabled={isActing}
-                activeOpacity={0.8}>
-                {isActing ? (
-                  <ActivityIndicator size="small" color={theme.colors.white} />
-                ) : (
-                  <>
-                    <Icon name="bicycle-outline" size={16} color={theme.colors.white} />
-                    <Text style={styles.actionButtonText}>Aceptar</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+            <View style={styles.actionButtonsRow}>
+              {item.address && activeTab === 'available' && (
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.mapButton]}
+                  onPress={() => handleOpenMap(item.address)}
+                  activeOpacity={0.8}>
+                  <Icon name="map-outline" size={16} color={theme.colors.white} />
+                  <Text style={styles.actionButtonText}>Mapa</Text>
+                </TouchableOpacity>
+              )}
+
+              {activeTab === 'available' && item.status !== 'shipped' && (
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.acceptButton]}
+                  onPress={() => handleAcceptOrder(item)}
+                  disabled={isActing}
+                  activeOpacity={0.8}>
+                  {isActing ? (
+                    <ActivityIndicator size="small" color={theme.colors.white} />
+                  ) : (
+                    <>
+                      <Icon name="bicycle-outline" size={16} color={theme.colors.white} />
+                      <Text style={styles.actionButtonText}>Aceptar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
 
             {item.status === 'shipped' && item.deliveryId === user?.id && (
               <TouchableOpacity
@@ -456,11 +486,12 @@ const DeliveryOrdersScreen = () => {
                 />
               </View>
             )}
+            </View>
           </View>
         </View>
       );
     },
-    [actionLoading, handleAcceptOrder, handleMarkDelivered, activeTab, user?.id],
+    [actionLoading, handleAcceptOrder, handleMarkDelivered, activeTab, user?.id, handleOpenMap],
   );
 
   // ─── Render: Filter Tabs ─────────────────────────────────────────────────
@@ -771,6 +802,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     lineHeight: 20,
   },
+  addressRowTouchable: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs + 2,
+  },
   itemsSummary: {
     marginTop: theme.spacing.xs,
     backgroundColor: theme.colors.inputBg,
@@ -816,6 +853,11 @@ const styles = StyleSheet.create({
   },
 
   // Action Buttons
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -827,6 +869,9 @@ const styles = StyleSheet.create({
   },
   acceptButton: {
     backgroundColor: '#1ABC9C',
+  },
+  mapButton: {
+    backgroundColor: '#3498DB',
   },
   deliverButton: {
     backgroundColor: theme.colors.success,
