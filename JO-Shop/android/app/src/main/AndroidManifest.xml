@@ -18,7 +18,8 @@
         <!-- Canal de notificaciones por defecto para FCM (Android 8+) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="joshop_orders" />
+            android:value="joshop_orders"
+            tools:replace="android:value" />
 
         <!-- Google Maps API Key -->
         <meta-data
