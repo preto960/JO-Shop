@@ -1,5 +1,5 @@
-import React, {createRef, useEffect, useState} from 'react';
-import {StatusBar, StyleSheet, View, Alert} from 'react-native';
+import React, {createRef, useEffect, useState, useCallback} from 'react';
+import {StatusBar, StyleSheet, View} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer} from '@react-navigation/native';
 import AppNavigator from '@navigation/AppNavigator';
@@ -7,6 +7,7 @@ import {AuthProvider, useAuth} from '@context/AuthContext';
 import {CartProvider} from '@context/CartContext';
 import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
+import ConfirmModal from '@components/ConfirmModal';
 
 // Ref de navegacion accesible fuera del componente
 export const navigationRef = createRef();
@@ -16,10 +17,22 @@ const NotificationHandler = () => {
   const {isAuthenticated} = useAuth();
   const [initialNotification, setInitialNotification] = useState(null);
 
-  // Configurar handler para mensajes en background (se llama una vez)
-  useEffect(() => {
-    pushNotifications.setBackgroundMessageHandler();
+  // Estado para el modal de notificacion foreground
+  const [notifModal, setNotifModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    screen: null,
+  });
+
+  const showNotifModal = useCallback((title, message, screen) => {
+    setNotifModal({visible: true, title, message, screen});
   }, []);
+
+  // Registrar callback para que el modulo de notificaciones pueda usarlo
+  useEffect(() => {
+    pushNotifications.setForegroundCallback(showNotifModal);
+  }, [showNotifModal]);
 
   // Manejar notificacion al abrir la app desde estado cerrado/background
   useEffect(() => {
@@ -38,7 +51,6 @@ const NotificationHandler = () => {
 
     const {data} = initialNotification;
     if (data) {
-      // Navegar a la pantalla correspondiente segun el tipo
       setTimeout(() => {
         if (data.screen === 'DeliveryOrders') {
           navigationRef.current?.navigate('DeliveryOrders');
@@ -59,28 +71,45 @@ const NotificationHandler = () => {
     const unsubscribe = pushNotifications.onForegroundMessage(async (remoteMessage) => {
       const {notification, data} = remoteMessage;
       if (notification) {
-        Alert.alert(
+        showNotifModal(
           notification.title || 'JO-Shop',
           notification.body || '',
-          [
-            {
-              text: 'Ver',
-              onPress: () => {
-                if (data?.screen) {
-                  navigationRef.current?.navigate(data.screen);
-                }
-              },
-            },
-            {text: 'Cerrar', style: 'cancel'},
-          ],
+          data?.screen || null,
         );
       }
     });
 
     return unsubscribe;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, showNotifModal]);
 
-  return null;
+  // Manejar accion del modal de notificacion
+  const handleNotifClose = useCallback(() => {
+    setNotifModal(prev => ({...prev, visible: false}));
+  }, []);
+
+  const handleNotifConfirm = useCallback(() => {
+    const {screen} = notifModal;
+    setNotifModal(prev => ({...prev, visible: false}));
+    if (screen) {
+      navigationRef.current?.navigate(screen);
+    }
+  }, [notifModal]);
+
+  return (
+    <>
+      <ConfirmModal
+        visible={notifModal.visible}
+        onClose={handleNotifClose}
+        onConfirm={handleNotifConfirm}
+        title={notifModal.title}
+        message={notifModal.message}
+        confirmText="Ver"
+        cancelText="Cerrar"
+        type="confirm"
+        icon="notifications"
+      />
+    </>
+  );
 };
 
 const App = () => {

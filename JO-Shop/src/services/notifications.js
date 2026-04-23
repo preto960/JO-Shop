@@ -14,11 +14,23 @@ try {
 // Flag para saber si Firebase esta realmente disponible
 const isFirebaseAvailable = () => !!messaging;
 
-// ─── FUNCIONES PÚBLICAS ────────────────────────────────────────────────────
+// ─── CANAL DE NOTIFICACIONES ANDROID ───────────────────────────────────────
+// El canal se crea en MainApplication.java (nivel nativo) para Android 8+.
+// Esto asegura que exista antes de que llegue cualquier notificacion.
+// El ID del canal es "joshop_orders" (coincide con MainApplication.java).
+
+// ─── CALLBACK PARA NOTIFICACIONES FOREGROUND ──────────────────────────────
+// Los callbacks se almacenan aqui para que App.js pueda conectar el modal
+let _foregroundCallback = null;
+
+export function setForegroundCallback(callback) {
+  _foregroundCallback = callback;
+}
+
+// ─── FUNCIONES PUBLICAS ────────────────────────────────────────────────────
 
 /**
  * Solicitar permiso de notificaciones
- * @returns {Promise<boolean>}
  */
 export async function requestNotificationPermission() {
   if (!isFirebaseAvailable()) {
@@ -42,7 +54,6 @@ export async function requestNotificationPermission() {
 
 /**
  * Verificar si las notificaciones estan autorizadas
- * @returns {Promise<boolean>}
  */
 export async function checkNotificationPermission() {
   if (!isFirebaseAvailable()) return false;
@@ -60,7 +71,6 @@ export async function checkNotificationPermission() {
 
 /**
  * Obtener el token FCM del dispositivo
- * @returns {Promise<string|null>}
  */
 export async function getFCMToken() {
   if (!isFirebaseAvailable()) {
@@ -69,7 +79,6 @@ export async function getFCMToken() {
   }
 
   try {
-    // Verificar permisos primero
     const hasPermission = await checkNotificationPermission();
     if (!hasPermission) {
       console.log('[Push] Sin permisos, solicitando...');
@@ -90,7 +99,6 @@ export async function getFCMToken() {
 
 /**
  * Registrar el token FCM en el backend
- * @returns {Promise<boolean>}
  */
 export async function registerPushToken() {
   if (!isFirebaseAvailable()) {
@@ -146,7 +154,6 @@ export async function unregisterPushToken() {
 
 /**
  * Escuchar cuando el token se refresca
- * @returns {Function} Unsubscribe function
  */
 export function onTokenRefresh(callback) {
   if (!isFirebaseAvailable()) {
@@ -162,7 +169,7 @@ export function onTokenRefresh(callback) {
 
 /**
  * Escuchar mensajes en foreground (app abierta)
- * @returns {Function} Unsubscribe function
+ * Usa el callback registrado via setForegroundCallback para mostrar el modal
  */
 export function onForegroundMessage(callback) {
   if (!isFirebaseAvailable()) {
@@ -178,7 +185,6 @@ export function onForegroundMessage(callback) {
 
 /**
  * Obtener la notificacion inicial (app abierta desde notificacion)
- * @returns {Promise<object|null>}
  */
 export async function getInitialNotification() {
   if (!isFirebaseAvailable()) return null;
@@ -191,25 +197,11 @@ export async function getInitialNotification() {
 }
 
 /**
- * Configurar el handler para background/quit messages
+ * NOTA: setBackgroundMessageHandler ya NO se necesita llamar desde App.js.
+ * Se registra automaticamente a nivel de modulo abajo.
  */
 export function setBackgroundMessageHandler() {
-  if (!isFirebaseAvailable()) {
-    console.log('[Push] Firebase no disponible, background handler no configurado');
-    return;
-  }
-
-  try {
-    // El background message handler se registra como modulo de nivel superior
-    // en @react-native-firebase/messaging. Esta llamada es segura cuando
-    // Firebase esta correctamente inicializado.
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('[Push] Mensaje en background:', remoteMessage?.messageId);
-    });
-    console.log('[Push] Background message handler configurado');
-  } catch (error) {
-    console.error('[Push] Error configurando background handler:', error.message);
-  }
+  // No-op: el handler se registra a nivel de modulo (ver abajo)
 }
 
 export default {
@@ -222,4 +214,27 @@ export default {
   onForegroundMessage,
   getInitialNotification,
   setBackgroundMessageHandler,
+  setForegroundCallback,
+  isFirebaseAvailable,
 };
+
+// ────────────────────────────────────────────────────────────────────────────
+// REGISTRO A NIVEL DE MODULO (fuera de cualquier componente)
+// Esto es OBLIGATORIO para que funcione cuando la app esta en background o cerrada.
+// Si se registra dentro de un useEffect de un componente React, NO funcionara
+// en background/quit porque React no esta activo.
+// ────────────────────────────────────────────────────────────────────────────
+
+if (isFirebaseAvailable()) {
+  try {
+    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+      console.log('[Push] Mensaje en background recibido:', remoteMessage?.messageId);
+      // Aqui puedes procesar la notificacion en background si es necesario.
+      // El sistema Android mostrara la notificacion automaticamente si tiene
+      // notification.title y notification.body.
+    });
+    console.log('[Push] Background message handler registrado (nivel modulo)');
+  } catch (err) {
+    console.error('[Push] Error registrando background handler:', err.message);
+  }
+}
