@@ -39,13 +39,25 @@ const SCREEN_ROUTES = {
 function navigateToScreen(screenName, params = {}) {
   const route = SCREEN_ROUTES[screenName];
   const nav = navigationRef.current;
-  if (!nav) return;
+  if (!nav) {
+    console.warn('[Navigation] navigationRef.current es null, no se puede navegar a', screenName);
+    return;
+  }
+
+  // Verificar que el navigator tenga un estado valido (listo para navegar)
+  if (!nav.getRootState || !nav.getRootState().routes || nav.getRootState().routes.length === 0) {
+    console.warn('[Navigation] Navigator no esta listo aun, reintentando en 300ms...');
+    setTimeout(() => navigateToScreen(screenName, params), 300);
+    return;
+  }
 
   if (route) {
     // Navegar al tab navigator padre + screen hijo con params
+    console.log('[Navigation] Navegando a', route.parent, '->', route.screen, 'params:', JSON.stringify(params));
     nav.navigate(route.parent, { screen: route.screen, params });
   } else {
     // Fallback: intentar navegacion directa con params
+    console.log('[Navigation] Navegando directo a', screenName, 'params:', JSON.stringify(params));
     nav.navigate(screenName, params);
   }
 }
@@ -77,7 +89,12 @@ const NotificationHandler = () => {
     const handleInitialNotification = async () => {
       const notif = await pushNotifications.getInitialNotification();
       if (notif) {
+        console.log('[App] Notificacion inicial recibida (app abierta desde notificacion):');
+        console.log('[App] Screen:', notif.data?.screen);
+        console.log('[App] Data:', JSON.stringify(notif.data));
         setInitialNotification(notif);
+      } else {
+        console.log('[App] Sin notificacion inicial (apertura normal)');
       }
     };
     handleInitialNotification();
@@ -89,10 +106,15 @@ const NotificationHandler = () => {
 
     const {data} = initialNotification;
     if (data?.screen) {
-      setTimeout(() => {
+      console.log('[App] Navegando desde notificacion inicial a:', data.screen, 'con data:', JSON.stringify(data));
+      // Esperar 800ms para asegurar que NavigationContainer esta listo
+      // y que el estado de autenticacion se haya propagado completamente.
+      // Si el navigator no esta listo, navigate() falla silenciosamente.
+      const timer = setTimeout(() => {
         navigateToScreen(data.screen, data);
         setInitialNotification(null);
-      }, 500);
+      }, 800);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, initialNotification]);
 

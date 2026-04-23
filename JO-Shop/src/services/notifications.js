@@ -228,10 +228,16 @@ export default {
 if (isFirebaseAvailable()) {
   try {
     messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('[Push] Mensaje en background recibido:', remoteMessage?.messageId);
-      // Aqui puedes procesar la notificacion en background si es necesario.
-      // El sistema Android mostrara la notificacion automaticamente si tiene
-      // notification.title y notification.body.
+      console.log('[Push] Background message handler activado');
+      console.log('[Push] Message ID:', remoteMessage?.messageId);
+      console.log('[Push] Data:', JSON.stringify(remoteMessage?.data));
+      console.log('[Push] Title:', remoteMessage?.notification?.title);
+      console.log('[Push] Body:', remoteMessage?.notification?.body);
+
+      // Android muestra automaticamente la notificacion del sistema
+      // porque el payload incluye notification.title y notification.body.
+      // Aqui solo procesamos logica adicional si fuera necesario.
+      // IMPORTANTE: Este handler DEBE retornar una Promise resuelta.
     });
     console.log('[Push] Background message handler registrado (nivel modulo)');
   } catch (err) {
