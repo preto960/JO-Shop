@@ -218,6 +218,8 @@ const DeliveryOrdersScreen = () => {
   // Highlight state (cuando viene de notificacion)
   const [highlightOrderId, setHighlightOrderId] = useState(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Ref para highlight pendiente (espera a que la lista se refresque)
+  const pendingHighlightRef = useRef(null);
 
   // Action state
   const [actionLoading, setActionLoading] = useState(null);
@@ -365,18 +367,33 @@ const DeliveryOrdersScreen = () => {
   }, [loadOrders]);
 
   // Escuchar accion del boton "Ver" del modal de notificacion (cuando ya estamos en esta pantalla)
+  // PRIMERO refresca la lista, LUEGO aplica el highlight/parpadeo
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('pushNotificationAction', (data) => {
       if (data?.screen === 'DeliveryOrders' && data?.highlightOrderId) {
+        const targetId = String(data.highlightOrderId);
+        console.log('[DeliveryOrders] pushNotificationAction: refrescando primero, luego highlight', targetId);
+        // Guardar target para highlight DESPUES del refresh
+        pendingHighlightRef.current = targetId;
         // Asegurar que la tab sea 'available' para que la orden sea visible
         setActiveTab('available');
-        setHighlightOrderId(String(data.highlightOrderId));
         // Refrescar datos para tener la lista actualizada
         loadOrders(true);
       }
     });
     return () => subscription.remove();
   }, [loadOrders]);
+
+  // Cuando orders se actualizan y hay un highlight pendiente, aplicarlo
+  // Esto asegura que el parpadeo ocurra DESPUES de que la lista este actualizada
+  useEffect(() => {
+    const targetId = pendingHighlightRef.current;
+    if (!targetId || orders.length === 0) return;
+
+    pendingHighlightRef.current = null;  // Limpiar para no repetir
+    console.log('[DeliveryOrders] Lista actualizada - aplicando highlight a', targetId);
+    setHighlightOrderId(targetId);
+  }, [orders]);
 
   // Animacion de pulso para la orden resaltada
   useEffect(() => {
@@ -402,6 +419,7 @@ const DeliveryOrdersScreen = () => {
     // Scroll hasta la orden resaltada
     setTimeout(() => {
       const idx = orders.findIndex(o => String(o.id) === String(highlightOrderId));
+      console.log('[DeliveryOrders] Scroll a highlight - idx:', idx, 'total:', orders.length);
       if (idx >= 0 && flatListRef.current) {
         try {
           flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.3});

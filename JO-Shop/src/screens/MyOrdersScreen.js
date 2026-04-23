@@ -157,9 +157,9 @@ const MyOrdersScreen = () => {
           );
         }
 
-        // Normalize data
+        // Normalize data (IDs como string para comparaciones consistentes)
         const normalized = filtered.map(order => ({
-          id: order.id,
+          id: String(order.id),
           orderNumber: order.id,
           customerName: order.customerName || 'Cliente',
           customerAddr: order.customerAddr || order.address || '',
@@ -221,35 +221,26 @@ const MyOrdersScreen = () => {
   }, [loadOrders]);
 
   // Escuchar accion del boton "Ver" del modal de notificacion
-  // Expande la orden inmediatamente y hace scroll cuando los datos estan listos
+  // Refresca la lista primero y luego expande la orden cuando los datos estan listos
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('pushNotificationAction', (data) => {
       if (data?.screen === 'MyOrders' && data?.expandOrderId) {
         const targetId = String(data.expandOrderId);
-        console.log('[MyOrders] pushNotificationAction: expandiendo orden', targetId);
+        console.log('[MyOrders] pushNotificationAction: refrescando y expandiendo orden', targetId);
+        // Guardar target para expandir DESPUES de que los datos se refresquen
         expandTargetRef.current = targetId;
-        setExpandedOrder(targetId);  // Expandir inmediatamente (no espera refresh)
+        // Asegurar tab 'all' para que la orden sea visible
         setActiveTab('all');
-        // Intentar scroll inmediato con los datos actuales (ya deberian tener delivery info
-        // del refresh que hizo pushNotificationReceived al llegar la notificacion)
-        setTimeout(() => {
-          const currentOrders = ordersRef.current;
-          const idx = currentOrders.findIndex(o => String(o.id) === targetId);
-          console.log('[MyOrders] Scroll inmediato - idx:', idx, 'total:', currentOrders.length);
-          if (idx >= 0 && flatListRef.current) {
-            try {
-              flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.2});
-            } catch {
-              flatListRef.current.scrollToOffset({offset: idx * 280, animated: true});
-            }
-          }
-        }, 350);
+        // Forzar refresh para tener los datos mas actualizados (con info del delivery)
+        // Si ya estamos en 'all', loadOrders no se recrea por setActiveTab, asi que forzamos refresh
+        // El useEffect de [orders] se encargara de expandir y scrollear
+        loadOrders(true);
       }
     });
     return () => subscription.remove();
-  }, []);
+  }, [loadOrders]);
 
-  // Cuando orders se actualizan y hay un target pendiente, hacer scroll a la posicion correcta
+  // Cuando orders se actualizan y hay un target pendiente, expandir y hacer scroll
   // Esto cubre el caso donde la tab cambio o los datos no estaban listos aun
   useEffect(() => {
     const targetId = expandTargetRef.current;
@@ -257,7 +248,12 @@ const MyOrdersScreen = () => {
 
     expandTargetRef.current = null;  // Limpiar para no repetir
     const idx = orders.findIndex(o => String(o.id) === targetId);
-    console.log('[MyOrders] Orders actualizadas - scroll a orden', targetId, 'idx:', idx);
+    console.log('[MyOrders] Orders actualizadas - expandiendo y scrolleando a', targetId, 'idx:', idx);
+
+    // Expandir la orden
+    setExpandedOrder(targetId);
+
+    // Scroll a la posicion de la orden
     if (idx >= 0 && flatListRef.current) {
       setTimeout(() => {
         try {
@@ -265,7 +261,7 @@ const MyOrdersScreen = () => {
         } catch {
           flatListRef.current.scrollToOffset({offset: idx * 280, animated: true});
         }
-      }, 350);
+      }, 400);
     }
   }, [orders]);
 
@@ -287,7 +283,8 @@ const MyOrdersScreen = () => {
 
   const toggleExpand = useCallback(
     orderId => {
-      setExpandedOrder(prev => (prev === orderId ? null : orderId));
+      const oid = String(orderId);
+      setExpandedOrder(prev => (String(prev) === oid ? null : oid));
     },
     [],
   );
@@ -413,7 +410,7 @@ const MyOrdersScreen = () => {
   const renderOrderCard = useCallback(
     ({item}) => {
       const statusInfo = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
-      const isExpanded = expandedOrder === item.id;
+      const isExpanded = String(expandedOrder) === String(item.id);
       const canCancel = ['pending', 'confirmed'].includes(item.status);
 
       return (
