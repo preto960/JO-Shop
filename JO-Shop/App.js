@@ -12,6 +12,42 @@ import ConfirmModal from '@components/ConfirmModal';
 // Ref de navegacion accesible fuera del componente
 export const navigationRef = createRef();
 
+// ─── Mapeo de pantallas: nombre logico → ruta de navegacion real ──────────
+// Las pantallas estan dentro de Tab Navigators anidados, asi que necesitamos
+// navegar al parent + screen hijo.
+const SCREEN_ROUTES = {
+  DeliveryOrders: { parent: 'DeliveryMainTabs', screen: 'DeliveryOrders' },
+  DeliveryProfile: { parent: 'DeliveryMainTabs', screen: 'DeliveryProfile' },
+  MyOrders:        { parent: 'CustomerTabs',    screen: 'MyOrders' },
+  Home:            { parent: 'CustomerTabs',    screen: 'Home' },
+  Cart:            { parent: 'CustomerTabs',    screen: 'Cart' },
+  Profile:         { parent: 'CustomerTabs',    screen: 'Profile' },
+  AdminDashboard:  { parent: 'AdminMainTabs',   screen: 'AdminDashboard' },
+  AdminOrders:     { parent: 'AdminMainTabs',   screen: 'AdminOrders' },
+  AdminProducts:   { parent: 'AdminMainTabs',   screen: 'AdminProducts' },
+  AdminCategories: { parent: 'AdminMainTabs',   screen: 'AdminCategories' },
+  AdminUsers:      { parent: 'AdminMainTabs',   screen: 'AdminUsers' },
+  AdminRoles:      { parent: 'AdminMainTabs',   screen: 'AdminRoles' },
+};
+
+/**
+ * Navegar a una pantalla por nombre logico.
+ * Maneja correctamente navegadores anidados (tabs dentro de stacks).
+ */
+function navigateToScreen(screenName) {
+  const route = SCREEN_ROUTES[screenName];
+  const nav = navigationRef.current;
+  if (!nav) return;
+
+  if (route) {
+    // Navegar al tab navigator padre + screen hijo
+    nav.navigate(route.parent, { screen: route.screen, params: {} });
+  } else {
+    // Fallback: intentar navegacion directa
+    nav.navigate(screenName);
+  }
+}
+
 // Componente que maneja notificaciones push
 const NotificationHandler = () => {
   const {isAuthenticated} = useAuth();
@@ -50,15 +86,9 @@ const NotificationHandler = () => {
     if (!isAuthenticated || !initialNotification) return;
 
     const {data} = initialNotification;
-    if (data) {
+    if (data?.screen) {
       setTimeout(() => {
-        if (data.screen === 'DeliveryOrders') {
-          navigationRef.current?.navigate('DeliveryOrders');
-        } else if (data.screen === 'MyOrders') {
-          navigationRef.current?.navigate('MyOrders');
-        } else if (data.screen === 'AdminOrders') {
-          navigationRef.current?.navigate('AdminOrders');
-        }
+        navigateToScreen(data.screen);
         setInitialNotification(null);
       }, 500);
     }
@@ -91,7 +121,7 @@ const NotificationHandler = () => {
     const {screen} = notifModal;
     setNotifModal(prev => ({...prev, visible: false}));
     if (screen) {
-      navigationRef.current?.navigate(screen);
+      navigateToScreen(screen);
     }
   }, [notifModal]);
 
