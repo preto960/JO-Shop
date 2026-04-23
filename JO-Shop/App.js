@@ -125,6 +125,9 @@ const NotificationHandler = () => {
     const {data} = notifModal;
     setNotifModal(prev => ({...prev, visible: false}));
     if (data?.screen) {
+      // Emitir evento para que la pantalla destino reaccione (expandir, highlight, etc.)
+      // Esto funciona incluso si la pantalla ya esta enfocada (navigate no re-trigger params)
+      DeviceEventEmitter.emit('pushNotificationAction', data || {});
       navigateToScreen(data.screen, data);
     }
   }, [notifModal]);

@@ -181,13 +181,15 @@ const MyOrdersScreen = () => {
     loadOrders();
   }, [loadOrders]);
 
-  // Manejar params de notificacion: expandOrderId
+  // Manejar params de notificacion: expandOrderId (cuando se navega desde otra pantalla)
   useEffect(() => {
     const orderId = route.params?.expandOrderId;
     if (orderId) {
-      setPendingExpand(orderId);
+      setPendingExpand(String(orderId));
       // Cambiar a tab 'all' para asegurar que la orden es visible
       setActiveTab('all');
+      // Refrescar datos para tener info actualizada
+      loadOrders(true);
       // Limpiar params
       navigation.setParams({expandOrderId: null});
     }
@@ -205,6 +207,21 @@ const MyOrdersScreen = () => {
     const subscription = DeviceEventEmitter.addListener('pushNotificationReceived', (data) => {
       const type = data?.type;
       if (type === 'order_accepted' || type === 'order_status_change' || type === 'new_order') {
+        loadOrders(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [loadOrders]);
+
+  // Escuchar accion del boton "Ver" del modal de notificacion (cuando ya estamos en esta pantalla)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('pushNotificationAction', (data) => {
+      if (data?.screen === 'MyOrders' && data?.expandOrderId) {
+        // Asegurar que la tab sea 'all' para que la orden sea visible
+        setActiveTab('all');
+        // Marcar para expandir cuando los datos esten listos
+        setPendingExpand(String(data.expandOrderId));
+        // Refrescar datos para tener la info actualizada (incluyendo delivery)
         loadOrders(true);
       }
     });

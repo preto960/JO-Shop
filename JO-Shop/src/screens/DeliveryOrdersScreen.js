@@ -364,6 +364,20 @@ const DeliveryOrdersScreen = () => {
     return () => subscription.remove();
   }, [loadOrders]);
 
+  // Escuchar accion del boton "Ver" del modal de notificacion (cuando ya estamos en esta pantalla)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('pushNotificationAction', (data) => {
+      if (data?.screen === 'DeliveryOrders' && data?.highlightOrderId) {
+        // Asegurar que la tab sea 'available' para que la orden sea visible
+        setActiveTab('available');
+        setHighlightOrderId(String(data.highlightOrderId));
+        // Refrescar datos para tener la lista actualizada
+        loadOrders(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [loadOrders]);
+
   // Animacion de pulso para la orden resaltada
   useEffect(() => {
     if (!highlightOrderId) return;
