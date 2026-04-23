@@ -10,7 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
@@ -94,6 +94,8 @@ const getStatusStep = status => {
 
 const MyOrdersScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const isFocused = useIsFocused();
 
   // Data state
   const [orders, setOrders] = useState([]);
@@ -104,6 +106,8 @@ const MyOrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
+  // Flag para saber si debemos expandir al cargar datos
+  const [pendingExpand, setPendingExpand] = useState(null);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -175,6 +179,44 @@ const MyOrdersScreen = () => {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // Manejar params de notificacion: expandOrderId
+  useEffect(() => {
+    const orderId = route.params?.expandOrderId;
+    if (orderId) {
+      setPendingExpand(orderId);
+      // Cambiar a tab 'all' para asegurar que la orden es visible
+      setActiveTab('all');
+      // Limpiar params
+      navigation.setParams({expandOrderId: null});
+    }
+  }, [route.params?.expandOrderId]);
+
+  // Refrescar cuando la pantalla obtiene foco
+  useEffect(() => {
+    if (isFocused) {
+      loadOrders(true);
+    }
+  }, [isFocused]);
+
+  // Cuando se cargan las ordenes y hay una pendiente por expandir
+  useEffect(() => {
+    if (pendingExpand && orders.length > 0) {
+      setExpandedOrder(pendingExpand);
+      // Scroll hasta la orden
+      setTimeout(() => {
+        const idx = orders.findIndex(o => String(o.id) === String(pendingExpand));
+        if (idx >= 0 && flatListRef.current) {
+          try {
+            flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.3});
+          } catch {
+            flatListRef.current.scrollToOffset({offset: idx * 300, animated: true});
+          }
+        }
+      }, 300);
+      setPendingExpand(null);
+    }
+  }, [pendingExpand, orders]);
 
   const handleRefresh = useCallback(() => {
     loadOrders(true);
@@ -374,7 +416,7 @@ const MyOrdersScreen = () => {
               </View>
 
               {/* Delivery info */}
-              {(item.status === 'shipped' || item.status === 'delivered') &&
+              {(item.status === 'shipped' || item.status === 'delivered' || item.status === 'confirmed') &&
                 item.delivery && (
                   renderDeliveryInfo(item.delivery)
                 )}

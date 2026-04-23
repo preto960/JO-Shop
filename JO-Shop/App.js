@@ -33,18 +33,20 @@ const SCREEN_ROUTES = {
 /**
  * Navegar a una pantalla por nombre logico.
  * Maneja correctamente navegadores anidados (tabs dentro de stacks).
+ * @param {string} screenName - Nombre logico de la pantalla
+ * @param {object} params - Parametros a pasar (orderId, type, etc.)
  */
-function navigateToScreen(screenName) {
+function navigateToScreen(screenName, params = {}) {
   const route = SCREEN_ROUTES[screenName];
   const nav = navigationRef.current;
   if (!nav) return;
 
   if (route) {
-    // Navegar al tab navigator padre + screen hijo
-    nav.navigate(route.parent, { screen: route.screen, params: {} });
+    // Navegar al tab navigator padre + screen hijo con params
+    nav.navigate(route.parent, { screen: route.screen, params });
   } else {
-    // Fallback: intentar navegacion directa
-    nav.navigate(screenName);
+    // Fallback: intentar navegacion directa con params
+    nav.navigate(screenName, params);
   }
 }
 
@@ -58,11 +60,11 @@ const NotificationHandler = () => {
     visible: false,
     title: '',
     message: '',
-    screen: null,
+    data: null,
   });
 
-  const showNotifModal = useCallback((title, message, screen) => {
-    setNotifModal({visible: true, title, message, screen});
+  const showNotifModal = useCallback((title, message, data) => {
+    setNotifModal({visible: true, title, message, data});
   }, []);
 
   // Registrar callback para que el modulo de notificaciones pueda usarlo
@@ -88,7 +90,7 @@ const NotificationHandler = () => {
     const {data} = initialNotification;
     if (data?.screen) {
       setTimeout(() => {
-        navigateToScreen(data.screen);
+        navigateToScreen(data.screen, data);
         setInitialNotification(null);
       }, 500);
     }
@@ -104,7 +106,7 @@ const NotificationHandler = () => {
         showNotifModal(
           notification.title || 'JO-Shop',
           notification.body || '',
-          data?.screen || null,
+          data || {},
         );
       }
     });
@@ -118,10 +120,10 @@ const NotificationHandler = () => {
   }, []);
 
   const handleNotifConfirm = useCallback(() => {
-    const {screen} = notifModal;
+    const {data} = notifModal;
     setNotifModal(prev => ({...prev, visible: false}));
-    if (screen) {
-      navigateToScreen(screen);
+    if (data?.screen) {
+      navigateToScreen(data.screen, data);
     }
   }, [notifModal]);
 

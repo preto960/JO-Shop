@@ -11,9 +11,10 @@ import {
   Modal,
   Platform,
   PermissionsAndroid,
+  Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
 import {useAuth} from '@context/AuthContext';
@@ -200,6 +201,8 @@ const getCurrentPosition = () => {
 
 const DeliveryOrdersScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const isFocused = useIsFocused();
   const {user, logout} = useAuth();
 
   // Data state
@@ -210,6 +213,10 @@ const DeliveryOrdersScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  // Highlight state (cuando viene de notificacion)
+  const [highlightOrderId, setHighlightOrderId] = useState(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Action state
   const [actionLoading, setActionLoading] = useState(null);
@@ -323,6 +330,61 @@ const DeliveryOrdersScreen = () => {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // Manejar params de notificacion: highlightOrderId
+  useEffect(() => {
+    const orderId = route.params?.highlightOrderId;
+    if (orderId) {
+      // Cambiar a tab de disponibles si no esta en esa tab
+      if (activeTab !== 'available') {
+        setActiveTab('available');
+      }
+      setHighlightOrderId(orderId);
+      // Limpiar params para no re-procesar
+      navigation.setParams({highlightOrderId: null});
+    }
+  }, [route.params?.highlightOrderId]);
+
+  // Refrescar cuando la pantalla obtiene foco
+  useEffect(() => {
+    if (isFocused) {
+      loadOrders(true);
+    }
+  }, [isFocused]);
+
+  // Animacion de pulso para la orden resaltada
+  useEffect(() => {
+    if (!highlightOrderId) return;
+
+    const animation = Animated.sequence([
+      Animated.timing(pulseAnim, {
+        toValue: 1.03,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    Animated.loop(animation, {iterations: 4}).start(() => {
+      setHighlightOrderId(null);
+    });
+
+    // Scroll hasta la orden resaltada
+    setTimeout(() => {
+      const idx = orders.findIndex(o => String(o.id) === String(highlightOrderId));
+      if (idx >= 0 && flatListRef.current) {
+        try {
+          flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.3});
+        } catch {
+          flatListRef.current.scrollToOffset({offset: idx * 220, animated: true});
+        }
+      }
+    }, 600);
+  }, [highlightOrderId, orders]);
 
   const handleRefresh = useCallback(() => {
     loadOrders(true);
@@ -572,9 +634,20 @@ const DeliveryOrdersScreen = () => {
     ({item}) => {
       const statusInfo = STATUS_CONFIG[item.status] || STATUS_CONFIG.confirmed;
       const isActing = actionLoading === item.id;
+      const isHighlighted = highlightOrderId && String(item.id) === String(highlightOrderId);
 
       return (
-        <View style={styles.card}>
+        <Animated.View
+          style={[
+            styles.cardWrapper,
+            isHighlighted && {
+              transform: [{scale: pulseAnim}],
+            },
+          ]}>
+        <View style={[
+          styles.card,
+          isHighlighted && styles.cardHighlighted,
+        ]}>
           {/* Card Header */}
           <View style={styles.cardHeader}>
             <View style={styles.cardHeaderLeft}>
@@ -729,9 +802,10 @@ const DeliveryOrdersScreen = () => {
             </View>
           </View>
         </View>
+        </Animated.View>
       );
     },
-    [actionLoading, handleAcceptOrder, handleMarkDelivered, activeTab, user?.id, handleOpenMap],
+    [actionLoading, handleAcceptOrder, handleMarkDelivered, activeTab, user?.id, handleOpenMap, highlightOrderId, pulseAnim],
   );
 
   // ─── Render: Filter Tabs ─────────────────────────────────────────────────
@@ -1163,13 +1237,25 @@ const styles = StyleSheet.create({
   },
 
   // Order Card
+  cardWrapper: {
+    marginBottom: theme.spacing.md,
+  },
   card: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    overflow: 'hidden',
     ...theme.shadows.sm,
+  },
+  cardHighlighted: {
+    borderColor: '#4CAF50',
+    borderWidth: 2,
+    shadowColor: '#4CAF50',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   cardHeader: {
     flexDirection: 'row',
