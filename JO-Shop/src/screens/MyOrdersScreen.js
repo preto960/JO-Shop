@@ -107,8 +107,16 @@ const MyOrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
-  // Flag para saber si debemos expandir al cargar datos
-  const [pendingExpand, setPendingExpand] = useState(null);
+
+  // Ref para expandir orden desde notificacion (evita problemas de timing con state)
+  const expandTargetRef = useRef(null);
+  // Ref para acceder a orders actuales sin depender de closure
+  const ordersRef = useRef([]);
+
+  // Mantener ordersRef sincronizado con el state
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
 
   // Modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -185,12 +193,11 @@ const MyOrdersScreen = () => {
   useEffect(() => {
     const orderId = route.params?.expandOrderId;
     if (orderId) {
-      setPendingExpand(String(orderId));
-      // Cambiar a tab 'all' para asegurar que la orden es visible
+      const targetId = String(orderId);
+      expandTargetRef.current = targetId;
+      setExpandedOrder(targetId);  // Expandir inmediatamente
       setActiveTab('all');
-      // Refrescar datos para tener info actualizada
-      loadOrders(true);
-      // Limpiar params
+      // Limpiar params para no re-procesar
       navigation.setParams({expandOrderId: null});
     }
   }, [route.params?.expandOrderId]);
@@ -213,39 +220,54 @@ const MyOrdersScreen = () => {
     return () => subscription.remove();
   }, [loadOrders]);
 
-  // Escuchar accion del boton "Ver" del modal de notificacion (cuando ya estamos en esta pantalla)
+  // Escuchar accion del boton "Ver" del modal de notificacion
+  // Expande la orden inmediatamente y hace scroll cuando los datos estan listos
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('pushNotificationAction', (data) => {
       if (data?.screen === 'MyOrders' && data?.expandOrderId) {
-        // Asegurar que la tab sea 'all' para que la orden sea visible
+        const targetId = String(data.expandOrderId);
+        console.log('[MyOrders] pushNotificationAction: expandiendo orden', targetId);
+        expandTargetRef.current = targetId;
+        setExpandedOrder(targetId);  // Expandir inmediatamente (no espera refresh)
         setActiveTab('all');
-        // Marcar para expandir cuando los datos esten listos
-        setPendingExpand(String(data.expandOrderId));
-        // Refrescar datos para tener la info actualizada (incluyendo delivery)
-        loadOrders(true);
+        // Intentar scroll inmediato con los datos actuales (ya deberian tener delivery info
+        // del refresh que hizo pushNotificationReceived al llegar la notificacion)
+        setTimeout(() => {
+          const currentOrders = ordersRef.current;
+          const idx = currentOrders.findIndex(o => String(o.id) === targetId);
+          console.log('[MyOrders] Scroll inmediato - idx:', idx, 'total:', currentOrders.length);
+          if (idx >= 0 && flatListRef.current) {
+            try {
+              flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.2});
+            } catch {
+              flatListRef.current.scrollToOffset({offset: idx * 280, animated: true});
+            }
+          }
+        }, 350);
       }
     });
     return () => subscription.remove();
-  }, [loadOrders]);
+  }, []);
 
-  // Cuando se cargan las ordenes y hay una pendiente por expandir
+  // Cuando orders se actualizan y hay un target pendiente, hacer scroll a la posicion correcta
+  // Esto cubre el caso donde la tab cambio o los datos no estaban listos aun
   useEffect(() => {
-    if (pendingExpand && orders.length > 0) {
-      setExpandedOrder(pendingExpand);
-      // Scroll hasta la orden
+    const targetId = expandTargetRef.current;
+    if (!targetId || orders.length === 0) return;
+
+    expandTargetRef.current = null;  // Limpiar para no repetir
+    const idx = orders.findIndex(o => String(o.id) === targetId);
+    console.log('[MyOrders] Orders actualizadas - scroll a orden', targetId, 'idx:', idx);
+    if (idx >= 0 && flatListRef.current) {
       setTimeout(() => {
-        const idx = orders.findIndex(o => String(o.id) === String(pendingExpand));
-        if (idx >= 0 && flatListRef.current) {
-          try {
-            flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.3});
-          } catch {
-            flatListRef.current.scrollToOffset({offset: idx * 300, animated: true});
-          }
+        try {
+          flatListRef.current.scrollToIndex({index: idx, animated: true, viewPosition: 0.2});
+        } catch {
+          flatListRef.current.scrollToOffset({offset: idx * 280, animated: true});
         }
-      }, 300);
-      setPendingExpand(null);
+      }, 350);
     }
-  }, [pendingExpand, orders]);
+  }, [orders]);
 
   const handleRefresh = useCallback(() => {
     loadOrders(true);
@@ -626,6 +648,7 @@ const MyOrdersScreen = () => {
         data={orders}
         keyExtractor={item => String(item.id)}
         renderItem={renderOrderCard}
+        extraData={expandedOrder}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={
           orders.length === 0 ? styles.emptyList : styles.listContent
