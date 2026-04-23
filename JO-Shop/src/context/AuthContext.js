@@ -288,25 +288,47 @@ export const AuthProvider = ({children}) => {
 
   // Registrar token FCM al iniciar sesion / restaurar sesion
   const tokenRegisteredRef = useRef(false);
+  const registerFcmWithRetry = useCallback(async (retries = 3, delay = 2000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const result = await pushNotifications.registerPushToken();
+        if (result) {
+          console.log('[Auth] Token FCM registrado exitosamente');
+          return;
+        }
+      } catch (err) {
+        console.warn(`[Auth] Intento ${i + 1}/${retries} registro FCM fallo:`, err.message);
+      }
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, delay * (i + 1)));
+      }
+    }
+    console.error('[Auth] No se pudo registrar token FCM despues de', retries, 'intentos');
+  }, []);
+
   useEffect(() => {
     if (state.isAuthenticated && !tokenRegisteredRef.current) {
       tokenRegisteredRef.current = true;
       // Registrar despues de un breve delay para asegurar que el authToken este configurado
       const timer = setTimeout(() => {
-        pushNotifications.registerPushToken().catch(() => {});
+        registerFcmWithRetry();
       }, 1500);
       return () => clearTimeout(timer);
     }
     if (!state.isAuthenticated) {
       tokenRegisteredRef.current = false;
     }
-  }, [state.isAuthenticated]);
+  }, [state.isAuthenticated, registerFcmWithRetry]);
 
-  // Escuchar refresh del token FCM
+  // Escuchar refresh del token FCM y registrar el nuevo en el backend
   useEffect(() => {
     if (!state.isAuthenticated) return;
     const unsubscribe = pushNotifications.onTokenRefresh((newToken) => {
-      console.log('[Auth] Token FCM refrescado:', newToken?.substring(0, 20) + '...');
+      console.log('[Auth] Token FCM refrescado, registrando en backend:', newToken?.substring(0, 20) + '...');
+      // Registrar el nuevo token inmediatamente
+      pushNotifications.registerPushToken().catch(err => {
+        console.error('[Auth] Error registrando token FCM refrescado:', err.message);
+      });
     });
     return unsubscribe;
   }, [state.isAuthenticated]);
