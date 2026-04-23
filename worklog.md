@@ -45,3 +45,20 @@ Stage Summary:
 - Commit 2a74733 pushed to JO-Shop
 - Los 3 bugs causaban que: token en BD se volvía viejo, no se re-registraba, y Android no sabía qué canal usar
 - Requiere rebuild de APK release para que los cambios nativos (AndroidManifest) surtan efecto
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix auto-expand order when clicking 'Ver' on notification while already on screen
+
+Work Log:
+- Analyzed the issue: React Navigation may not re-trigger route.params effects when navigating to an already-focused tab screen
+- Added DeviceEventEmitter 'pushNotificationAction' event in App.js handleNotifConfirm (when user clicks 'Ver')
+- MyOrdersScreen.js: Added listener for 'pushNotificationAction' that sets pendingExpand, switches to 'all' tab, and triggers loadOrders
+- DeliveryOrdersScreen.js: Added listener for 'pushNotificationAction' that sets highlightOrderId, switches to 'available' tab, and triggers loadOrders
+- Improved route params handler in MyOrdersScreen to also trigger loadOrders for consistency
+- Pushed to JO-Shop repo (commit 2e0ae40)
+
+Stage Summary:
+- Both 'pushNotificationReceived' (auto-refresh on notification) and 'pushNotificationAction' (user clicks Ver) events are now handled
+- When user clicks 'Ver' on notification modal while already on MyOrders/DeliveryOrders screen, the order will expand/highlight correctly
+- When user navigates from a different screen, route params still work as before
