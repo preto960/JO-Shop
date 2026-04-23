@@ -26,3 +26,22 @@ Stage Summary:
 - Botón "Ver" del modal navega y refresca la pantalla destino
 - Delivery ve la orden nueva con pulso verde cuando toca "Ver"
 - Cliente ve la orden expandida con datos del delivery cuando aceptan su pedido
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Corregir tokens FCM inválidos y notificaciones background no funcionan
+
+Work Log:
+- Diagnosticado: tokens FCM en BD están como "registration-token-not-registered"
+- Encontrado Bug 1: onTokenRefresh en AuthContext.js solo logueaba el nuevo token, nunca lo enviaba al backend
+- Encontrado Bug 2: registerPushToken se llamaba una vez sin reintento, si fallaba quedaba silencioso
+- Encontrado Bug 3: Falta default_notification_channel_id en AndroidManifest.xml
+- Corregido AuthContext.js: onTokenRefresh ahora llama registerPushToken()
+- Corregido AuthContext.js: registerFcmWithRetry() con 3 reintentos y delay incremental
+- Agregado meta-data default_notification_channel_id en AndroidManifest.xml
+
+Stage Summary:
+- Commit 2a74733 pushed to JO-Shop
+- Los 3 bugs causaban que: token en BD se volvía viejo, no se re-registraba, y Android no sabía qué canal usar
+- Requiere rebuild de APK release para que los cambios nativos (AndroidManifest) surtan efecto
