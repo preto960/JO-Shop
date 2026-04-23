@@ -1,4 +1,5 @@
 import React, {createContext, useContext, useReducer, useCallback, useEffect, useRef} from 'react';
+import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '@services/api';
 import pushNotifications from '@services/notifications';
@@ -287,51 +288,77 @@ export const AuthProvider = ({children}) => {
   }, [state.token]);
 
   // Registrar token FCM al iniciar sesion / restaurar sesion
-  const tokenRegisteredRef = useRef(false);
-  const registerFcmWithRetry = useCallback(async (retries = 3, delay = 2000) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const result = await pushNotifications.registerPushToken();
-        if (result) {
-          console.log('[Auth] Token FCM registrado exitosamente');
-          return;
+  // Solo se registra una vez por sesion y por usuario.
+  // Se re-registra automaticamente si Firebase refresca el token (onTokenRefresh)
+  // o si el usuario cierra sesion y entra con otra cuenta.
+  const lastRegisteredUserIdRef = useRef(null);
+  const lastRegisteredTokenRef = useRef(null);
+
+  const doRegisterFcmToken = useCallback(async (userId) => {
+    if (!pushNotifications.isFirebaseAvailable()) return;
+
+    try {
+      const currentToken = await pushNotifications.getFCMToken();
+      if (!currentToken) return;
+
+      // Si ya esta registrado para este usuario con este token, no hacer nada
+      if (lastRegisteredUserIdRef.current === userId && lastRegisteredTokenRef.current === currentToken) {
+        console.log('[Auth] Token FCM ya registrado para este usuario, omitiendo');
+        return;
+      }
+
+      const api = await apiService.createApiClient();
+      if (!api) {
+        console.log('[Push] No hay conexion al servidor para registrar token');
+        return;
+      }
+
+      await api.post('/notifications/token', {
+        token: currentToken,
+        platform: Platform.OS,
+      });
+
+      lastRegisteredUserIdRef.current = userId;
+      lastRegisteredTokenRef.current = currentToken;
+      console.log('[Auth] Token FCM registrado exitosamente para user', userId);
+    } catch (err) {
+      console.error('[Auth] Error registrando token FCM:', err.message);
+      // Reintentar una vez despues de 3 segundos
+      setTimeout(() => {
+        if (lastRegisteredUserIdRef.current !== userId || lastRegisteredTokenRef.current !== currentToken) {
+          doRegisterFcmToken(userId);
         }
-      } catch (err) {
-        console.warn(`[Auth] Intento ${i + 1}/${retries} registro FCM fallo:`, err.message);
-      }
-      if (i < retries - 1) {
-        await new Promise(r => setTimeout(r, delay * (i + 1)));
-      }
+      }, 3000);
     }
-    console.error('[Auth] No se pudo registrar token FCM despues de', retries, 'intentos');
   }, []);
 
   useEffect(() => {
-    if (state.isAuthenticated && !tokenRegisteredRef.current) {
-      tokenRegisteredRef.current = true;
+    if (state.isAuthenticated && state.user?.id) {
       // Registrar despues de un breve delay para asegurar que el authToken este configurado
       const timer = setTimeout(() => {
-        registerFcmWithRetry();
+        doRegisterFcmToken(state.user.id);
       }, 1500);
       return () => clearTimeout(timer);
     }
+    // Al cerrar sesion, limpiar refs
     if (!state.isAuthenticated) {
-      tokenRegisteredRef.current = false;
+      lastRegisteredUserIdRef.current = null;
+      lastRegisteredTokenRef.current = null;
     }
-  }, [state.isAuthenticated, registerFcmWithRetry]);
+  }, [state.isAuthenticated, state.user?.id, doRegisterFcmToken]);
 
   // Escuchar refresh del token FCM y registrar el nuevo en el backend
   useEffect(() => {
     if (!state.isAuthenticated) return;
     const unsubscribe = pushNotifications.onTokenRefresh((newToken) => {
       console.log('[Auth] Token FCM refrescado, registrando en backend:', newToken?.substring(0, 20) + '...');
-      // Registrar el nuevo token inmediatamente
-      pushNotifications.registerPushToken().catch(err => {
-        console.error('[Auth] Error registrando token FCM refrescado:', err.message);
-      });
+      lastRegisteredTokenRef.current = null; // Invalidar cache para forzar re-registro
+      if (state.user?.id) {
+        doRegisterFcmToken(state.user.id);
+      }
     });
     return unsubscribe;
-  }, [state.isAuthenticated]);
+  }, [state.isAuthenticated, state.user?.id, doRegisterFcmToken]);
 
   // ─── Helpers de permisos ───────────────────────────────────────────────────
 

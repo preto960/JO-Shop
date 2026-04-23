@@ -12,6 +12,7 @@ import {
   Platform,
   PermissionsAndroid,
   Animated,
+  DeviceEventEmitter,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
@@ -351,6 +352,17 @@ const DeliveryOrdersScreen = () => {
       loadOrders(true);
     }
   }, [isFocused]);
+
+  // Refrescar automaticamente cuando llega una notificacion push (estando en esta pantalla)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('pushNotificationReceived', (data) => {
+      const type = data?.type;
+      if (type === 'new_order' || type === 'delivery_assigned') {
+        loadOrders(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [loadOrders]);
 
   // Animacion de pulso para la orden resaltada
   useEffect(() => {

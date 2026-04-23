@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
   Linking,
+  DeviceEventEmitter,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
@@ -198,6 +199,17 @@ const MyOrdersScreen = () => {
       loadOrders(true);
     }
   }, [isFocused]);
+
+  // Refrescar automaticamente cuando llega una notificacion push (estando en esta pantalla)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('pushNotificationReceived', (data) => {
+      const type = data?.type;
+      if (type === 'order_accepted' || type === 'order_status_change' || type === 'new_order') {
+        loadOrders(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [loadOrders]);
 
   // Cuando se cargan las ordenes y hay una pendiente por expandir
   useEffect(() => {

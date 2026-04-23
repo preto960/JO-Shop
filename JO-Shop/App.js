@@ -1,5 +1,5 @@
 import React, {createRef, useEffect, useState, useCallback} from 'react';
-import {StatusBar, StyleSheet, View} from 'react-native';
+import {StatusBar, StyleSheet, View, DeviceEventEmitter} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer} from '@react-navigation/native';
 import AppNavigator from '@navigation/AppNavigator';
@@ -108,6 +108,8 @@ const NotificationHandler = () => {
           notification.body || '',
           data || {},
         );
+        // Emitir evento para que las pantallas refresquen sus datos
+        DeviceEventEmitter.emit('pushNotificationReceived', data || {});
       }
     });
 
