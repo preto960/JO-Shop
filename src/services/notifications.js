@@ -1,92 +1,46 @@
-import { Platform } from 'react-native';
+// ─── Servicio de Notificaciones (OneSignal) ──────────────────────────────────
+// Migrado desde Firebase Messaging + Notifee a react-native-onesignal@4.5.4
+//
+// Este archivo mantiene la MISMA API que el anterior (Firebase) para que
+// AuthContext.js y App.js funcionen sin cambios. Solo cambia la implementacion.
+//
+// Con OneSignal el flujo es:
+//   1. index.js inicializa el SDK y pide permisos
+//   2. Al hacer login, AuthContext llama registerPushToken() que hace OneSignal.login(userId)
+//   3. Al hacer logout, AuthContext llama unregisterPushToken() que hace OneSignal.logout()
+//   4. Las notificaciones llegan automaticamente via OneSignal (no necesita FCM)
+//   5. setForegroundCallback + onForegroundMessage siguen funcionando para el modal
+
+import {Platform} from 'react-native';
 import apiService from '@services/api';
+import {OneSignal} from 'react-native-onesignal';
 
-// ─── Firebase Messaging: import defensivo ──────────────────────────────────
-// Si Firebase no esta instalado o los modulos nativos no estan compilados,
-// el import falla y usamos un mock seguro para que la app no crashee.
-let messaging = null;
-try {
-  messaging = require('@react-native-firebase/messaging').default;
-} catch (err) {
-  console.warn('[Push] Firebase Messaging no disponible:', err.message);
-}
-
-// ─── Notifee: import defensivo ────────────────────────────────────────────
-// Notifee permite mostrar notificaciones del sistema de forma explicita,
-// lo cual es mas confiable que el comportamiento automatico de Firebase.
-let notifee = null;
-let AndroidImportance = null;
-try {
-  const notifeeModule = require('@notifee/react-native');
-  notifee = notifeeModule.default;
-  AndroidImportance = notifeeModule.AndroidImportance;
-} catch (err) {
-  console.warn('[Push] Notifee no disponible:', err.message);
-}
-
-// Valor numerico de Android importance HIGH (4) como fallback
-const IMPORTANCE_HIGH = AndroidImportance?.HIGH || 4;
-
-// Flag para saber si Firebase esta realmente disponible
-const isFirebaseAvailable = () => !!messaging;
+// ─── OneSignal esta siempre disponible despues de la instalacion ─────────────
+const isOneSignalAvailable = () => true;
 
 // ─── CALLBACK PARA NOTIFICACIONES FOREGROUND ──────────────────────
-// Los callbacks se almacenan aqui para que App.js pueda conectar el modal
+// App.js registra un callback aqui para mostrar el modal de notificacion
 let _foregroundCallback = null;
 
 export function setForegroundCallback(callback) {
   _foregroundCallback = callback;
 }
 
-// ─── CANAL DE NOTIFICACIONES ANDROID ───────────────────────────────────────
-// El canal se crea tanto en MainApplication.java (nivel nativo) como con notifee
-// (nivel JS) para asegurar que exista en todos los casos.
-const CHANNEL_ID = 'joshop_orders';
+// ─── Funciones publicas (mantienen la misma API que Firebase) ──────────────
 
 /**
- * Crear canal de notificaciones con notifee.
- * Llamar al iniciar la app (despues del login) para asegurar que el canal existe.
- */
-export async function ensureNotificationChannel() {
-  if (!notifee) return;
-  try {
-    await notifee.createChannel({
-      id: CHANNEL_ID,
-      name: 'Pedidos JO-Shop',
-      description: 'Notificaciones de nuevos pedidos, actualizaciones y entregas',
-      importance: IMPORTANCE_HIGH,
-    });
-    console.log('[Push] Canal de notificaciones verificado:', CHANNEL_ID);
-  } catch (err) {
-    console.warn('[Push] Error creando canal con notifee:', err.message);
-  }
-}
-
-/**
- * Solicitar permiso de notificaciones (Android 13+ tambien necesita POST_NOTIFICATIONS)
+ * Solicitar permiso de notificaciones.
+ * Con OneSignal, los permisos ya se solicitaron en index.js.
+ * Esta funcion es un no-op que retorna true para compatibilidad.
  */
 export async function requestNotificationPermission() {
-  if (!isFirebaseAvailable()) {
-    console.log('[Push] Firebase no disponible, no se pueden solicitar permisos');
-    return false;
-  }
-
   try {
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-    console.log('[Push] Permisos:', enabled ? 'OTORGADOS' : 'DENEGADOS');
-
-    // Despues de obtener permisos, asegurar que el canal de notificaciones existe
-    if (enabled && Platform.OS === 'android') {
-      await ensureNotificationChannel();
-    }
-
+    const permissionStatus = await OneSignal.Notifications.getPermissionAsync();
+    const enabled = permissionStatus === 'authorized' || permissionStatus === 'provisional';
+    console.log('[Push] Permisos OneSignal:', enabled ? 'OTORGADOS' : 'DENEGADOS');
     return enabled;
   } catch (error) {
-    console.error('[Push] Error solicitando permisos:', error.message);
+    console.error('[Push] Error verificando permisos:', error.message);
     return false;
   }
 }
@@ -95,157 +49,184 @@ export async function requestNotificationPermission() {
  * Verificar si las notificaciones estan autorizadas
  */
 export async function checkNotificationPermission() {
-  if (!isFirebaseAvailable()) return false;
-
   try {
-    const authStatus = await messaging().hasPermission();
-    return (
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL
-    );
+    const permissionStatus = await OneSignal.Notifications.getPermissionAsync();
+    return permissionStatus === 'authorized' || permissionStatus === 'provisional';
   } catch {
     return false;
   }
 }
 
 /**
- * Obtener el token FCM del dispositivo
+ * Obtener el ID del dispositivo en OneSignal (equivalente al FCM token).
+ * NOTA: Con OneSignal no necesitas enviar este token al backend.
+ * OneSignal.login(userId) ya asocia el dispositivo al usuario.
  */
 export async function getFCMToken() {
-  if (!isFirebaseAvailable()) {
-    console.log('[Push] Firebase no disponible, no se puede obtener token FCM');
-    return null;
-  }
-
   try {
-    const hasPermission = await checkNotificationPermission();
-    if (!hasPermission) {
-      console.log('[Push] Sin permisos, solicitando...');
-      const granted = await requestNotificationPermission();
-      if (!granted) return null;
-    }
-
-    const token = await messaging().getToken();
-    if (token) {
-      console.log('[Push] Token FCM obtenido:', token.substring(0, 20) + '...');
-    }
-    return token;
+    const deviceId = await OneSignal.User.getOnesignalId();
+    return deviceId;
   } catch (error) {
-    console.error('[Push] Error obteniendo token FCM:', error.message);
+    console.error('[Push] Error obteniendo OneSignal ID:', error.message);
     return null;
   }
 }
 
 /**
- * Registrar el token FCM en el backend
+ * Registrar el dispositivo con OneSignal y el usuario en el backend.
+ * Con OneSignal, llamamos OneSignal.login(userId) para asociar el dispositivo.
+ * Tambien enviamos el player_id al backend por referencia/debugging.
  */
 export async function registerPushToken() {
-  if (!isFirebaseAvailable()) {
-    console.log('[Push] Firebase no configurado, saltando registro de token');
-    return false;
-  }
-
   try {
-    const token = await getFCMToken();
-    if (!token) {
-      console.log('[Push] No se pudo obtener el token FCM');
-      return false;
-    }
-
+    // Obtener el userId del AuthContext (via el token actual en apiService)
     const api = await apiService.createApiClient();
     if (!api) {
-      console.log('[Push] No hay conexion al servidor para registrar token');
+      console.log('[Push] No hay conexion al servidor');
       return false;
     }
 
-    await api.post('/notifications/token', {
-      token: token,
-      platform: Platform.OS,
-    });
+    // Obtener el perfil para saber el userId
+    let userId = null;
+    try {
+      const profile = await api.get('/auth/me');
+      userId = profile?.id;
+    } catch {
+      console.log('[Push] No se pudo obtener el perfil del usuario');
+      return false;
+    }
 
-    console.log('[Push] Token registrado en el backend exitosamente');
+    if (!userId) {
+      console.log('[Push] No hay userId disponible');
+      return false;
+    }
 
-    // Asegurar canal de notificaciones despues del registro
-    await ensureNotificationChannel();
+    // Asociar el dispositivo con el usuario en OneSignal
+    OneSignal.login(String(userId));
+    console.log('[Push] OneSignal.login() exitoso para user', userId);
+
+    // Obtener el player_id y enviarlo al backend como referencia
+    try {
+      const playerId = await OneSignal.User.getOnesignalId();
+      if (playerId) {
+        await api.post('/notifications/token', {
+          token: playerId,
+          platform: Platform.OS,
+        });
+        console.log('[Push] Player ID registrado en backend:', playerId?.substring(0, 20) + '...');
+      }
+    } catch (err) {
+      console.warn('[Push] Error registrando player ID en backend (no critico):', err.message);
+    }
 
     return true;
   } catch (error) {
-    console.error('[Push] Error registrando token:', error.message);
+    console.error('[Push] Error en registerPushToken:', error.message);
     return false;
   }
 }
 
 /**
- * Eliminar el token FCM del backend (logout)
+ * Desasociar el dispositivo del usuario (logout).
+ * Llama OneSignal.logout() para romper la asociacion.
  */
 export async function unregisterPushToken() {
-  if (!isFirebaseAvailable()) return;
-
   try {
-    const token = await getFCMToken();
-    if (!token) return;
+    OneSignal.logout();
+    console.log('[Push] OneSignal.logout() exitoso');
 
-    const api = await apiService.createApiClient();
-    if (!api) return;
-
-    await api.delete('/notifications/token', { data: { token } });
-    console.log('[Push] Token eliminado del backend');
+    // Tambien eliminar el token del backend
+    try {
+      const api = await apiService.createApiClient();
+      if (api) {
+        const playerId = await OneSignal.User.getOnesignalId();
+        if (playerId) {
+          await api.delete('/notifications/token', {data: {token: playerId}});
+        }
+      }
+    } catch {
+      // No critico
+    }
   } catch (error) {
-    console.error('[Push] Error eliminando token:', error.message);
+    console.error('[Push] Error en unregisterPushToken:', error.message);
   }
 }
 
 /**
- * Escuchar cuando el token se refresca
+ * Escuchar cuando el token cambia (compatibilidad con Firebase onTokenRefresh).
+ * Con OneSignal los tokens se manejan internamente, pero emitimos el evento
+ * para mantener compatibilidad con AuthContext.
  */
 export function onTokenRefresh(callback) {
-  if (!isFirebaseAvailable()) {
-    return () => {};
-  }
-
-  try {
-    return messaging().onTokenRefresh(callback);
-  } catch {
-    return () => {};
-  }
+  // OneSignal maneja tokens internamente. Retornamos unsubscribe vacio.
+  return () => {};
 }
 
 /**
- * Escuchar mensajes en foreground (app abierta)
- * Usa el callback registrado via setForegroundCallback para mostrar el modal
+ * Escuchar mensajes en foreground (app abierta).
+ * Convierte el evento de OneSignal al formato que App.js espera.
  */
 export function onForegroundMessage(callback) {
-  if (!isFirebaseAvailable()) {
-    return () => {};
-  }
+  // Handler para notificaciones en foreground
+  const handler = (event) => {
+    const notification = event.notification;
+    const additionalData = notification?.additionalData || {};
 
-  try {
-    return messaging().onMessage(callback);
-  } catch {
-    return () => {};
-  }
+    // Convertir al formato que App.js espera (simula un remoteMessage de Firebase)
+    const remoteMessage = {
+      data: {
+        title: notification?.title || 'JO-Shop',
+        body: notification?.body || '',
+        ...additionalData,
+      },
+      notification: {
+        title: notification?.title,
+        body: notification?.body,
+      },
+    };
+
+    // Llamar al callback de App.js
+    if (callback) {
+      callback(remoteMessage);
+    }
+  };
+
+  OneSignal.Notifications.addEventListener('foregroundWillDisplay', handler);
+
+  // Retornar funcion de cleanup
+  return () => {
+    OneSignal.Notifications.removeEventListener('foregroundWillDisplay', handler);
+  };
 }
 
 /**
- * Obtener la notificacion inicial (app abierta desde notificacion)
+ * Obtener la notificacion inicial (app abierta desde notificacion).
+ * Con OneSignal, usamos el evento 'click' para capturar la notificacion que
+ * abrio la app desde estado cerrado/background.
  */
 export async function getInitialNotification() {
-  if (!isFirebaseAvailable()) return null;
-
   try {
-    return await messaging().getInitialNotification();
+    // OneSignal no tiene un getInitialNotification directo como Firebase.
+    // La notificacion inicial se maneja via el evento 'click' en App.js.
+    // Retornamos null y App.js usa el evento click como fuente principal.
+    return null;
   } catch {
     return null;
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// NOTA IMPORTANTE:
-// - setBackgroundMessageHandler se registra en index.js ANTES de AppRegistry.
-// - El background handler usa notifee para mostrar la notificacion del sistema.
-// - notifee.displayNotification() garantiza que la notificacion SIEMPRE se muestre,
-//   incluso cuando el comportamiento automatico de Firebase no funciona.
-// ────────────────────────────────────────────────────────────────────────────
+/**
+ * Verificar si OneSignal esta disponible (compatibilidad con isFirebaseAvailable).
+ */
+export const isFirebaseAvailable = isOneSignalAvailable;
+
+/**
+ * Crear canal de notificaciones (compatibilidad).
+ * Con OneSignal no es necesario crear canales manualmente.
+ */
+export async function ensureNotificationChannel() {
+  console.log('[Push] OneSignal maneja los canales automaticamente');
+}
 
 export default {
   requestNotificationPermission,

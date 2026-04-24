@@ -2,124 +2,27 @@ import {AppRegistry} from 'react-native';
 import App from './App';
 import {name as appName} from './app.json';
 
-// ─── CRITICAL: Background message handler para FCM ──────────────────────────
-// OBLIGATORIO: Debe estar en index.js ANTES de AppRegistry.registerComponent()
-// Si esta dentro de un componente React o se importa desde otro archivo que se
-// carga tarde, NO funcionara cuando la app esta en background o cerrada (killed).
+// ─── OneSignal: Inicializacion del SDK ──────────────────────────────────────
+// OBLIGATORIO: Debe ejecutarse ANTES de AppRegistry.registerComponent()
+// react-native-onesignal@4.5.4 (SDK OneSignal 5.x)
 // ─────────────────────────────────────────────────────────────────────────────
 
-let messaging = null;
-try {
-  messaging = require('@react-native-firebase/messaging').default;
-} catch (err) {
-  console.warn('[index.js] Firebase Messaging no disponible:', err.message);
-}
+import {LogLevel, OneSignal} from 'react-native-onesignal';
 
-let notifee = null;
-let AndroidImportance = null;
-try {
-  const notifeeModule = require('@notifee/react-native');
-  notifee = notifeeModule.default;
-  AndroidImportance = notifeeModule.AndroidImportance;
-} catch (err) {
-  console.warn('[index.js] Notifee no disponible:', err.message);
-}
+// App ID de JO-Shop en OneSignal
+const ONESIGNAL_APP_ID = 'b35bca3a-765f-4854-bd30-d0c66d421c9f';
 
-// Valor numerico de Android importance HIGH (4) como fallback
-const IMPORTANCE_HIGH = AndroidImportance?.HIGH || 4;
+// Logging: Verbose en dev, Warn en produccion
+OneSignal.Debug.setLogLevel(__DEV__ ? LogLevel.Verbose : LogLevel.Warn);
 
-// ID del canal de notificaciones
-const CHANNEL_ID = 'joshop_orders';
+// Inicializar el SDK de OneSignal
+OneSignal.initialize(ONESIGNAL_APP_ID);
 
-// Crear canal de notificaciones con notifee (Android 8+)
-async function ensureNotificationChannel() {
-  if (!notifee) return;
-  try {
-    await notifee.createChannel({
-      id: CHANNEL_ID,
-      name: 'Pedidos JO-Shop',
-      description: 'Notificaciones de nuevos pedidos, actualizaciones y entregas',
-      importance: IMPORTANCE_HIGH,
-    });
-    console.log('[index.js] Canal de notificaciones creado:', CHANNEL_ID);
-  } catch (err) {
-    console.warn('[index.js] Error creando canal:', err.message);
-  }
-}
+// Solicitar permisos de notificacion al usuario
+OneSignal.Notifications.requestPermission(true);
 
-if (messaging) {
-  try {
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('[Push][BG] Handler activado');
-      console.log('[Push][BG] Message ID:', remoteMessage?.messageId);
-      console.log('[Push][BG] Data:', JSON.stringify(remoteMessage?.data));
+console.log('[index.js] OneSignal inicializado correctamente');
+console.log('[index.js] App ID:', ONESIGNAL_APP_ID);
 
-      // ─── Leer title/body desde data (data-only messages) ──────────────
-      // El backend envia solo data (sin notification:{}).
-      // title y body estan dentro de remoteMessage.data.
-      const data = remoteMessage?.data || {};
-      const title = data.title || 'JO-Shop';
-      const body = data.body || 'Tienes una nueva notificacion';
-      const messageId = remoteMessage?.messageId || Date.now().toString();
-
-      console.log('[Push][BG] Title:', title);
-      console.log('[Push][BG] Body:', body);
-
-      // ─── Mostrar notificacion del sistema con notifee ───────────────────
-      // Esto garantiza que la notificacion SIEMPRE se muestre.
-      if (notifee) {
-        try {
-          await ensureNotificationChannel();
-
-          await notifee.displayNotification({
-            id: `joshop_${messageId}`,
-            title,
-            body,
-            data,
-            android: {
-              channelId: CHANNEL_ID,
-              smallIcon: 'ic_launcher',
-              pressAction: {
-                id: 'default',
-                launchActivity: 'com.joshop.MainActivity',
-              },
-              tag: data.notifTag || data.type || 'default',
-              importance: IMPORTANCE_HIGH,
-              autoCancel: true,
-              showTimestamp: true,
-            },
-          });
-
-          console.log('[Push][BG] Notificacion del sistema mostrada con notifee');
-        } catch (notifErr) {
-          console.error('[Push][BG] Error mostrando notificacion con notifee:', notifErr.message);
-        }
-      } else {
-        console.warn('[Push][BG] Notifee no disponible, la notificacion del sistema puede no mostrarse');
-      }
-    });
-    console.log('[index.js] Background message handler registrado OK (con notifee)');
-  } catch (err) {
-    console.error('[index.js] Error registrando background handler:', err.message);
-  }
-}
-
-// ─── Notifee background event handler ──────────────────────────────────────
-// Obligatorio: maneja los eventos de las notificaciones creadas por notifee
-// cuando la app esta en background o cerrada (press, dismiss, etc.)
-if (notifee) {
-  try {
-    notifee.onBackgroundEvent(async ({ type, detail }) => {
-      console.log('[Notifee][BG] Evento:', type, 'notificationId:', detail.notification?.id);
-      // Remover la notificacion cuando el usuario la toca
-      if (type === 1 && detail.notification) {
-        await notifee.cancelNotification(detail.notification.id);
-      }
-    });
-    console.log('[index.js] Notifee onBackgroundEvent registrado OK');
-  } catch (err) {
-    console.warn('[index.js] Error registrando notifee onBackgroundEvent:', err.message);
-  }
-}
-
+// ─── Registrar componente principal ─────────────────────────────────────────
 AppRegistry.registerComponent(appName, () => App);

@@ -6,6 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- OneSignal: permisos adicionales requeridos -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:name=".MainApplication"
         android:label="@string/app_name"
@@ -14,12 +20,6 @@
         android:allowBackup="false"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
-
-        <!-- Canal de notificaciones por defecto para FCM (Android 8+) -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="joshop_orders"
-            tools:replace="android:value" />
 
         <!-- Google Maps API Key -->
         <meta-data
@@ -38,5 +38,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ─── OneSignal ──────────────────────────────────────────────────── -->
+        <!--
+            IMPORTANTE: Despues de agregar OneSignal, debes BORRAR la app del
+            dispositivo y reinstalar. Los manifestPlaceholders en build.gradle
+            reemplazan ${onesignal_app_id} automaticamente durante el build.
+
+            El plugin de OneSignal agrega automaticamente:
+              - com.onesignal.NotificationExtenderService
+              - com.onesignal.NotificationBundleProcessor
+              - Los receivers necesarios para boot_completed, etc.
+        -->
     </application>
 </manifest>

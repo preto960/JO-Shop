@@ -1,7 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-apply plugin: "com.google.gms.google-services"
+apply plugin: "com.onesignal.onesignal-signing"
 
 react {
     /* Folders */
@@ -28,6 +28,12 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+
+        // ─── OneSignal ────────────────────────────────────────────
+        manifestPlaceholders = [
+            onesignal_app_id: 'b35bca3a-765f-4854-bd30-d0c66d421c9f',
+            onesignal_google_project_number: 'REMOTE'
+        ]
     }
 
     signingConfigs {
@@ -55,10 +61,6 @@ dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "com.facebook.react:react-android:+"
     implementation "com.facebook.react:hermes-android:+"
-
-    // Firebase Cloud Messaging
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-messaging'
 }
 
 // Auto-linking: genera PackageList.js automaticamente
@@ -66,4 +68,8 @@ apply from: file("../../node_modules/@react-native-community/cli-platform-androi
 applyNativeModulesAppBuildGradle(project)
 
 // react-native-vector-icons: copy font files to assets/fonts
-apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle");
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+
+// ─── OneSignal ─────────────────────────────────────────────────────────────
+// react-native-onesignal@4.5.4 requiere esta linea
+apply from: file("../../node_modules/react-native-onesignal/android/app.gradle")

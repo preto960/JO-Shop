@@ -9,13 +9,8 @@ import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
 
-// Notifee: import defensivo para obtener la notificacion inicial
-let notifee = null;
-try {
-  notifee = require('@notifee/react-native').default;
-} catch (err) {
-  console.warn('[App] Notifee no disponible:', err.message);
-}
+// OneSignal: import para obtener la notificacion inicial
+import {OneSignal} from 'react-native-onesignal';
 
 // Ref de navegacion accesible fuera del componente
 export const navigationRef = createRef();
@@ -92,56 +87,41 @@ const NotificationHandler = () => {
     pushNotifications.setForegroundCallback(showNotifModal);
   }, [showNotifModal]);
 
-  // Manejar notificacion al abrir la app desde estado cerrado/background
-  // Usamos notifee.getInitialNotification() como fuente principal (ya que
-  // las notificaciones son creadas por notifee) y fallback a Firebase.
+  // ─── OneSignal: Handler para notificacion abierta (click) ────────────
+  // Maneja tanto la notificacion inicial (app abierta desde notificacion)
+  // como las notificaciones abiertas mientras la app esta en foreground
   useEffect(() => {
-    const handleInitialNotification = async () => {
-      let notifData = null;
+    const clickHandler = (event) => {
+      const notification = event.notification;
+      const additionalData = notification?.additionalData || {};
 
-      // 1. Intentar con notifee (notificaciones creadas por nuestro background handler)
-      if (notifee) {
-        try {
-          const initialNotif = await notifee.getInitialNotification();
-          if (initialNotif && initialNotif.notification) {
-            console.log('[App] Notificacion inicial via notifee:');
-            console.log('[App] Screen:', initialNotif.notification.data?.screen);
-            console.log('[App] Data:', JSON.stringify(initialNotif.notification.data));
-            notifData = {
-              data: initialNotif.notification.data,
-              notification: {
-                title: initialNotif.notification.title,
-                body: initialNotif.notification.body,
-              },
-            };
-          }
-        } catch (err) {
-          console.warn('[App] Error obteniendo notificacion inicial via notifee:', err.message);
-        }
-      }
+      console.log('[App] Notificacion OneSignal abierta');
+      console.log('[App] Screen:', additionalData.screen);
+      console.log('[App] Data:', JSON.stringify(additionalData));
 
-      // 2. Fallback: Firebase getInitialNotification
-      if (!notifData) {
-        try {
-          const fbNotif = await pushNotifications.getInitialNotification();
-          if (fbNotif) {
-            console.log('[App] Notificacion inicial via Firebase:');
-            console.log('[App] Data:', JSON.stringify(fbNotif.data));
-            notifData = fbNotif;
-          }
-        } catch (err) {
-          console.warn('[App] Error obteniendo notificacion inicial via Firebase:', err.message);
-        }
-      }
+      const notifData = {
+        data: additionalData,
+        notification: {
+          title: notification?.title,
+          body: notification?.body,
+        },
+      };
 
-      if (notifData) {
-        setInitialNotification(notifData);
+      // Si la app ya esta autenticada, navegar directamente
+      if (isAuthenticated && additionalData?.screen) {
+        navigateToScreen(additionalData.screen, additionalData);
       } else {
-        console.log('[App] Sin notificacion inicial (apertura normal)');
+        // Si no esta autenticada, guardar para navegar despues del login
+        setInitialNotification(notifData);
       }
     };
-    handleInitialNotification();
-  }, []);
+
+    OneSignal.Notifications.addEventListener('click', clickHandler);
+
+    return () => {
+      OneSignal.Notifications.removeEventListener('click', clickHandler);
+    };
+  }, [isAuthenticated]);
 
   // Navegar al abrir la app desde notificacion (despues de autenticacion)
   useEffect(() => {
@@ -151,7 +131,6 @@ const NotificationHandler = () => {
     if (data?.screen) {
       console.log('[App] Navegando desde notificacion inicial a:', data.screen, 'con data:', JSON.stringify(data));
       // Esperar 800ms para asegurar que NavigationContainer esta listo
-      // y que el estado de autenticacion se haya propagado completamente.
       const timer = setTimeout(() => {
         navigateToScreen(data.screen, data);
         setInitialNotification(null);
@@ -161,13 +140,12 @@ const NotificationHandler = () => {
   }, [isAuthenticated, initialNotification]);
 
   // Escuchar mensajes en foreground (app abierta)
-  // Ahora leemos title/body desde data (data-only messages)
+  // onForegroundMessage esta adaptado para emitir eventos en formato Firebase-compatible
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const unsubscribe = pushNotifications.onForegroundMessage(async (remoteMessage) => {
       const data = remoteMessage?.data || {};
-      // title/body vienen en data (data-only messages desde backend)
       const title = data.title || remoteMessage?.notification?.title || 'JO-Shop';
       const body = data.body || remoteMessage?.notification?.body || '';
 

@@ -15,7 +15,10 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
-        classpath("com.google.gms:google-services:4.4.0")
+
+        // ─── OneSignal Gradle Plugin ──────────────────────────────
+        // Requerido por react-native-onesignal@4.5.4
+        classpath("gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.14.0, 0.99.99]")
     }
 }
 
