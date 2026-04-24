@@ -196,13 +196,12 @@ export async function getInitialNotification() {
   }
 }
 
-/**
- * NOTA: setBackgroundMessageHandler ya NO se necesita llamar desde App.js.
- * Se registra automaticamente a nivel de modulo abajo.
- */
-export function setBackgroundMessageHandler() {
-  // No-op: el handler se registra a nivel de modulo (ver abajo)
-}
+// ────────────────────────────────────────────────────────────────────────────
+// NOTA IMPORTANTE: setBackgroundMessageHandler se registra en index.js
+// ANTES de AppRegistry.registerComponent().
+// Esto es OBLIGATORIO para que funcione cuando la app esta cerrada (killed state).
+// NO mover este handler a otro archivo ni registrarlo dentro de componentes React.
+// ────────────────────────────────────────────────────────────────────────────
 
 export default {
   requestNotificationPermission,
@@ -213,34 +212,6 @@ export default {
   onTokenRefresh,
   onForegroundMessage,
   getInitialNotification,
-  setBackgroundMessageHandler,
   setForegroundCallback,
   isFirebaseAvailable,
 };
-
-// ────────────────────────────────────────────────────────────────────────────
-// REGISTRO A NIVEL DE MODULO (fuera de cualquier componente)
-// Esto es OBLIGATORIO para que funcione cuando la app esta en background o cerrada.
-// Si se registra dentro de un useEffect de un componente React, NO funcionara
-// en background/quit porque React no esta activo.
-// ────────────────────────────────────────────────────────────────────────────
-
-if (isFirebaseAvailable()) {
-  try {
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('[Push] Background message handler activado');
-      console.log('[Push] Message ID:', remoteMessage?.messageId);
-      console.log('[Push] Data:', JSON.stringify(remoteMessage?.data));
-      console.log('[Push] Title:', remoteMessage?.notification?.title);
-      console.log('[Push] Body:', remoteMessage?.notification?.body);
-
-      // Android muestra automaticamente la notificacion del sistema
-      // porque el payload incluye notification.title y notification.body.
-      // Aqui solo procesamos logica adicional si fuera necesario.
-      // IMPORTANTE: Este handler DEBE retornar una Promise resuelta.
-    });
-    console.log('[Push] Background message handler registrado (nivel modulo)');
-  } catch (err) {
-    console.error('[Push] Error registrando background handler:', err.message);
-  }
-}
