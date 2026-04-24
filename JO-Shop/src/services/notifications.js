@@ -11,15 +11,20 @@ try {
   console.warn('[Push] Firebase Messaging no disponible:', err.message);
 }
 
+// ─── Notifee: import defensivo ────────────────────────────────────────────
+// Notifee permite mostrar notificaciones del sistema de forma explicita,
+// lo cual es mas confiable que el comportamiento automatico de Firebase.
+let notifee = null;
+try {
+  notifee = require('@notifee/react-native').default;
+} catch (err) {
+  console.warn('[Push] Notifee no disponible:', err.message);
+}
+
 // Flag para saber si Firebase esta realmente disponible
 const isFirebaseAvailable = () => !!messaging;
 
-// ─── CANAL DE NOTIFICACIONES ANDROID ───────────────────────────────────────
-// El canal se crea en MainApplication.java (nivel nativo) para Android 8+.
-// Esto asegura que exista antes de que llegue cualquier notificacion.
-// El ID del canal es "joshop_orders" (coincide con MainApplication.java).
-
-// ─── CALLBACK PARA NOTIFICACIONES FOREGROUND ──────────────────────────────
+// ─── CALLBACK PARA NOTIFICACIONES FOREGROUND ──────────────────────
 // Los callbacks se almacenan aqui para que App.js pueda conectar el modal
 let _foregroundCallback = null;
 
@@ -27,10 +32,35 @@ export function setForegroundCallback(callback) {
   _foregroundCallback = callback;
 }
 
-// ─── FUNCIONES PUBLICAS ────────────────────────────────────────────────────
+// ─── CANAL DE NOTIFICACIONES ANDROID ───────────────────────────────────────
+// El canal se crea tanto en MainApplication.java (nivel nativo) como con notifee
+// (nivel JS) para asegurar que exista en todos los casos.
+const CHANNEL_ID = 'joshop_orders';
 
 /**
- * Solicitar permiso de notificaciones
+ * Crear canal de notificaciones con notifee.
+ * Llamar al iniciar la app (despues del login) para asegurar que el canal existe.
+ */
+export async function ensureNotificationChannel() {
+  if (!notifee) return;
+  try {
+    await notifee.createChannel({
+      id: CHANNEL_ID,
+      name: 'Pedidos JO-Shop',
+      description: 'Notificaciones de nuevos pedidos, actualizaciones y entregas',
+      importance: 'high',
+      sound: 'default',
+      vibration: true,
+      badge: true,
+    });
+    console.log('[Push] Canal de notificaciones verificado:', CHANNEL_ID);
+  } catch (err) {
+    console.warn('[Push] Error creando canal con notifee:', err.message);
+  }
+}
+
+/**
+ * Solicitar permiso de notificaciones (Android 13+ tambien necesita POST_NOTIFICATIONS)
  */
 export async function requestNotificationPermission() {
   if (!isFirebaseAvailable()) {
@@ -45,6 +75,12 @@ export async function requestNotificationPermission() {
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
     console.log('[Push] Permisos:', enabled ? 'OTORGADOS' : 'DENEGADOS');
+
+    // Despues de obtener permisos, asegurar que el canal de notificaciones existe
+    if (enabled && Platform.OS === 'android') {
+      await ensureNotificationChannel();
+    }
+
     return enabled;
   } catch (error) {
     console.error('[Push] Error solicitando permisos:', error.message);
@@ -125,6 +161,10 @@ export async function registerPushToken() {
     });
 
     console.log('[Push] Token registrado en el backend exitosamente');
+
+    // Asegurar canal de notificaciones despues del registro
+    await ensureNotificationChannel();
+
     return true;
   } catch (error) {
     console.error('[Push] Error registrando token:', error.message);
@@ -197,10 +237,11 @@ export async function getInitialNotification() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// NOTA IMPORTANTE: setBackgroundMessageHandler se registra en index.js
-// ANTES de AppRegistry.registerComponent().
-// Esto es OBLIGATORIO para que funcione cuando la app esta cerrada (killed state).
-// NO mover este handler a otro archivo ni registrarlo dentro de componentes React.
+// NOTA IMPORTANTE:
+// - setBackgroundMessageHandler se registra en index.js ANTES de AppRegistry.
+// - El background handler usa notifee para mostrar la notificacion del sistema.
+// - notifee.displayNotification() garantiza que la notificacion SIEMPRE se muestre,
+//   incluso cuando el comportamiento automatico de Firebase no funciona.
 // ────────────────────────────────────────────────────────────────────────────
 
 export default {
@@ -214,4 +255,5 @@ export default {
   getInitialNotification,
   setForegroundCallback,
   isFirebaseAvailable,
+  ensureNotificationChannel,
 };

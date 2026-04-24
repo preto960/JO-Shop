@@ -15,20 +15,88 @@ try {
   console.warn('[index.js] Firebase Messaging no disponible:', err.message);
 }
 
+let notifee = null;
+try {
+  notifee = require('@notifee/react-native').default;
+} catch (err) {
+  console.warn('[index.js] Notifee no disponible:', err.message);
+}
+
+// ID del canal de notificaciones
+const CHANNEL_ID = 'joshop_orders';
+
+// Crear canal de notificaciones con notifee (Android 8+)
+async function ensureNotificationChannel() {
+  if (!notifee) return;
+  try {
+    await notifee.createChannel({
+      id: CHANNEL_ID,
+      name: 'Pedidos JO-Shop',
+      description: 'Notificaciones de nuevos pedidos, actualizaciones y entregas',
+      importance: 'high',
+      sound: 'default',
+      vibration: true,
+      badge: true,
+    });
+    console.log('[index.js] Canal de notificaciones creado:', CHANNEL_ID);
+  } catch (err) {
+    console.warn('[index.js] Error creando canal:', err.message);
+  }
+}
+
 if (messaging) {
   try {
     messaging().setBackgroundMessageHandler(async (remoteMessage) => {
       console.log('[Push][BG] Handler activado');
       console.log('[Push][BG] Message ID:', remoteMessage?.messageId);
       console.log('[Push][BG] Data:', JSON.stringify(remoteMessage?.data));
-      console.log('[Push][BG] Title:', remoteMessage?.notification?.title);
-      console.log('[Push][BG] Body:', remoteMessage?.notification?.body);
 
-      // Android muestra automaticamente la notificacion del sistema
-      // porque el payload incluye notification.title y notification.body.
-      // Aqui NO necesitamos hacer nada - el sistema la muestra por nosotros.
+      // ─── Leer title/body desde data (data-only messages) ──────────────
+      // El backend envia solo data (sin notification:{}).
+      // title y body estan dentro de remoteMessage.data.
+      const data = remoteMessage?.data || {};
+      const title = data.title || 'JO-Shop';
+      const body = data.body || 'Tienes una nueva notificacion';
+      const messageId = remoteMessage?.messageId || Date.now().toString();
+
+      console.log('[Push][BG] Title:', title);
+      console.log('[Push][BG] Body:', body);
+
+      // ─── Mostrar notificacion del sistema con notifee ───────────────────
+      // Esto garantiza que la notificacion SIEMPRE se muestre.
+      if (notifee) {
+        try {
+          await ensureNotificationChannel();
+
+          await notifee.displayNotification({
+            id: `joshop_${messageId}`,
+            title,
+            body,
+            data,
+            android: {
+              channelId: CHANNEL_ID,
+              smallIcon: 'ic_launcher',
+              pressAction: {
+                id: 'default',
+                launchActivity: 'com.joshop.MainActivity',
+              },
+              tag: data.notifTag || data.type || 'default',
+              importance: 'high',
+              sound: 'default',
+              autoCancel: true,
+              showTimestamp: true,
+            },
+          });
+
+          console.log('[Push][BG] Notificacion del sistema mostrada con notifee');
+        } catch (notifErr) {
+          console.error('[Push][BG] Error mostrando notificacion con notifee:', notifErr.message);
+        }
+      } else {
+        console.warn('[Push][BG] Notifee no disponible, la notificacion del sistema puede no mostrarse');
+      }
     });
-    console.log('[index.js] Background message handler registrado OK');
+    console.log('[index.js] Background message handler registrado OK (con notifee)');
   } catch (err) {
     console.error('[index.js] Error registrando background handler:', err.message);
   }
