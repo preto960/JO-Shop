@@ -62,3 +62,23 @@ Stage Summary:
 - Both 'pushNotificationReceived' (auto-refresh on notification) and 'pushNotificationAction' (user clicks Ver) events are now handled
 - When user clicks 'Ver' on notification modal while already on MyOrders/DeliveryOrders screen, the order will expand/highlight correctly
 - When user navigates from a different screen, route params still work as before
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix system notification not showing on delivery device when app is closed
+
+Work Log:
+- Analyzed uploaded images showing: (1) Client device showing "Pedido realizado" #42, (2) Delivery device on home screen with NO notification, (3) Vercel logs showing 1/2 tokens succeeded (1 invalid), (4) Metro logs showing background handler DID receive the message
+- Diagnosed: Backend IS sending notification successfully, background handler IS receiving it, but Android system notification NOT appearing
+- Root cause: @react-native-firebase/messaging automatic notification display is unreliable in debug/emulator mode
+- Solution: Install @notifee/react-native for explicit notification display
+- Updated backend: Changed to data-only FCM messages (removed notification:{} payload) to avoid duplicates with notifee
+- Updated app index.js: Background handler now uses notifee.displayNotification() to guarantee system notification
+- Updated app src/services/notifications.js: Added notifee channel creation, defensive imports
+- Updated app App.js: Handles notifee initial notification for tap-to-navigate, foreground reads title/body from data
+- Pushed both repos
+
+Stage Summary:
+- JO-Shop: feat: use notifee for reliable system notifications (pushed to main)
+- JO-backend-shop: feat: send data-only FCM messages (pushed to main)
+- User needs to: `cd JO-Shop && npm install` then rebuild APK with `npx react-native run-android`
