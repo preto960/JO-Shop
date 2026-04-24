@@ -15,11 +15,17 @@ try {
 // Notifee permite mostrar notificaciones del sistema de forma explicita,
 // lo cual es mas confiable que el comportamiento automatico de Firebase.
 let notifee = null;
+let AndroidImportance = null;
 try {
-  notifee = require('@notifee/react-native').default;
+  const notifeeModule = require('@notifee/react-native');
+  notifee = notifeeModule.default;
+  AndroidImportance = notifeeModule.AndroidImportance;
 } catch (err) {
   console.warn('[Push] Notifee no disponible:', err.message);
 }
+
+// Valor numerico de Android importance HIGH (4) como fallback
+const IMPORTANCE_HIGH = AndroidImportance?.HIGH || 4;
 
 // Flag para saber si Firebase esta realmente disponible
 const isFirebaseAvailable = () => !!messaging;
@@ -48,10 +54,7 @@ export async function ensureNotificationChannel() {
       id: CHANNEL_ID,
       name: 'Pedidos JO-Shop',
       description: 'Notificaciones de nuevos pedidos, actualizaciones y entregas',
-      importance: 'high',
-      sound: 'default',
-      vibration: true,
-      badge: true,
+      importance: IMPORTANCE_HIGH,
     });
     console.log('[Push] Canal de notificaciones verificado:', CHANNEL_ID);
   } catch (err) {
