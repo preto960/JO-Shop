@@ -104,4 +104,22 @@ if (messaging) {
   }
 }
 
+// ─── Notifee background event handler ──────────────────────────────────────
+// Obligatorio: maneja los eventos de las notificaciones creadas por notifee
+// cuando la app esta en background o cerrada (press, dismiss, etc.)
+if (notifee) {
+  try {
+    notifee.onBackgroundEvent(async ({ type, detail }) => {
+      console.log('[Notifee][BG] Evento:', type, 'notificationId:', detail.notification?.id);
+      // Remover la notificacion cuando el usuario la toca
+      if (type === 1 && detail.notification) {
+        await notifee.cancelNotification(detail.notification.id);
+      }
+    });
+    console.log('[index.js] Notifee onBackgroundEvent registrado OK');
+  } catch (err) {
+    console.warn('[index.js] Error registrando notifee onBackgroundEvent:', err.message);
+  }
+}
+
 AppRegistry.registerComponent(appName, () => App);
