@@ -3,6 +3,7 @@ import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '@services/api';
 import pushNotifications from '@services/notifications';
+import OneSignal from 'react-native-onesignal';
 
 const AUTH_KEY = '@joshop_auth';
 
@@ -287,10 +288,10 @@ export const AuthProvider = ({children}) => {
     }
   }, [state.token]);
 
-  // Registrar token FCM al iniciar sesion / restaurar sesion
+  // Registrar token push al iniciar sesion / restaurar sesion
   // Solo se registra una vez por sesion y por usuario.
-  // Se re-registra automaticamente si Firebase refresca el token (onTokenRefresh)
-  // o si el usuario cierra sesion y entra con otra cuenta.
+  // Tambien llama OneSignal.setExternalUserId() para que el backend pueda
+  // enviar notificaciones usando include_external_user_ids.
   const lastRegisteredUserIdRef = useRef(null);
   const lastRegisteredTokenRef = useRef(null);
 
@@ -303,9 +304,19 @@ export const AuthProvider = ({children}) => {
 
       // Si ya esta registrado para este usuario con este token, no hacer nada
       if (lastRegisteredUserIdRef.current === userId && lastRegisteredTokenRef.current === currentToken) {
-        console.log('[Auth] Token FCM ya registrado para este usuario, omitiendo');
+        console.log('[Auth] Token ya registrado para este usuario, omitiendo');
         return;
       }
+
+      // ── CRITICO: Asociar el dispositivo con el usuario en OneSignal ──
+      // Sin esto, el backend no puede enviar notificaciones usando include_external_user_ids
+      OneSignal.setExternalUserId(String(userId), (results) => {
+        if (results.pushSuccess) {
+          console.log('[Auth] OneSignal External ID set para user', userId);
+        } else {
+          console.warn('[Auth] OneSignal External ID fallo:', JSON.stringify(results));
+        }
+      });
 
       const api = await apiService.createApiClient();
       if (!api) {
@@ -320,9 +331,9 @@ export const AuthProvider = ({children}) => {
 
       lastRegisteredUserIdRef.current = userId;
       lastRegisteredTokenRef.current = currentToken;
-      console.log('[Auth] Token FCM registrado exitosamente para user', userId);
+      console.log('[Auth] Token registrado exitosamente para user', userId);
     } catch (err) {
-      console.error('[Auth] Error registrando token FCM:', err.message);
+      console.error('[Auth] Error registrando token:', err.message);
       // Reintentar una vez despues de 3 segundos
       setTimeout(() => {
         if (lastRegisteredUserIdRef.current !== userId || lastRegisteredTokenRef.current !== currentToken) {
