@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Google Services: procesa google-services.json para FCM (transporte de OneSignal)
+apply plugin: "com.google.gms.google-services"
 
 react {
     /* Folders */

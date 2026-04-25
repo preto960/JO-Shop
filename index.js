@@ -12,8 +12,9 @@ import OneSignal from 'react-native-onesignal';
 // App ID de JO-Shop en OneSignal
 const ONESIGNAL_APP_ID = 'b35bca3a-765f-4854-bd30-d0c66d421c9f';
 
-// Logging: 6 = VERBOSE, 0 = NONE
-OneSignal.setLogLevel(__DEV__ ? 6 : 3, __DEV__ ? 6 : 3);
+// Logging: 0 = NONE (sin popups visuales en desarrollo)
+// En produccion usa nivel normal de logs
+OneSignal.setLogLevel(__DEV__ ? 0 : 3, __DEV__ ? 2 : 3);
 
 // Inicializar el SDK de OneSignal
 OneSignal.setAppId(ONESIGNAL_APP_ID);
