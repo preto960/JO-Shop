@@ -20,7 +20,8 @@ buildscript {
         // Google Services: procesa google-services.json para FCM (transporte de OneSignal)
         classpath("com.google.gms:google-services:4.4.1")
         // OneSignal Gradle Plugin: agrega SDK nativo + configura FCM + manifest merger
-        classpath("com.onesignal:onesignal-gradle-plugin:[0.14.0, 0.99.99]")
+        // Version fija 0.14.0 - compatible con react-native-onesignal@4.5.4
+        classpath("com.onesignal:onesignal-gradle-plugin:0.14.0")
     }
 }
 
