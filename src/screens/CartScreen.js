@@ -769,10 +769,15 @@ const CartScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mi Carrito</Text>
-        <TouchableOpacity onPress={clearCart} activeOpacity={0.7}>
-          <Text style={styles.clearText}>Vaciar</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Mi Carrito</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={clearCart} activeOpacity={0.7}>
+            <Text style={styles.clearText}>Vaciar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Product list */}

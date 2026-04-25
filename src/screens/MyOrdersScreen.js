@@ -612,7 +612,11 @@ const MyOrdersScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mis Pedidos</Text>
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Mis Pedidos</Text>
+          </View>
+          <View style={styles.headerRight} />
         </View>
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
@@ -628,12 +632,17 @@ const MyOrdersScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mis Pedidos</Text>
-        <TouchableOpacity
-          onPress={handleRefresh}
-          hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-          <Icon name="refresh" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Mis Pedidos</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={handleRefresh}
+            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Icon name="refresh" size={22} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filter Tabs */}
@@ -689,18 +698,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: theme.colors.white,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
+  headerLeft: { width: 68 },
+  headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
     fontSize: theme.fontSize.xl,
     fontWeight: '700',
     color: theme.colors.text,
+    textAlign: 'center',
   },
+  headerRight: { width: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
 
   // Loading
   loaderContainer: {
