@@ -10,7 +10,7 @@ import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
 
 // OneSignal: import para obtener la notificacion inicial
-import {OneSignal} from 'react-native-onesignal';
+import OneSignal from 'react-native-onesignal';
 
 // Ref de navegacion accesible fuera del componente
 export const navigationRef = createRef();

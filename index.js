@@ -7,19 +7,25 @@ import {name as appName} from './app.json';
 // react-native-onesignal@4.5.4 (SDK OneSignal 5.x)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import {LogLevel, OneSignal} from 'react-native-onesignal';
+import OneSignal from 'react-native-onesignal';
 
 // App ID de JO-Shop en OneSignal
 const ONESIGNAL_APP_ID = 'b35bca3a-765f-4854-bd30-d0c66d421c9f';
 
 // Logging: Verbose en dev, Warn en produccion
-OneSignal.Debug.setLogLevel(__DEV__ ? LogLevel.Verbose : LogLevel.Warn);
+if (OneSignal && OneSignal.Debug) {
+  OneSignal.Debug.setLogLevel(__DEV__ ? OneSignal.LOG_LEVELS.VERBOSE : OneSignal.LOG_LEVELS.WARN);
+}
 
 // Inicializar el SDK de OneSignal
-OneSignal.initialize(ONESIGNAL_APP_ID);
+if (OneSignal && OneSignal.initialize) {
+  OneSignal.initialize(ONESIGNAL_APP_ID);
+}
 
 // Solicitar permisos de notificacion al usuario
-OneSignal.Notifications.requestPermission(true);
+if (OneSignal && OneSignal.Notifications) {
+  OneSignal.Notifications.requestPermission(true);
+}
 
 console.log('[index.js] OneSignal inicializado correctamente');
 console.log('[index.js] App ID:', ONESIGNAL_APP_ID);

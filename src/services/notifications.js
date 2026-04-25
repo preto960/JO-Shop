@@ -13,7 +13,7 @@
 
 import {Platform} from 'react-native';
 import apiService from '@services/api';
-import {OneSignal} from 'react-native-onesignal';
+import OneSignal from 'react-native-onesignal';
 
 // ─── OneSignal esta siempre disponible despues de la instalacion ─────────────
 const isOneSignalAvailable = () => true;
