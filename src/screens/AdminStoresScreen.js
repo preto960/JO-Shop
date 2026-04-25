@@ -1160,7 +1160,7 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 80,
-    textAlignVertical:top,
+    textAlignVertical: 'top',
   },
   inputError: {
     borderColor: theme.colors.accent,
