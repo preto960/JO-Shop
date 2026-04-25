@@ -311,7 +311,7 @@ export const AuthProvider = ({children}) => {
       // ── CRITICO: Asociar el dispositivo con el usuario en OneSignal ──
       // Sin esto, el backend no puede enviar notificaciones usando include_external_user_ids
       OneSignal.setExternalUserId(String(userId), (results) => {
-        if (results.pushSuccess) {
+        if (results.push && results.push.success) {
           console.log('[Auth] OneSignal External ID set para user', userId);
         } else {
           console.warn('[Auth] OneSignal External ID fallo:', JSON.stringify(results));
