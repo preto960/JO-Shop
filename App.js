@@ -116,10 +116,17 @@ const NotificationHandler = () => {
       }
     };
 
+    if (!OneSignal.Notifications) {
+      console.warn('[App] OneSignal.Notifications no disponible, omitiendo handler click');
+      return;
+    }
+
     OneSignal.Notifications.addEventListener('click', clickHandler);
 
     return () => {
-      OneSignal.Notifications.removeEventListener('click', clickHandler);
+      if (OneSignal.Notifications) {
+        OneSignal.Notifications.removeEventListener('click', clickHandler);
+      }
     };
   }, [isAuthenticated]);
 

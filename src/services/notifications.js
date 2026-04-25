@@ -191,11 +191,18 @@ export function onForegroundMessage(callback) {
     }
   };
 
+  if (!OneSignal || !OneSignal.Notifications) {
+    console.warn('[Push] OneSignal.Notifications no disponible');
+    return () => {};
+  }
+
   OneSignal.Notifications.addEventListener('foregroundWillDisplay', handler);
 
   // Retornar funcion de cleanup
   return () => {
-    OneSignal.Notifications.removeEventListener('foregroundWillDisplay', handler);
+    if (OneSignal && OneSignal.Notifications) {
+      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', handler);
+    }
   };
 }
 
