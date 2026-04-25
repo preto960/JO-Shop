@@ -7,11 +7,15 @@ import {
   StyleSheet,
   Linking,
   ScrollView,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuth} from '@context/AuthContext';
+import {useSystemConfig} from '@context/SystemConfigContext';
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
@@ -19,11 +23,14 @@ import ConfirmModal from '@components/ConfirmModal';
 import theme from '@theme/styles';
 
 const SettingsScreen = () => {
+  const navigation = useNavigation();
   const {isAdmin} = useAuth();
+  const {config, isMultiStore, updateConfig} = useSystemConfig();
   const [baseUrl, setBaseUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [configSaving, setConfigSaving] = useState(false);
   const envUrl = ENV.API_URL || '';
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
@@ -92,6 +99,30 @@ const SettingsScreen = () => {
     });
   };
 
+  const handleToggleMultiStore = (value) => {
+    const newValue = value ? 'true' : 'false';
+    const label = value ? 'multi-tienda' : 'tienda única';
+    setModal({
+      visible: true,
+      type: 'confirm',
+      title: `Cambiar a modo ${label}`,
+      message: value
+        ? 'Se habilitará el menú de Tiendas, filtro por tienda en productos y asignación de tienda a usuarios.'
+        : 'Se ocultará el menú de Tiendas, filtro por tienda y asignación de tienda. ¿Continuar?',
+      confirmText: 'Cambiar',
+      onConfirm: async () => {
+        try {
+          setConfigSaving(true);
+          await updateConfig({multi_store_mode: newValue});
+        } catch (err) {
+          setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo actualizar la configuración', confirmText: 'Aceptar', onConfirm: null});
+        } finally {
+          setConfigSaving(false);
+        }
+      },
+    });
+  };
+
   const openPrivacyPolicy = () => {
     Linking.openURL('https://example.com/privacy').catch(() => {});
   };
@@ -103,8 +134,16 @@ const SettingsScreen = () => {
         contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Ajustes</Text>
-          <Text style={styles.headerSubtitle}>Configuración del servidor y preferencias</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Configuración</Text>
+          </View>
+          <View style={{width: 40}} />
         </View>
 
         {/* URL del entorno (embebida en compilación) — SOLO ADMIN */}
@@ -221,6 +260,40 @@ const SettingsScreen = () => {
         </View>
         )}
 
+        {/* Configuración del sistema — SOLO ADMIN */}
+        {isAdmin && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sistema</Text>
+          <View style={styles.card}>
+            <View style={styles.configRow}>
+              <View style={styles.configInfo}>
+                <View style={styles.configIconWrap}>
+                  <Icon name="storefront-outline" size={20} color={theme.colors.accent} />
+                </View>
+                <View style={styles.configTextWrap}>
+                  <Text style={styles.configLabel}>Modo multi-tienda</Text>
+                  <Text style={styles.configDesc}>
+                    {isMultiStore
+                      ? 'Los clientes y deliveries verán un selector de tienda al registrarse'
+                      : 'El sistema opera con una sola tienda. No se muestra filtro de tiendas.'}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={isMultiStore}
+                onValueChange={(val) => handleToggleMultiStore(val)}
+                trackColor={{
+                  false: theme.colors.border,
+                  true: theme.colors.accent,
+                }}
+                thumbColor={theme.colors.white}
+                disabled={configSaving}
+              />
+            </View>
+          </View>
+        </View>
+        )}
+
         {/* Info de la app */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Acerca de</Text>
@@ -278,21 +351,30 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   header: {
-    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.sm,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.lg,
     backgroundColor: theme.colors.white,
     ...theme.shadows.sm,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: theme.fontSize.title,
     fontWeight: '700',
     color: theme.colors.text,
-  },
-  headerSubtitle: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
+    textAlign: 'center',
   },
   section: {
     paddingHorizontal: theme.spacing.lg,
@@ -470,6 +552,40 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '500',
     color: theme.colors.accent,
+  },
+  configRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+  },
+  configInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  configIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#FDE8EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  configTextWrap: {
+    flex: 1,
+  },
+  configLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  configDesc: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
   },
   bottomSpacing: {
     height: theme.spacing.xxl,
