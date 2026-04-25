@@ -1464,7 +1464,7 @@ const AdminUsersScreen = () => {
     }
   }, [createForm, loadUsers, closeCreateModal]);
 
-  // ─── Render: Create User Modal (Bottom Sheet) ──────────────────────────
+  // ─── Render: Create User Modal (Full Screen) ──────────────────────────
 
   const renderCreateModal = useCallback(() => {
     const isMultiStore = createStores.length > 1;
@@ -1472,55 +1472,44 @@ const AdminUsersScreen = () => {
     return (
       <Modal
         visible={createVisible}
-        transparent
         animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={closeCreateModal}>
-        <View style={styles.sheetOverlay}>
-          <TouchableOpacity
-            style={styles.sheetBackdrop}
-            activeOpacity={1}
-            onPress={closeCreateModal}
-          />
-          <View style={styles.sheetContainer}>
-            {/* Handle */}
-            <View style={styles.sheetHandleWrapper}>
-              <View style={styles.sheetHandle} />
-            </View>
+        <SafeAreaView style={styles.editSafeArea} edges={['top']}>
+          {/* Modal header */}
+          <View style={styles.editHeader}>
+            <TouchableOpacity
+              onPress={closeCreateModal}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon
+                name="close"
+                size={24}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+            <Text style={styles.editTitle}>
+              Nuevo usuario
+            </Text>
+            <View style={{width: 24}} />
+          </View>
 
-            {createLoading ? (
-              <View style={styles.sheetLoading}>
-                <ActivityIndicator
-                  size="large"
-                  color={theme.colors.accent}
-                />
-                <Text style={styles.sheetLoadingText}>
-                  Cargando datos...
-                </Text>
-              </View>
-            ) : (
-              <ScrollView
-                style={styles.sheetScroll}
-                contentContainerStyle={styles.sheetScrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled">
-                {/* Modal title */}
-                <View style={styles.createHeader}>
-                  <View style={styles.createHeaderIcon}>
-                    <Icon
-                      name="person-add"
-                      size={24}
-                      color={theme.colors.white}
-                    />
-                  </View>
-                  <View style={styles.createHeaderInfo}>
-                    <Text style={styles.createTitle}>
-                      Nuevo usuario
-                    </Text>
-                    <Text style={styles.createSubtitle}>
-                      Completa los datos para crear una cuenta
-                    </Text>
-                  </View>
-                </View>
+          {createLoading ? (
+            <View style={styles.editLoaderContainer}>
+              <ActivityIndicator
+                size="large"
+                color={theme.colors.accent}
+              />
+              <Text style={styles.editLoaderText}>
+                Cargando datos...
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.editBody}
+              contentContainerStyle={styles.editBodyContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets>
 
                 {/* Nombre */}
                 <Text style={styles.editLabel}>
@@ -1748,12 +1737,11 @@ const AdminUsersScreen = () => {
                   )}
                 </TouchableOpacity>
 
-                {/* Bottom padding */}
-                <View style={{height: theme.spacing.md}} />
-              </ScrollView>
-            )}
-          </View>
-        </View>
+              {/* Bottom padding */}
+              <View style={{height: theme.spacing.xxl}} />
+            </ScrollView>
+          )}
+        </SafeAreaView>
       </Modal>
     );
   }, [
@@ -1788,23 +1776,18 @@ const AdminUsersScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon
-              name="arrow-back"
-              size={24}
-              color={theme.colors.text}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerLeft} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Usuarios</Text>
-            <Text style={styles.headerSubtitle}>
-              Administrar usuarios
-            </Text>
           </View>
-          <View style={styles.headerRight} />
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.loaderContainer}>
           <ActivityIndicator
@@ -1825,18 +1808,7 @@ const AdminUsersScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon
-              name="arrow-back"
-              size={24}
-              color={theme.colors.text}
-            />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerLeft} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Usuarios</Text>
           <Text style={styles.headerSubtitle}>
@@ -1844,14 +1816,11 @@ const AdminUsersScreen = () => {
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={handleLogout}
-            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon
-              name="log-out-outline"
-              size={22}
-              color={theme.colors.accent}
-            />
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1919,10 +1888,10 @@ const AdminUsersScreen = () => {
         style={styles.fab}
         onPress={openCreateModal}
         activeOpacity={0.85}>
-        <Icon name="person-add" size={28} color="#FFFFFF" />
+        <Icon name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Create user bottom sheet modal */}
+      {/* Create user full-screen modal */}
       {renderCreateModal()}
 
       {/* Detail bottom sheet modal */}
@@ -1966,8 +1935,7 @@ const styles = StyleSheet.create({
     ...theme.shadows.sm,
   },
   headerLeft: {
-    width: 40,
-    justifyContent: 'center',
+    width: 80,
   },
   backBtn: {
     width: 40,
@@ -1989,8 +1957,10 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   headerRight: {
+    width: 80,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: theme.spacing.xs,
   },
 

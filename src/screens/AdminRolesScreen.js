@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import ConfirmModal from '@components/ConfirmModal';
+import {useAuth} from '@context/AuthContext';
 import Toast from '@components/Toast';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
@@ -22,7 +23,16 @@ import theme from '@theme/styles';
 
 const AdminRolesScreen = () => {
   const navigation = useNavigation();
+  const {logout} = useAuth();
   const nameInputRef = useRef(null);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   // ─── Data state ─────────────────────────────────────────────────
   const [roles, setRoles] = useState([]);
@@ -325,14 +335,18 @@ const AdminRolesScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Roles y Permisos</Text>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Roles y Permisos</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
@@ -349,14 +363,18 @@ const AdminRolesScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}>
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Roles y Permisos</Text>
-        <Text style={styles.headerCount}>{roles.length}</Text>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Roles y Permisos</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Roles List */}
@@ -441,68 +459,57 @@ const AdminRolesScreen = () => {
         </SafeAreaView>
       </Modal>
 
-      {/* ─── Create Role Modal (bottom sheet) ───────────────────── */}
+      {/* ─── Create Role Modal (full-screen) ────────────────────── */}
       <Modal
         visible={createRoleVisible}
         animationType="slide"
-        transparent
+        presentationStyle="pageSheet"
         onRequestClose={closeCreateRole}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            onPress={closeCreateRole}
-            activeOpacity={1}
-          />
-          <View style={styles.bottomSheet}>
-            {/* Header */}
-            <View style={styles.bottomSheetHeader}>
-              <Text style={styles.bottomSheetTitle}>Crear Rol</Text>
-              <TouchableOpacity
-                onPress={closeCreateRole}
-                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                disabled={submitting}>
-                <Icon
-                  name="close"
-                  size={24}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
+        <SafeAreaView style={styles.createModalSafeArea} edges={['top']}>
+          <View style={styles.createModalHeader}>
+            <TouchableOpacity
+              onPress={closeCreateRole}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+              disabled={submitting}>
+              <Icon name="close" size={28} color={theme.colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.createModalTitle}>Crear Rol</Text>
+            <View style={{width: 28}} />
+          </View>
+
+          <ScrollView
+            style={styles.createModalScroll}
+            contentContainerStyle={styles.createModalContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Nombre del rol *</Text>
+              <TextInput
+                ref={nameInputRef}
+                style={styles.textInput}
+                value={newRoleName}
+                onChangeText={setNewRoleName}
+                placeholder="Ej: supervisor"
+                placeholderTextColor={theme.colors.textLight}
+                autoCapitalize="none"
+                editable={!submitting}
+                returnKeyType="next"
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Descripción</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={newRoleDesc}
+                onChangeText={setNewRoleDesc}
+                placeholder="Descripción del rol..."
+                placeholderTextColor={theme.colors.textLight}
+                multiline
+                numberOfLines={3}
+                editable={!submitting}
+              />
             </View>
 
-            {/* Form */}
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled">
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Nombre del rol *</Text>
-                <TextInput
-                  ref={nameInputRef}
-                  style={styles.textInput}
-                  value={newRoleName}
-                  onChangeText={setNewRoleName}
-                  placeholder="Ej: supervisor"
-                  placeholderTextColor={theme.colors.textLight}
-                  autoCapitalize="none"
-                  editable={!submitting}
-                  returnKeyType="next"
-                />
-              </View>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Descripción</Text>
-                <TextInput
-                  style={[styles.textInput, styles.textArea]}
-                  value={newRoleDesc}
-                  onChangeText={setNewRoleDesc}
-                  placeholder="Descripción del rol..."
-                  placeholderTextColor={theme.colors.textLight}
-                  multiline
-                  numberOfLines={3}
-                  editable={!submitting}
-                />
-              </View>
-            </ScrollView>
-
-            {/* Submit */}
             <TouchableOpacity
               style={[styles.submitBtn, submitting && styles.btnDisabled]}
               onPress={handleCreateRole}
@@ -513,8 +520,8 @@ const AdminRolesScreen = () => {
                 <Text style={styles.submitBtnText}>Crear Rol</Text>
               )}
             </TouchableOpacity>
-          </View>
-        </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
       {/* Confirm Modal */}
@@ -551,41 +558,32 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: theme.colors.white,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
+  headerLeft: {
+    width: 68,
+  },
+  headerCenter: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
   },
   headerTitle: {
-    flex: 1,
-    fontSize: theme.fontSize.title,
+    fontSize: theme.fontSize.xl,
     fontWeight: '700',
     color: theme.colors.text,
-    textAlign: 'center',
-    marginHorizontal: theme.spacing.sm,
   },
-  headerSpacer: {
-    width: 40,
-  },
-  headerCount: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    backgroundColor: '#F0F2F5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-    marginRight: theme.spacing.sm,
+  headerRight: {
+    width: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
   centerContainer: {
     flex: 1,
@@ -790,33 +788,31 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Bottom Sheet (Create Role) ─────────────────────────────────
-  modalOverlay: {
+  // ── Create Role Modal (full-screen) ────────────────────────────
+  createModalSafeArea: {
     flex: 1,
-    justifyContent: 'flex-end',
+    backgroundColor: theme.colors.background,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  bottomSheet: {
-    backgroundColor: theme.colors.white,
-    borderTopLeftRadius: theme.borderRadius.lg,
-    borderTopRightRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    maxHeight: '85%',
-  },
-  bottomSheetHeader: {
+  createModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    ...theme.shadows.sm,
   },
-  bottomSheetTitle: {
+  createModalTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  createModalScroll: {
+    flex: 1,
+  },
+  createModalContent: {
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
   },
   formGroup: {
     marginBottom: theme.spacing.md,

@@ -14,10 +14,12 @@ import {useNavigation} from '@react-navigation/native';
 import ProductCard from '@components/ProductCard';
 import {EmptyState, ErrorState, LoadingState} from '@components/StateViews';
 import apiService from '@services/api';
+import {useSystemConfig} from '@context/SystemConfigContext';
 import theme from '@theme/styles';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const {isMultiStore} = useSystemConfig();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
@@ -308,7 +310,7 @@ const HomeScreen = () => {
         </View>
 
         {/* Tiendas filter */}
-        {stores.length > 0 && (
+        {isMultiStore && stores.length > 0 && (
           <View style={styles.storeFilterRow}>
             <TouchableOpacity
               style={styles.storeFilterToggle}
@@ -343,7 +345,7 @@ const HomeScreen = () => {
           </View>
         )}
 
-        {showStoreFilter && stores.length > 0 && (
+        {isMultiStore && showStoreFilter && stores.length > 0 && (
           <View style={styles.storeFilterContainer}>
             <View style={styles.chipScrollWrapper} onLayout={handleStoreLayout}>
               {storeCanScrollLeft && (

@@ -75,9 +75,15 @@ const AdminDashboardScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <View style={styles.headerRow}>
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Panel Admin</Text>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
               <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
             </TouchableOpacity>
           </View>
@@ -92,19 +98,18 @@ const AdminDashboardScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Panel Admin</Text>
-            <Text style={styles.headerSubtitle}>{user?.name || 'Administrador'}</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn}>
-              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Panel Admin</Text>
+          <Text style={styles.headerSubtitle}>{user?.name || 'Administrador'}</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -221,41 +226,12 @@ const AdminDashboardScreen = () => {
 
 const styles = StyleSheet.create({
   safeArea: {flex: 1, backgroundColor: theme.colors.background},
-  header: {
-    backgroundColor: theme.colors.white,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
-    ...theme.shadows.sm,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.inputBg,
-  },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FDE8EC',
-  },
-  headerTitle: {fontSize: theme.fontSize.title, fontWeight: '700', color: theme.colors.text},
-  headerSubtitle: {fontSize: theme.fontSize.sm, color: theme.colors.textSecondary, marginTop: 2},
+  header: {flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.white, paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md, ...theme.shadows.sm},
+  headerLeft: {width: 68},
+  headerCenter: {flex: 1, alignItems: 'center'},
+  headerTitle: {fontSize: theme.fontSize.xl, fontWeight: '700', color: theme.colors.text},
+  headerSubtitle: {fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 1},
+  headerRight: {width: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4},
   scrollContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xxl},
   loadingContainer: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   loadingText: {fontSize: theme.fontSize.md, color: theme.colors.textSecondary},

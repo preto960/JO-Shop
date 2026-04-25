@@ -17,6 +17,7 @@ import apiService from '@services/api';
 import { formatPrice } from '@utils/helpers';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
+import {useAuth} from '@context/AuthContext';
 
 const STATUS_TABS = [
   { key: 'all', label: 'Todos' },
@@ -52,6 +53,15 @@ const formatDate = (dateStr) => {
 
 const AdminOrdersScreen = () => {
   const navigation = useNavigation();
+  const {logout} = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -263,16 +273,19 @@ const AdminOrdersScreen = () => {
 
   const renderHeader = () => (
     <View>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Gestión de Pedidos</Text>
-        <View style={styles.headerSpacer} />
+      <View style={styles.header}>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Gestión de Pedidos</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.filterTabsContainer}>
@@ -879,29 +892,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
   },
-  headerContainer: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: theme.colors.card,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
+    ...theme.shadows.sm,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.inputBg,
-    justifyContent: 'center',
+  headerLeft: {
+    width: 68,
+  },
+  headerCenter: {
+    flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: theme.fontSize.xl,
     fontWeight: '700',
     color: theme.colors.text,
   },
-  headerSpacer: {
-    width: 40,
+  headerRight: {
+    width: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
   filterTabsContainer: {
     backgroundColor: theme.colors.card,

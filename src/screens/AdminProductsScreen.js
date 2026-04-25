@@ -814,34 +814,6 @@ const AdminProductsScreen = () => {
     renderCategoryPicker,
   ]);
 
-  // ─── Main Render ──────────────────────────────────────────────────────────
-
-  if (loading && !refreshing) {
-    return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Productos</Text>
-            <Text style={styles.headerSubtitle}>
-              Administrar catálogo
-            </Text>
-          </View>
-          <View style={styles.headerRight} />
-        </View>
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
-          <Text style={styles.loaderText}>Cargando productos...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   const handleLogout = () => {
     setModal({
       visible: true,
@@ -853,18 +825,38 @@ const AdminProductsScreen = () => {
     });
   };
 
+  // ─── Main Render ──────────────────────────────────────────────────────────
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Productos</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <Text style={styles.loaderText}>Cargando productos...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerLeft} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Productos</Text>
           <Text style={styles.headerSubtitle}>
@@ -872,14 +864,10 @@ const AdminProductsScreen = () => {
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={openCreateModal}
-            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="add-circle-outline" size={28} color={theme.colors.accent} />
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleLogout}
-            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
             <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>
         </View>
@@ -995,15 +983,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
-  headerLeft: {
-    width: 40,
-    justifyContent: 'center',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
+  headerLeft: {width: 68},
   headerCenter: {
     flex: 1,
     alignItems: 'center',
@@ -1018,11 +998,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 1,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-  },
+  headerRight: {width: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4},
 
   // Loading
   loaderContainer: {

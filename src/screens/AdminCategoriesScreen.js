@@ -14,12 +14,14 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
+import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
 
 const AdminCategoriesScreen = () => {
   const navigation = useNavigation();
+  const {user, logout} = useAuth();
   const nameInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
@@ -57,6 +59,17 @@ const AdminCategoriesScreen = () => {
   useEffect(() => {
     loadCategories();
   }, []);
+
+  const handleLogout = () => {
+    setModal({
+      visible: true,
+      type: 'danger',
+      title: 'Cerrar sesión',
+      message: `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => logout(),
+    });
+  };
 
   // ── Validation ──────────────────────────────────────────────
   const validateForm = () => {
@@ -263,14 +276,18 @@ const AdminCategoriesScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Categorías</Text>
-          <View style={styles.headerRight} />
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Categorías</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
@@ -284,14 +301,18 @@ const AdminCategoriesScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}>
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Categorías</Text>
-        <Text style={styles.headerCount}>{categories.length}</Text>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Categorías</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* List */}
@@ -325,94 +346,64 @@ const AdminCategoriesScreen = () => {
       </TouchableOpacity>
 
       {/* Create / Edit Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={closeModal}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} onPress={closeModal} activeOpacity={1} />
-          <View style={styles.modalContent}>
-            {/* Modal header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isEditing ? 'Editar categoría' : 'Nueva categoría'}
-              </Text>
-              <TouchableOpacity onPress={closeModal} activeOpacity={0.7} disabled={submitting}>
-                <Icon name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Form */}
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Name field */}
-              <View style={styles.fieldGroup}>
-                {renderFieldLabel('Nombre', 'name')}
-                <TextInput
-                  ref={nameInputRef}
-                  style={[styles.textInput, formErrors.name && styles.inputError]}
-                  value={formName}
-                  onChangeText={(text) => {
-                    setFormName(text);
-                    if (formErrors.name) setFormErrors((prev) => ({...prev, name: undefined}));
-                  }}
-                  placeholder="Ej. Electrónica"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  maxLength={60}
-                  editable={!submitting}
-                  returnKeyType="next"
-                  onSubmitEditing={() => imageInputRef.current?.focus()}
-                />
-              </View>
-
-              {/* Image URL field */}
-              <View style={styles.fieldGroup}>
-                {renderFieldLabel('URL de imagen (opcional)', 'image')}
-                <TextInput
-                  ref={imageInputRef}
-                  style={[styles.textInput, formErrors.image && styles.inputError]}
-                  value={formImage}
-                  onChangeText={(text) => {
-                    setFormImage(text);
-                    if (formErrors.image) setFormErrors((prev) => ({...prev, image: undefined}));
-                  }}
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  editable={!submitting}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
-                />
-              </View>
-            </ScrollView>
-
-            {/* Modal footer */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={closeModal}
-                activeOpacity={0.8}
-                disabled={submitting}>
-                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSubmit, submitting && styles.modalBtnDisabled]}
-                onPress={handleSubmit}
-                activeOpacity={0.85}
-                disabled={submitting}>
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalBtnSubmitText}>
-                    {isEditing ? 'Guardar cambios' : 'Crear categoría'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
+        <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={closeModal} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="close" size={28} color={theme.colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>{isEditing ? 'Editar' : 'Nueva categoría'}</Text>
+            <View style={{width: 28}} />
           </View>
-        </View>
+          <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
+            {/* Name field */}
+            <View style={styles.fieldGroup}>
+              {renderFieldLabel('Nombre', 'name')}
+              <TextInput
+                ref={nameInputRef}
+                style={[styles.textInput, formErrors.name && styles.inputError]}
+                value={formName}
+                onChangeText={(text) => {
+                  setFormName(text);
+                  if (formErrors.name) setFormErrors((prev) => ({...prev, name: undefined}));
+                }}
+                placeholder="Ej. Electrónica"
+                placeholderTextColor={theme.colors.textSecondary}
+                maxLength={60}
+                editable={!submitting}
+                returnKeyType="next"
+                onSubmitEditing={() => imageInputRef.current?.focus()}
+              />
+            </View>
+
+            {/* Image URL field */}
+            <View style={styles.fieldGroup}>
+              {renderFieldLabel('URL de imagen (opcional)', 'image')}
+              <TextInput
+                ref={imageInputRef}
+                style={[styles.textInput, formErrors.image && styles.inputError]}
+                value={formImage}
+                onChangeText={(text) => {
+                  setFormImage(text);
+                  if (formErrors.image) setFormErrors((prev) => ({...prev, image: undefined}));
+                }}
+                placeholder="https://ejemplo.com/imagen.jpg"
+                placeholderTextColor={theme.colors.textSecondary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                editable={!submitting}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+              />
+            </View>
+
+            {/* Submit button */}
+            <TouchableOpacity style={[styles.submitButton, submitting && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={submitting} activeOpacity={0.8}>
+              {submitting ? <ActivityIndicator size="small" color={theme.colors.white} /> : <Text style={styles.submitButtonText}>{isEditing ? 'Guardar cambios' : 'Crear'}</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
       <ConfirmModal
         visible={modal.visible}
@@ -437,40 +428,28 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: theme.colors.white,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-  },
+  headerLeft: { width: 68 },
+  headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
-    flex: 1,
-    fontSize: theme.fontSize.title,
+    fontSize: theme.fontSize.xl,
     fontWeight: '700',
     color: theme.colors.text,
-    marginLeft: theme.spacing.xs,
+    textAlign: 'center',
   },
   headerRight: {
-    width: 40,
-  },
-  headerCount: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    backgroundColor: '#F0F2F5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-    marginRight: theme.spacing.sm,
+    width: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -597,66 +576,43 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
 
-  // Modal
-  modalOverlay: {
+  // Modal (full-screen)
+  modalSafeArea: {
     flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalContent: {
     backgroundColor: theme.colors.white,
-    borderTopLeftRadius: theme.borderRadius.lg,
-    borderTopRightRadius: theme.borderRadius.lg,
-    paddingTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
   modalTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
     color: theme.colors.text,
   },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  modalBtn: {
+  modalBody: {
     flex: 1,
-    paddingVertical: theme.spacing.md,
+  },
+  modalBodyContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+  },
+  submitButton: {
+    backgroundColor: theme.colors.accent,
     borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 50,
+    marginTop: theme.spacing.lg,
   },
-  modalBtnCancel: {
-    backgroundColor: '#F0F2F5',
-  },
-  modalBtnCancelText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  modalBtnSubmit: {
-    backgroundColor: theme.colors.accent,
-  },
-  modalBtnDisabled: {
+  submitButtonDisabled: {
     opacity: 0.65,
   },
-  modalBtnSubmitText: {
+  submitButtonText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: '#FFFFFF',

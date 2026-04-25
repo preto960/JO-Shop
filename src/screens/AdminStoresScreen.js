@@ -15,6 +15,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
+import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
@@ -26,6 +27,7 @@ const PAGE_LIMIT = 20;
 // ─── Component ────────────────────────────────────────────────────────────────
 const AdminStoresScreen = () => {
   const navigation = useNavigation();
+  const {user, logout} = useAuth();
   const nameInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
 
@@ -78,6 +80,17 @@ const AdminStoresScreen = () => {
   });
 
   // ─── Data Loading ────────────────────────────────────────────────────────
+
+  const handleLogout = useCallback(() => {
+    setConfirmModal({
+      visible: true,
+      type: 'danger',
+      title: 'Cerrar sesión',
+      message: `¿Cerrar sesión de ${user?.name || 'la cuenta'}?`,
+      confirmText: 'Cerrar sesión',
+      onConfirm: () => logout(),
+    });
+  }, [user, logout]);
 
   const loadStores = useCallback(async (pageNum = 1, isRefresh = false) => {
     try {
@@ -570,14 +583,18 @@ const AdminStoresScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Tiendas</Text>
-          <View style={styles.headerRight} />
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Tiendas</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.loadingContainer}>
@@ -600,14 +617,18 @@ const AdminStoresScreen = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}>
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tiendas</Text>
-        <Text style={styles.headerCount}>{stores.length}</Text>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Tiendas</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Store list */}
@@ -639,186 +660,137 @@ const AdminStoresScreen = () => {
         <Icon name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Create / Edit Bottom Sheet Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={closeModal}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            onPress={closeModal}
-            activeOpacity={1}
-          />
-          <View style={styles.modalContent}>
-            {/* Handle bar */}
-            <View style={styles.modalHandleWrapper}>
-              <View style={styles.modalHandle} />
-            </View>
-
-            {/* Modal header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isEditing ? 'Editar tienda' : 'Nueva tienda'}
-              </Text>
-              <TouchableOpacity
-                onPress={closeModal}
-                activeOpacity={0.7}
-                disabled={submitting}>
-                <Icon name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Form */}
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled>
-              {/* Name field */}
-              <View style={styles.fieldGroup}>
-                {renderFieldLabel('Nombre *', 'name')}
-                <TextInput
-                  ref={nameInputRef}
-                  style={[styles.textInput, formErrors.name && styles.inputError]}
-                  value={formName}
-                  onChangeText={text => {
-                    setFormName(text);
-                    if (formErrors.name) {
-                      setFormErrors(prev => ({...prev, name: undefined}));
-                    }
-                  }}
-                  placeholder="Ej. Mi Tienda"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  maxLength={100}
-                  editable={!submitting}
-                  returnKeyType="next"
-                  onSubmitEditing={() => descriptionInputRef.current?.focus()}
-                />
-              </View>
-
-              {/* Description field */}
-              <View style={styles.fieldGroup}>
-                {renderFieldLabel('Descripción', 'description')}
-                <TextInput
-                  ref={descriptionInputRef}
-                  style={[styles.textInput, styles.textArea, formErrors.description && styles.inputError]}
-                  value={formDescription}
-                  onChangeText={text => {
-                    setFormDescription(text);
-                    if (formErrors.description) {
-                      setFormErrors(prev => ({...prev, description: undefined}));
-                    }
-                  }}
-                  placeholder="Describe tu tienda..."
-                  placeholderTextColor={theme.colors.textSecondary}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={500}
-                  editable={!submitting}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              {/* Phone field */}
-              <View style={styles.fieldGroup}>
-                {renderFieldLabel('Teléfono', 'phone')}
-                <TextInput
-                  style={[styles.textInput, formErrors.phone && styles.inputError]}
-                  value={formPhone}
-                  onChangeText={text => {
-                    setFormPhone(text);
-                    if (formErrors.phone) {
-                      setFormErrors(prev => ({...prev, phone: undefined}));
-                    }
-                  }}
-                  placeholder="Ej. +52 55 1234 5678"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  keyboardType="phone-pad"
-                  maxLength={20}
-                  editable={!submitting}
-                  returnKeyType="next"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-
-              {/* Address field */}
-              <View style={styles.fieldGroup}>
-                {renderFieldLabel('Dirección', 'address')}
-                <TextInput
-                  style={[styles.textInput, formErrors.address && styles.inputError]}
-                  value={formAddress}
-                  onChangeText={text => {
-                    setFormAddress(text);
-                    if (formErrors.address) {
-                      setFormErrors(prev => ({...prev, address: undefined}));
-                    }
-                  }}
-                  placeholder="Ej. Av. Principal #123"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  maxLength={200}
-                  editable={!submitting}
-                  returnKeyType="next"
-                  autoCapitalize="words"
-                />
-              </View>
-
-              {/* Owner dropdown */}
-              {renderOwnerDropdown()}
-
-              {/* Active toggle */}
-              <View style={styles.toggleRow}>
-                <View style={styles.toggleInfo}>
-                  <Text style={styles.toggleLabel}>Tienda activa</Text>
-                  <Text style={styles.toggleDescription}>
-                    {formActive
-                      ? 'La tienda será visible para los clientes'
-                      : 'La tienda no será visible para los clientes'}
-                  </Text>
-                </View>
-                <Switch
-                  value={formActive}
-                  onValueChange={setFormActive}
-                  trackColor={{
-                    false: theme.colors.border,
-                    true: theme.colors.success,
-                  }}
-                  thumbColor={theme.colors.white}
-                  disabled={submitting}
-                />
-              </View>
-            </ScrollView>
-
-            {/* Modal footer */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={closeModal}
-                activeOpacity={0.8}
-                disabled={submitting}>
-                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalBtn,
-                  styles.modalBtnSubmit,
-                  submitting && styles.modalBtnDisabled,
-                ]}
-                onPress={handleSubmit}
-                activeOpacity={0.85}
-                disabled={submitting}>
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalBtnSubmitText}>
-                    {isEditing ? 'Guardar cambios' : 'Crear tienda'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+      {/* Create / Edit Modal */}
+      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
+        <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={closeModal} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="close" size={28} color={theme.colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>{isEditing ? 'Editar' : 'Nueva tienda'}</Text>
+            <View style={{width: 28}} />
           </View>
-        </View>
+          <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} automaticallyAdjustKeyboardInsets>
+            {/* Name field */}
+            <View style={styles.fieldGroup}>
+              {renderFieldLabel('Nombre *', 'name')}
+              <TextInput
+                ref={nameInputRef}
+                style={[styles.textInput, formErrors.name && styles.inputError]}
+                value={formName}
+                onChangeText={text => {
+                  setFormName(text);
+                  if (formErrors.name) {
+                    setFormErrors(prev => ({...prev, name: undefined}));
+                  }
+                }}
+                placeholder="Ej. Mi Tienda"
+                placeholderTextColor={theme.colors.textSecondary}
+                maxLength={100}
+                editable={!submitting}
+                returnKeyType="next"
+                onSubmitEditing={() => descriptionInputRef.current?.focus()}
+              />
+            </View>
+
+            {/* Description field */}
+            <View style={styles.fieldGroup}>
+              {renderFieldLabel('Descripción', 'description')}
+              <TextInput
+                ref={descriptionInputRef}
+                style={[styles.textInput, styles.textArea, formErrors.description && styles.inputError]}
+                value={formDescription}
+                onChangeText={text => {
+                  setFormDescription(text);
+                  if (formErrors.description) {
+                    setFormErrors(prev => ({...prev, description: undefined}));
+                  }
+                }}
+                placeholder="Describe tu tienda..."
+                placeholderTextColor={theme.colors.textSecondary}
+                multiline
+                numberOfLines={3}
+                maxLength={500}
+                editable={!submitting}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Phone field */}
+            <View style={styles.fieldGroup}>
+              {renderFieldLabel('Teléfono', 'phone')}
+              <TextInput
+                style={[styles.textInput, formErrors.phone && styles.inputError]}
+                value={formPhone}
+                onChangeText={text => {
+                  setFormPhone(text);
+                  if (formErrors.phone) {
+                    setFormErrors(prev => ({...prev, phone: undefined}));
+                  }
+                }}
+                placeholder="Ej. +52 55 1234 5678"
+                placeholderTextColor={theme.colors.textSecondary}
+                keyboardType="phone-pad"
+                maxLength={20}
+                editable={!submitting}
+                returnKeyType="next"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            {/* Address field */}
+            <View style={styles.fieldGroup}>
+              {renderFieldLabel('Dirección', 'address')}
+              <TextInput
+                style={[styles.textInput, formErrors.address && styles.inputError]}
+                value={formAddress}
+                onChangeText={text => {
+                  setFormAddress(text);
+                  if (formErrors.address) {
+                    setFormErrors(prev => ({...prev, address: undefined}));
+                  }
+                }}
+                placeholder="Ej. Av. Principal #123"
+                placeholderTextColor={theme.colors.textSecondary}
+                maxLength={200}
+                editable={!submitting}
+                returnKeyType="next"
+                autoCapitalize="words"
+              />
+            </View>
+
+            {/* Owner dropdown */}
+            {renderOwnerDropdown()}
+
+            {/* Active toggle */}
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>Tienda activa</Text>
+                <Text style={styles.toggleDescription}>
+                  {formActive
+                    ? 'La tienda será visible para los clientes'
+                    : 'La tienda no será visible para los clientes'}
+                </Text>
+              </View>
+              <Switch
+                value={formActive}
+                onValueChange={setFormActive}
+                trackColor={{
+                  false: theme.colors.border,
+                  true: theme.colors.success,
+                }}
+                thumbColor={theme.colors.white}
+                disabled={submitting}
+              />
+            </View>
+
+            {/* Submit button */}
+            <TouchableOpacity style={[styles.submitButton, submitting && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={submitting} activeOpacity={0.8}>
+              {submitting ? <ActivityIndicator size="small" color={theme.colors.white} /> : <Text style={styles.submitButtonText}>{isEditing ? 'Guardar cambios' : 'Crear'}</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
       {/* Confirm Modal */}
@@ -847,42 +819,28 @@ const styles = StyleSheet.create({
 
   // ─── Header ───────────────────────────────────────────────────────────────
   header: {
-    backgroundColor: theme.colors.white,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-  },
+  headerLeft: { width: 68 },
+  headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
-    flex: 1,
-    fontSize: theme.fontSize.title,
+    fontSize: theme.fontSize.xl,
     fontWeight: '700',
     color: theme.colors.text,
-    marginLeft: theme.spacing.xs,
     textAlign: 'center',
-    marginRight: -40, // offset the back button to truly center
   },
   headerRight: {
-    width: 40,
-  },
-  headerCount: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    backgroundColor: '#F0F2F5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.sm,
-    marginRight: theme.spacing.sm,
+    width: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
 
   // ─── Loading ──────────────────────────────────────────────────────────────
@@ -1059,76 +1017,43 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
 
-  // ─── Modal (bottom sheet) ─────────────────────────────────────────────────
-  modalOverlay: {
+  // ─── Modal (full-screen) ────────────────────────────────────────────────
+  modalSafeArea: {
     flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalContent: {
     backgroundColor: theme.colors.white,
-    borderTopLeftRadius: theme.borderRadius.lg,
-    borderTopRightRadius: theme.borderRadius.lg,
-    paddingTop: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    maxHeight: '85%',
-  },
-  modalHandleWrapper: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
   modalTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
     color: theme.colors.text,
   },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  modalBtn: {
+  modalBody: {
     flex: 1,
-    paddingVertical: theme.spacing.md,
+  },
+  modalBodyContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+  },
+  submitButton: {
+    backgroundColor: theme.colors.accent,
     borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 50,
+    marginTop: theme.spacing.lg,
   },
-  modalBtnCancel: {
-    backgroundColor: '#F0F2F5',
-  },
-  modalBtnCancelText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  modalBtnSubmit: {
-    backgroundColor: theme.colors.accent,
-  },
-  modalBtnDisabled: {
+  submitButtonDisabled: {
     opacity: 0.65,
   },
-  modalBtnSubmitText: {
+  submitButtonText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: '#FFFFFF',
