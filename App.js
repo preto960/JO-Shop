@@ -8,16 +8,12 @@ import {CartProvider} from '@context/CartContext';
 import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
-
-// OneSignal: import para obtener la notificacion inicial
 import OneSignal from 'react-native-onesignal';
 
 // Ref de navegacion accesible fuera del componente
 export const navigationRef = createRef();
 
 // ─── Mapeo de pantallas: nombre logico → ruta de navegacion real ──────────
-// Las pantallas estan dentro de Tab Navigators anidados, asi que necesitamos
-// navegar al parent + screen hijo.
 const SCREEN_ROUTES = {
   DeliveryOrders: { parent: 'DeliveryMainTabs', screen: 'DeliveryOrders' },
   DeliveryProfile: { parent: 'DeliveryMainTabs', screen: 'DeliveryProfile' },
@@ -33,12 +29,6 @@ const SCREEN_ROUTES = {
   AdminRoles:      { parent: 'AdminMainTabs',   screen: 'AdminRoles' },
 };
 
-/**
- * Navegar a una pantalla por nombre logico.
- * Maneja correctamente navegadores anidados (tabs dentro de stacks).
- * @param {string} screenName - Nombre logico de la pantalla
- * @param {object} params - Parametros a pasar (orderId, type, etc.)
- */
 function navigateToScreen(screenName, params = {}) {
   const route = SCREEN_ROUTES[screenName];
   const nav = navigationRef.current;
@@ -47,7 +37,6 @@ function navigateToScreen(screenName, params = {}) {
     return;
   }
 
-  // Verificar que el navigator tenga un estado valido (listo para navegar)
   if (!nav.getRootState || !nav.getRootState().routes || nav.getRootState().routes.length === 0) {
     console.warn('[Navigation] Navigator no esta listo aun, reintentando en 300ms...');
     setTimeout(() => navigateToScreen(screenName, params), 300);
@@ -55,11 +44,9 @@ function navigateToScreen(screenName, params = {}) {
   }
 
   if (route) {
-    // Navegar al tab navigator padre + screen hijo con params
     console.log('[Navigation] Navegando a', route.parent, '->', route.screen, 'params:', JSON.stringify(params));
     nav.navigate(route.parent, { screen: route.screen, params });
   } else {
-    // Fallback: intentar navegacion directa con params
     console.log('[Navigation] Navegando directo a', screenName, 'params:', JSON.stringify(params));
     nav.navigate(screenName, params);
   }
@@ -70,7 +57,6 @@ const NotificationHandler = () => {
   const {isAuthenticated} = useAuth();
   const [initialNotification, setInitialNotification] = useState(null);
 
-  // Estado para el modal de notificacion foreground
   const [notifModal, setNotifModal] = useState({
     visible: false,
     title: '',
@@ -87,17 +73,13 @@ const NotificationHandler = () => {
     pushNotifications.setForegroundCallback(showNotifModal);
   }, [showNotifModal]);
 
-  // ─── OneSignal: Handler para notificacion abierta (click) ────────────
-  // Maneja tanto la notificacion inicial (app abierta desde notificacion)
-  // como las notificaciones abiertas mientras la app esta en foreground
-  // NOTA: OneSignal.Notifications puede no estar disponible inmediatamente
-  // porque initialize() es async. Se usa polling con timeout.
+  // ─── OneSignal SDK 4.x: Handler para notificacion abierta ────────────
   useEffect(() => {
-    const clickHandler = (event) => {
-      const notification = event.notification;
+    OneSignal.setNotificationOpenedHandler((openedEvent) => {
+      const notification = openedEvent.notification;
       const additionalData = notification?.additionalData || {};
 
-      console.log('[App] Notificacion OneSignal abierta');
+      console.log('[App] Notificacion OneSignal abierta (SDK 4.x)');
       console.log('[App] Screen:', additionalData.screen);
       console.log('[App] Data:', JSON.stringify(additionalData));
 
@@ -109,45 +91,14 @@ const NotificationHandler = () => {
         },
       };
 
-      // Si la app ya esta autenticada, navegar directamente
       if (isAuthenticated && additionalData?.screen) {
         navigateToScreen(additionalData.screen, additionalData);
       } else {
-        // Si no esta autenticada, guardar para navegar despues del login
         setInitialNotification(notifData);
       }
-    };
+    });
 
-    // Polling: intentar registrar el handler cada 500ms hasta que OneSignal.Notifications este listo
-    let attempts = 0;
-    const maxAttempts = 20; // 10 segundos maximo
-    let registered = false;
-
-    const tryRegister = () => {
-      if (registered || attempts >= maxAttempts) return;
-      attempts++;
-
-      if (OneSignal.Notifications && OneSignal.Notifications.addEventListener) {
-        registered = true;
-        console.log('[App] OneSignal.Notifications listo, handler click registrado');
-        OneSignal.Notifications.addEventListener('click', clickHandler);
-      } else if (attempts < maxAttempts) {
-        setTimeout(tryRegister, 500);
-      } else {
-        console.warn('[App] OneSignal.Notifications no disponible tras 10s. Se requiere reconstruccion nativa (npx react-native run-android)');
-      }
-    };
-
-    tryRegister();
-
-    return () => {
-      registered = false;
-      if (OneSignal.Notifications && OneSignal.Notifications.removeEventListener) {
-        try {
-          OneSignal.Notifications.removeEventListener('click', clickHandler);
-        } catch {}
-      }
-    };
+    console.log('[App] OneSignal setNotificationOpenedHandler registrado');
   }, [isAuthenticated]);
 
   // Navegar al abrir la app desde notificacion (despues de autenticacion)
@@ -156,8 +107,7 @@ const NotificationHandler = () => {
 
     const {data} = initialNotification;
     if (data?.screen) {
-      console.log('[App] Navegando desde notificacion inicial a:', data.screen, 'con data:', JSON.stringify(data));
-      // Esperar 800ms para asegurar que NavigationContainer esta listo
+      console.log('[App] Navegando desde notificacion inicial a:', data.screen);
       const timer = setTimeout(() => {
         navigateToScreen(data.screen, data);
         setInitialNotification(null);
@@ -167,7 +117,6 @@ const NotificationHandler = () => {
   }, [isAuthenticated, initialNotification]);
 
   // Escuchar mensajes en foreground (app abierta)
-  // onForegroundMessage esta adaptado para emitir eventos en formato Firebase-compatible
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -178,7 +127,6 @@ const NotificationHandler = () => {
 
       if (title || body) {
         showNotifModal(title, body, data);
-        // Emitir evento para que las pantallas refresquen sus datos
         DeviceEventEmitter.emit('pushNotificationReceived', data);
       }
     });
@@ -186,7 +134,6 @@ const NotificationHandler = () => {
     return unsubscribe;
   }, [isAuthenticated, showNotifModal]);
 
-  // Manejar accion del modal de notificacion
   const handleNotifClose = useCallback(() => {
     setNotifModal(prev => ({...prev, visible: false}));
   }, []);
@@ -195,7 +142,6 @@ const NotificationHandler = () => {
     const {data} = notifModal;
     setNotifModal(prev => ({...prev, visible: false}));
     if (data?.screen) {
-      // Emitir evento para que la pantalla destino reaccione (expandir, highlight, etc.)
       DeviceEventEmitter.emit('pushNotificationAction', data);
       navigateToScreen(data.screen, data);
     }
