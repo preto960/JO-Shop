@@ -5,6 +5,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import AppNavigator from '@navigation/AppNavigator';
 import {AuthProvider, useAuth} from '@context/AuthContext';
 import {CartProvider} from '@context/CartContext';
+import {SystemConfigProvider} from '@context/SystemConfigContext';
 import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
@@ -168,6 +169,7 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <SystemConfigProvider>
         <CartProvider>
           <NavigationContainer
             ref={navigationRef}
@@ -193,6 +195,7 @@ const App = () => {
             </View>
           </NavigationContainer>
         </CartProvider>
+        </SystemConfigProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

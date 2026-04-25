@@ -334,6 +334,52 @@ const updateUser = async (userId, userData) => {
   return api.put(`/auth/users/${userId}`, userData);
 };
 
+const createUser = async (userData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/auth/users', userData);
+};
+
+// ==================== STORES CRUD ====================
+
+const createStore = async (storeData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/stores', storeData);
+};
+
+const updateStore = async (storeId, storeData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/stores/${storeId}`, storeData);
+};
+
+const deleteStore = async (storeId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/stores/${storeId}`);
+};
+
+const fetchStoresAdmin = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/stores', {params});
+};
+
+// ==================== SYSTEM CONFIG ====================
+
+const fetchConfig = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/config');
+};
+
+const updateConfig = async (settings) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put('/config', {settings});
+};
+
 const apiService = {
   getApiConfig,
   saveApiConfig,
@@ -373,8 +419,17 @@ const apiService = {
   updateAddress,
   setDefaultAddress,
   deleteAddress,
-  // Admin user edit
+  // Admin user edit & create
   updateUser,
+  createUser,
+  // Stores CRUD
+  createStore,
+  updateStore,
+  deleteStore,
+  fetchStoresAdmin,
+  // System config
+  fetchConfig,
+  updateConfig,
   // Delivery assignment
   assignOrderDelivery,
   fetchDeliveryUsers,

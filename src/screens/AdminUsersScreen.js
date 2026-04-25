@@ -79,6 +79,20 @@ const AdminUsersScreen = () => {
   // ─── Confirm modal ──────────────────────────────────────────────────────
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
+  // ─── Create user modal ──────────────────────────────────────────────────
+  const [createVisible, setCreateVisible] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    selectedRoleIds: [],
+    selectedStoreId: null,
+  });
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createStores, setCreateStores] = useState([]);
+  const [createLoading, setCreateLoading] = useState(false);
+
   // ─── Data Loading ────────────────────────────────────────────────────────
 
   const loadUsers = useCallback(
@@ -1337,6 +1351,424 @@ const AdminUsersScreen = () => {
     handleSaveUser,
   ]);
 
+  // ─── Create User Modal ─────────────────────────────────────────────────
+
+  const openCreateModal = useCallback(async () => {
+    setCreateForm({
+      name: '',
+      email: '',
+      password: '',
+      phone: '',
+      selectedRoleIds: [],
+      selectedStoreId: null,
+    });
+    setCreateLoading(true);
+    setCreateVisible(true);
+
+    try {
+      // Fetch roles if not already loaded
+      if (availableRoles.length === 0) {
+        const rolesRes = await apiService.fetchRoles().catch(() => []);
+        const rolesList = Array.isArray(rolesRes)
+          ? rolesRes
+          : rolesRes.data || rolesRes.roles || [];
+        setAvailableRoles(rolesList);
+      }
+
+      // Fetch stores for multi-store mode
+      try {
+        const storesRes = await apiService.fetchStoresAdmin();
+        const storesList = Array.isArray(storesRes)
+          ? storesRes
+          : storesRes.data || storesRes.stores || [];
+        setCreateStores(storesList);
+      } catch {
+        setCreateStores([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load create modal data:', err.message);
+    } finally {
+      setCreateLoading(false);
+    }
+  }, [availableRoles.length]);
+
+  const closeCreateModal = useCallback(() => {
+    setCreateVisible(false);
+  }, []);
+
+  const updateCreateField = useCallback((field, value) => {
+    setCreateForm(prev => ({...prev, [field]: value}));
+  }, []);
+
+  const toggleCreateRole = useCallback(roleId => {
+    setCreateForm(prev => ({
+      ...prev,
+      selectedRoleIds: prev.selectedRoleIds.includes(roleId)
+        ? prev.selectedRoleIds.filter(id => id !== roleId)
+        : [...prev.selectedRoleIds, roleId],
+    }));
+  }, []);
+
+  const handleCreateUser = useCallback(async () => {
+    const trimmedName = (createForm.name || '').trim();
+    const trimmedEmail = (createForm.email || '').trim();
+    const trimmedPassword = createForm.password || '';
+
+    if (trimmedName.length < 2) {
+      setModal({visible: true, type: 'alert', title: 'Validación', message: 'El nombre debe tener al menos 2 caracteres', confirmText: 'Aceptar', onConfirm: null});
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setModal({visible: true, type: 'alert', title: 'Validación', message: 'Ingresa un email válido', confirmText: 'Aceptar', onConfirm: null});
+      return;
+    }
+
+    if (trimmedPassword.length < 6) {
+      setModal({visible: true, type: 'alert', title: 'Validación', message: 'La contraseña debe tener al menos 6 caracteres', confirmText: 'Aceptar', onConfirm: null});
+      return;
+    }
+
+    try {
+      setCreateSubmitting(true);
+
+      const payload = {
+        name: trimmedName,
+        email: trimmedEmail,
+        password: trimmedPassword,
+        phone: (createForm.phone || '').trim() || undefined,
+        roleIds:
+          createForm.selectedRoleIds.length > 0
+            ? createForm.selectedRoleIds
+            : undefined,
+      };
+
+      if (createForm.selectedStoreId) {
+        payload.storeId = createForm.selectedStoreId;
+      }
+
+      await apiService.createUser(payload);
+
+      // Refresh the user list
+      await loadUsers(1);
+
+      // Close the modal
+      closeCreateModal();
+
+      setModal({visible: true, type: 'alert', title: 'Éxito', message: `Usuario "${trimmedName}" creado correctamente`, confirmText: 'Aceptar', onConfirm: null});
+    } catch (err) {
+      setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo crear el usuario', confirmText: 'Aceptar', onConfirm: null});
+    } finally {
+      setCreateSubmitting(false);
+    }
+  }, [createForm, loadUsers, closeCreateModal]);
+
+  // ─── Render: Create User Modal (Bottom Sheet) ──────────────────────────
+
+  const renderCreateModal = useCallback(() => {
+    const isMultiStore = createStores.length > 1;
+
+    return (
+      <Modal
+        visible={createVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeCreateModal}>
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity
+            style={styles.sheetBackdrop}
+            activeOpacity={1}
+            onPress={closeCreateModal}
+          />
+          <View style={styles.sheetContainer}>
+            {/* Handle */}
+            <View style={styles.sheetHandleWrapper}>
+              <View style={styles.sheetHandle} />
+            </View>
+
+            {createLoading ? (
+              <View style={styles.sheetLoading}>
+                <ActivityIndicator
+                  size="large"
+                  color={theme.colors.accent}
+                />
+                <Text style={styles.sheetLoadingText}>
+                  Cargando datos...
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.sheetScroll}
+                contentContainerStyle={styles.sheetScrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled">
+                {/* Modal title */}
+                <View style={styles.createHeader}>
+                  <View style={styles.createHeaderIcon}>
+                    <Icon
+                      name="person-add"
+                      size={24}
+                      color={theme.colors.white}
+                    />
+                  </View>
+                  <View style={styles.createHeaderInfo}>
+                    <Text style={styles.createTitle}>
+                      Nuevo usuario
+                    </Text>
+                    <Text style={styles.createSubtitle}>
+                      Completa los datos para crear una cuenta
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Nombre */}
+                <Text style={styles.editLabel}>
+                  Nombre <Text style={styles.createRequired}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={createForm.name}
+                  onChangeText={val => updateCreateField('name', val)}
+                  placeholder="Nombre completo"
+                  placeholderTextColor={theme.colors.textLight}
+                  returnKeyType="next"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
+
+                {/* Email */}
+                <Text style={styles.editLabel}>
+                  Email <Text style={styles.createRequired}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={createForm.email}
+                  onChangeText={val => updateCreateField('email', val)}
+                  placeholder="correo@ejemplo.com"
+                  placeholderTextColor={theme.colors.textLight}
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+
+                {/* Contraseña */}
+                <Text style={styles.editLabel}>
+                  Contraseña <Text style={styles.createRequired}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={createForm.password}
+                  onChangeText={val => updateCreateField('password', val)}
+                  placeholder="Mínimo 6 caracteres"
+                  placeholderTextColor={theme.colors.textLight}
+                  secureTextEntry
+                  returnKeyType="next"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+
+                {/* Teléfono */}
+                <Text style={styles.editLabel}>Teléfono</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={createForm.phone}
+                  onChangeText={val => updateCreateField('phone', val)}
+                  placeholder="Ej: +52 55 1234 5678"
+                  placeholderTextColor={theme.colors.textLight}
+                  keyboardType="phone-pad"
+                  returnKeyType="done"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+
+                {/* Roles selection */}
+                {availableRoles.length > 0 && (
+                  <View style={styles.createSection}>
+                    <Text style={styles.editSectionTitle}>
+                      Roles
+                    </Text>
+                    <Text style={styles.editSectionDescription}>
+                      Selecciona los roles para el usuario
+                    </Text>
+                    <View style={styles.createRoleCheckWrap}>
+                      {availableRoles.map(role => {
+                        const isSelected = createForm.selectedRoleIds.includes(
+                          role.id,
+                        );
+                        return (
+                          <TouchableOpacity
+                            key={role.id}
+                            style={[
+                              styles.createRoleCheck,
+                              isSelected && styles.createRoleCheckSelected,
+                            ]}
+                            onPress={() => toggleCreateRole(role.id)}
+                            activeOpacity={0.7}>
+                            <Icon
+                              name={
+                                isSelected
+                                  ? 'checkbox'
+                                  : 'square-outline'
+                              }
+                              size={20}
+                              color={
+                                isSelected
+                                  ? theme.colors.white
+                                  : theme.colors.textSecondary
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.createRoleCheckText,
+                                isSelected &&
+                                  styles.createRoleCheckTextSelected,
+                              ]}>
+                              {role.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Store selection (multi-store) */}
+                {isMultiStore && (
+                  <View style={styles.createSection}>
+                    <Text style={styles.editSectionTitle}>
+                      Tienda
+                    </Text>
+                    <Text style={styles.editSectionDescription}>
+                      Asigna una tienda al usuario
+                    </Text>
+                    <View style={styles.createStoreDropdown}>
+                      <TouchableOpacity
+                        style={styles.createStoreDropdownTrigger}
+                        onPress={() => {}}
+                        disabled
+                        activeOpacity={0.7}>
+                        <Icon
+                          name="storefront-outline"
+                          size={18}
+                          color={theme.colors.textSecondary}
+                          style={{marginRight: theme.spacing.sm}}
+                        />
+                        {createForm.selectedStoreId ? (
+                          <Text
+                            style={styles.createStoreDropdownText}
+                            numberOfLines={1}>
+                            {createStores.find(
+                              s => s.id === createForm.selectedStoreId,
+                            )?.name || 'Seleccionar tienda'}
+                          </Text>
+                        ) : (
+                          <Text
+                            style={
+                              styles.createStoreDropdownPlaceholder
+                            }>
+                            Seleccionar tienda
+                          </Text>
+                        )}
+                        <Icon
+                          name="chevron-down"
+                          size={18}
+                          color={theme.colors.textSecondary}
+                          style={{marginLeft: 'auto'}}
+                        />
+                      </TouchableOpacity>
+                      {/* Store options */}
+                      <View style={styles.createStoreOptionsWrap}>
+                        {createStores.map(store => {
+                          const isSelected =
+                            createForm.selectedStoreId === store.id;
+                          return (
+                            <TouchableOpacity
+                              key={store.id}
+                              style={[
+                                styles.createStoreOption,
+                                isSelected &&
+                                  styles.createStoreOptionSelected,
+                              ]}
+                              onPress={() =>
+                                updateCreateField(
+                                  'selectedStoreId',
+                                  isSelected ? null : store.id,
+                                )
+                              }
+                              activeOpacity={0.7}>
+                              <Icon
+                                name={
+                                  isSelected
+                                    ? 'radio-button-on'
+                                    : 'radio-button-off'
+                                }
+                                size={20}
+                                color={
+                                  isSelected
+                                    ? theme.colors.accent
+                                    : theme.colors.textSecondary
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.createStoreOptionText,
+                                  isSelected &&
+                                    styles.createStoreOptionTextSelected,
+                                ]}>
+                                {store.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Submit button */}
+                <TouchableOpacity
+                  style={[
+                    styles.editSubmitBtn,
+                    createSubmitting && styles.editSubmitBtnDisabled,
+                  ]}
+                  onPress={handleCreateUser}
+                  disabled={createSubmitting}
+                  activeOpacity={0.8}>
+                  {createSubmitting ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={theme.colors.white}
+                    />
+                  ) : (
+                    <Text style={styles.editSubmitBtnText}>
+                      Crear usuario
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Bottom padding */}
+                <View style={{height: theme.spacing.md}} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  }, [
+    createVisible,
+    createLoading,
+    createForm,
+    createSubmitting,
+    createStores,
+    availableRoles,
+    closeCreateModal,
+    updateCreateField,
+    toggleCreateRole,
+    handleCreateUser,
+  ]);
+
   // ─── Logout handler ─────────────────────────────────────────────────────
 
   const handleLogout = () => {
@@ -1481,6 +1913,17 @@ const AdminUsersScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
       />
+
+      {/* FAB: Create user */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={openCreateModal}
+        activeOpacity={0.85}>
+        <Icon name="person-add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* Create user bottom sheet modal */}
+      {renderCreateModal()}
 
       {/* Detail bottom sheet modal */}
       {renderDetailModal()}
@@ -2254,6 +2697,136 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.white,
+  },
+
+  // ── FAB (Floating Action Button) ──────────────────────────────────────
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: theme.colors.accent,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+
+  // ── Create Modal Content ──────────────────────────────────────────────
+  createHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  createHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createHeaderInfo: {
+    flex: 1,
+    marginLeft: theme.spacing.md,
+  },
+  createTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  createSubtitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 1,
+  },
+  createRequired: {
+    color: theme.colors.accent,
+    fontWeight: '700',
+  },
+
+  // Roles checkboxes
+  createSection: {
+    marginTop: theme.spacing.md,
+  },
+  createRoleCheckWrap: {
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  createRoleCheck: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  createRoleCheckSelected: {
+    backgroundColor: theme.colors.accent,
+  },
+  createRoleCheckText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  createRoleCheckTextSelected: {
+    color: theme.colors.white,
+  },
+
+  // Store selection
+  createStoreDropdown: {
+    marginTop: theme.spacing.sm,
+  },
+  createStoreDropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  createStoreDropdownText: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+  },
+  createStoreDropdownPlaceholder: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textLight,
+  },
+  createStoreOptionsWrap: {
+    marginTop: theme.spacing.xs,
+    gap: theme.spacing.xs,
+  },
+  createStoreOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  createStoreOptionSelected: {
+    backgroundColor: 'rgba(233, 69, 96, 0.08)',
+    borderWidth: 1.5,
+    borderColor: theme.colors.accent,
+  },
+  createStoreOptionText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+  },
+  createStoreOptionTextSelected: {
+    fontWeight: '600',
+    color: theme.colors.accent,
   },
 });
 

@@ -5,6 +5,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import {useCart} from '@context/CartContext';
+import {SystemConfigContext} from '@context/SystemConfigContext';
 import theme from '@theme/styles';
 
 // Screens
@@ -22,6 +23,7 @@ import AdminCategoriesScreen from '@screens/AdminCategoriesScreen';
 import AdminOrdersScreen from '@screens/AdminOrdersScreen';
 import AdminRolesScreen from '@screens/AdminRolesScreen';
 import AdminUsersScreen from '@screens/AdminUsersScreen';
+import AdminStoresScreen from '@screens/AdminStoresScreen';
 import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
@@ -140,6 +142,18 @@ const AdminTabs = () => {
       component: AdminUsersScreen,
       label: 'Usuarios',
       icon: 'people-outline',
+    });
+  }
+
+  // Stores tab only for admin in multi-store mode
+  const {config} = React.useContext(SystemConfigContext);
+  const isMultiStore = config?.multi_store_mode === 'true';
+  if (hasRole('admin') && isMultiStore) {
+    tabs.push({
+      name: 'AdminStores',
+      component: AdminStoresScreen,
+      label: 'Tiendas',
+      icon: 'storefront-outline',
     });
   }
 
