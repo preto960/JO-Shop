@@ -90,6 +90,8 @@ const NotificationHandler = () => {
   // ─── OneSignal: Handler para notificacion abierta (click) ────────────
   // Maneja tanto la notificacion inicial (app abierta desde notificacion)
   // como las notificaciones abiertas mientras la app esta en foreground
+  // NOTA: OneSignal.Notifications puede no estar disponible inmediatamente
+  // porque initialize() es async. Se usa polling con timeout.
   useEffect(() => {
     const clickHandler = (event) => {
       const notification = event.notification;
@@ -116,16 +118,34 @@ const NotificationHandler = () => {
       }
     };
 
-    if (!OneSignal.Notifications) {
-      console.warn('[App] OneSignal.Notifications no disponible, omitiendo handler click');
-      return;
-    }
+    // Polling: intentar registrar el handler cada 500ms hasta que OneSignal.Notifications este listo
+    let attempts = 0;
+    const maxAttempts = 20; // 10 segundos maximo
+    let registered = false;
 
-    OneSignal.Notifications.addEventListener('click', clickHandler);
+    const tryRegister = () => {
+      if (registered || attempts >= maxAttempts) return;
+      attempts++;
+
+      if (OneSignal.Notifications && OneSignal.Notifications.addEventListener) {
+        registered = true;
+        console.log('[App] OneSignal.Notifications listo, handler click registrado');
+        OneSignal.Notifications.addEventListener('click', clickHandler);
+      } else if (attempts < maxAttempts) {
+        setTimeout(tryRegister, 500);
+      } else {
+        console.warn('[App] OneSignal.Notifications no disponible tras 10s. Se requiere reconstruccion nativa (npx react-native run-android)');
+      }
+    };
+
+    tryRegister();
 
     return () => {
-      if (OneSignal.Notifications) {
-        OneSignal.Notifications.removeEventListener('click', clickHandler);
+      registered = false;
+      if (OneSignal.Notifications && OneSignal.Notifications.removeEventListener) {
+        try {
+          OneSignal.Notifications.removeEventListener('click', clickHandler);
+        } catch {}
       }
     };
   }, [isAuthenticated]);

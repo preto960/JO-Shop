@@ -165,6 +165,7 @@ export function onTokenRefresh(callback) {
 /**
  * Escuchar mensajes en foreground (app abierta).
  * Convierte el evento de OneSignal al formato que App.js espera.
+ * Usa polling porque OneSignal.Notifications puede no estar listo inmediatamente.
  */
 export function onForegroundMessage(callback) {
   // Handler para notificaciones en foreground
@@ -191,17 +192,35 @@ export function onForegroundMessage(callback) {
     }
   };
 
-  if (!OneSignal || !OneSignal.Notifications) {
-    console.warn('[Push] OneSignal.Notifications no disponible');
-    return () => {};
-  }
+  // Polling: intentar registrar cada 500ms hasta que OneSignal.Notifications este listo
+  let attempts = 0;
+  const maxAttempts = 20;
+  let registered = false;
 
-  OneSignal.Notifications.addEventListener('foregroundWillDisplay', handler);
+  const tryRegister = () => {
+    if (registered || attempts >= maxAttempts) return;
+    attempts++;
+
+    if (OneSignal && OneSignal.Notifications && OneSignal.Notifications.addEventListener) {
+      registered = true;
+      console.log('[Push] OneSignal.Notifications listo, foreground handler registrado');
+      OneSignal.Notifications.addEventListener('foregroundWillDisplay', handler);
+    } else if (attempts < maxAttempts) {
+      setTimeout(tryRegister, 500);
+    } else {
+      console.warn('[Push] OneSignal.Notifications no disponible tras 10s');
+    }
+  };
+
+  tryRegister();
 
   // Retornar funcion de cleanup
   return () => {
-    if (OneSignal && OneSignal.Notifications) {
-      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', handler);
+    registered = false;
+    if (OneSignal && OneSignal.Notifications && OneSignal.Notifications.removeEventListener) {
+      try {
+        OneSignal.Notifications.removeEventListener('foregroundWillDisplay', handler);
+      } catch {}
     }
   };
 }
