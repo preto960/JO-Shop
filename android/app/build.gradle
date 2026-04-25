@@ -70,5 +70,5 @@ applyNativeModulesAppBuildGradle(project)
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 // ─── OneSignal ─────────────────────────────────────────────────────────────
-// react-native-onesignal@4.5.4 requiere esta linea
-apply from: file("../../node_modules/react-native-onesignal/android/app.gradle")
+// react-native-onesignal@4.5.4 usa autolinking (no necesita apply from manual)
+// El plugin de gradle se aplica automaticamente via react-native native_modules
