@@ -1803,9 +1803,11 @@ const AdminUsersScreen = () => {
             <Text style={styles.headerTitle}>Usuarios</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
+            {!currentUser?.roles?.some(r => r.name === 'editor') && (
+              <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
               <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
             </TouchableOpacity>
@@ -1838,9 +1840,11 @@ const AdminUsersScreen = () => {
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
+          {!currentUser?.roles?.some(r => r.name === 'editor') && (
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
             <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>
