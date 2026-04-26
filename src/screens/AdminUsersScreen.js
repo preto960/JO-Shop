@@ -17,6 +17,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
+import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
@@ -37,6 +38,7 @@ const MODULE_LABELS = {
 const AdminUsersScreen = () => {
   const navigation = useNavigation();
   const {user: currentUser, logout, fetchProfile} = useAuth();
+  const {isMultiStore} = useConfig();
 
   // ─── Data state ──────────────────────────────────────────────────────────
   const [users, setUsers] = useState([]);
@@ -64,8 +66,10 @@ const AdminUsersScreen = () => {
     phone: '',
     birthdate: '',
     active: true,
+    selectedStoreId: null,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [editStores, setEditStores] = useState([]);
 
   // ─── Roles & Permissions for edit modal ──────────────────────────────────
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -205,17 +209,37 @@ const AdminUsersScreen = () => {
           ? String(userData.birthdate).substring(0, 10)
           : '',
         active: userData.active !== false,
+        selectedStoreId: userData.storeId || userData.store?.id || null,
       });
       // Asegurar que selectedUser sigue seteado antes de abrir el edit
       setSelectedUser(userData);
       setEditLoading(true);
 
-      // Roles and permissions already loaded from detail modal
+      // Cargar roles, permisos y tiendas en paralelo
+      const promises = [];
+
       if (availableRoles.length === 0 || allPermissions.length === 0) {
-        Promise.all([
+        promises.push(
           apiService.fetchRoles().catch(() => []),
           apiService.fetchPermissions().catch(() => []),
-        ]).then(([rolesRes, permsRes]) => {
+        );
+      }
+
+      // Cargar tiendas si multi-store está activo
+      if (isMultiStore && editStores.length === 0) {
+        promises.push(
+          apiService.fetchStoresAdmin().then(res => {
+            const storesList = Array.isArray(res)
+              ? res
+              : res.data || res.stores || [];
+            setEditStores(storesList);
+          }).catch(() => setEditStores([])),
+        );
+      }
+
+      Promise.all(promises).then((results) => {
+        if (results.length >= 2 && availableRoles.length === 0) {
+          const [rolesRes, permsRes] = results;
           const rolesList = Array.isArray(rolesRes)
             ? rolesRes
             : rolesRes.data || rolesRes.roles || [];
@@ -224,11 +248,9 @@ const AdminUsersScreen = () => {
             : permsRes.permissions || permsRes.data || [];
           setAvailableRoles(rolesList);
           setAllPermissions(permsList);
-          setEditLoading(false);
-        });
-      } else {
+        }
         setEditLoading(false);
-      }
+      });
 
       // Abrir el edit modal DESPUES de que el detail modal se cierre
       // Esto evita el conflicto en Android donde dos modales animan al mismo tiempo
@@ -236,7 +258,7 @@ const AdminUsersScreen = () => {
         setEditVisible(true);
       }, 300);
     },
-    [availableRoles.length, allPermissions.length],
+    [availableRoles.length, allPermissions.length, isMultiStore, editStores.length],
   );
 
   const closeEdit = useCallback(() => {
@@ -262,6 +284,9 @@ const AdminUsersScreen = () => {
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
+        ...(editForm.selectedStoreId !== undefined
+          ? {storeId: editForm.selectedStoreId}
+          : {}),
       });
 
       // Update local state
@@ -270,6 +295,12 @@ const AdminUsersScreen = () => {
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
+        storeId: editForm.selectedStoreId ?? selectedUser.storeId ?? null,
+        store: editForm.selectedStoreId
+          ? editStores.find(s => s.id === editForm.selectedStoreId) || selectedUser.store
+          : editForm.selectedStoreId === null
+            ? null
+            : selectedUser.store,
       };
       setSelectedUser(updatedUser);
       setUsers(prev =>
@@ -289,7 +320,7 @@ const AdminUsersScreen = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [selectedUser, editForm, currentUser, fetchProfile]);
+  }, [selectedUser, editForm, editStores, currentUser, fetchProfile]);
 
   // ─── Deactivate Confirmation ────────────────────────────────────────────
 
@@ -1112,6 +1143,134 @@ const AdminUsersScreen = () => {
                 Formato: año-mes-día (ej. 1990-05-15)
               </Text>
 
+              {/* Store assignment (only in multi-store mode) */}
+              {isMultiStore && editStores.length > 0 && (
+                <>
+                  <View style={styles.editDivider} />
+                  <View style={styles.editSection}>
+                    <Text style={styles.editSectionTitle}>
+                      Tienda asignada
+                    </Text>
+                    <Text style={styles.editSectionDescription}>
+                      Selecciona la tienda a la que pertenece el usuario
+                    </Text>
+                    <View style={styles.createStoreDropdown}>
+                      <TouchableOpacity
+                        style={styles.createStoreDropdownTrigger}
+                        onPress={() => {}}
+                        disabled
+                        activeOpacity={0.7}>
+                        <Icon
+                          name="storefront-outline"
+                          size={18}
+                          color={theme.colors.textSecondary}
+                          style={{marginRight: theme.spacing.sm}}
+                        />
+                        {editForm.selectedStoreId ? (
+                          <Text
+                            style={styles.createStoreDropdownText}
+                            numberOfLines={1}>
+                            {editStores.find(
+                              s => s.id === editForm.selectedStoreId,
+                            )?.name || 'Seleccionar tienda'}
+                          </Text>
+                        ) : (
+                          <Text
+                            style={
+                              styles.createStoreDropdownPlaceholder
+                            }>
+                            Seleccionar tienda
+                          </Text>
+                        )}
+                        <Icon
+                          name="chevron-down"
+                          size={18}
+                          color={theme.colors.textSecondary}
+                          style={{marginLeft: 'auto'}}
+                        />
+                      </TouchableOpacity>
+                      {/* Store options */}
+                      <View style={styles.createStoreOptionsWrap}>
+                        <TouchableOpacity
+                          style={[
+                            styles.createStoreOption,
+                            editForm.selectedStoreId === null &&
+                              styles.createStoreOptionSelected,
+                          ]}
+                          onPress={() =>
+                            updateEditField('selectedStoreId', null)
+                          }
+                          activeOpacity={0.7}>
+                          <Icon
+                            name={
+                              editForm.selectedStoreId === null
+                                ? 'radio-button-on'
+                                : 'radio-button-off'
+                            }
+                            size={20}
+                            color={
+                              editForm.selectedStoreId === null
+                                ? theme.colors.accent
+                                : theme.colors.textSecondary
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.createStoreOptionText,
+                              editForm.selectedStoreId === null &&
+                                styles.createStoreOptionTextSelected,
+                            ]}>
+                            Sin tienda
+                          </Text>
+                        </TouchableOpacity>
+                        {editStores.map(store => {
+                          const isSelected =
+                            editForm.selectedStoreId === store.id;
+                          return (
+                            <TouchableOpacity
+                              key={store.id}
+                              style={[
+                                styles.createStoreOption,
+                                isSelected &&
+                                  styles.createStoreOptionSelected,
+                              ]}
+                              onPress={() =>
+                                updateEditField(
+                                  'selectedStoreId',
+                                  isSelected ? null : store.id,
+                                )
+                              }
+                              activeOpacity={0.7}>
+                              <Icon
+                                name={
+                                  isSelected
+                                    ? 'radio-button-on'
+                                    : 'radio-button-off'
+                                }
+                                size={20}
+                                color={
+                                  isSelected
+                                    ? theme.colors.accent
+                                    : theme.colors.textSecondary
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.createStoreOptionText,
+                                  isSelected &&
+                                    styles.createStoreOptionTextSelected,
+                                ]}>
+                                {store.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                </>
+              )}
+
               {/* Divider */}
               <View style={styles.editDivider} />
 
@@ -1338,9 +1497,11 @@ const AdminUsersScreen = () => {
     editVisible,
     editLoading,
     editForm,
+    editStores,
     availableRoles,
     permSaving,
     submitting,
+    isMultiStore,
     getGroupedPermissions,
     closeEdit,
     updateEditField,
@@ -1375,14 +1536,18 @@ const AdminUsersScreen = () => {
         setAvailableRoles(rolesList);
       }
 
-      // Fetch stores for multi-store mode
-      try {
-        const storesRes = await apiService.fetchStoresAdmin();
-        const storesList = Array.isArray(storesRes)
-          ? storesRes
-          : storesRes.data || storesRes.stores || [];
-        setCreateStores(storesList);
-      } catch {
+      // Fetch stores only if multi-store mode is active
+      if (isMultiStore) {
+        try {
+          const storesRes = await apiService.fetchStoresAdmin();
+          const storesList = Array.isArray(storesRes)
+            ? storesRes
+            : storesRes.data || storesRes.stores || [];
+          setCreateStores(storesList);
+        } catch {
+          setCreateStores([]);
+        }
+      } else {
         setCreateStores([]);
       }
     } catch (err) {
@@ -1390,7 +1555,7 @@ const AdminUsersScreen = () => {
     } finally {
       setCreateLoading(false);
     }
-  }, [availableRoles.length]);
+  }, [availableRoles.length, isMultiStore]);
 
   const closeCreateModal = useCallback(() => {
     setCreateVisible(false);
@@ -1467,8 +1632,6 @@ const AdminUsersScreen = () => {
   // ─── Render: Create User Modal (Full Screen) ──────────────────────────
 
   const renderCreateModal = useCallback(() => {
-    const isMultiStore = createStores.length > 1;
-
     return (
       <Modal
         visible={createVisible}
