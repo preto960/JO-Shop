@@ -14,6 +14,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
+import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
 import ENV from '@config/env';
@@ -21,6 +22,7 @@ import ConfirmModal from '@components/ConfirmModal';
 
 const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile} = useAuth();
+  const {isMultiStore} = useConfig();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // 2FA toggle state
@@ -382,7 +384,19 @@ const ProfileScreen = () => {
   // ─── Render ────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Perfil</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
+        </View>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
@@ -437,6 +451,27 @@ const ProfileScreen = () => {
             ))}
           </View>
         </View>
+
+        {/* Tiendas asignadas (solo lectura, cuando multi-store activo) */}
+        {isMultiStore && user?.stores && user.stores.length > 0 && (
+          <View style={styles.infoCard}>
+            <View style={styles.sectionHeader}>
+              <Icon name="storefront-outline" size={18} color={theme.colors.accent} />
+              <Text style={styles.sectionHeaderText}>Tiendas asignadas</Text>
+            </View>
+            {user.stores.map(store => (
+              <View key={store.id} style={styles.infoRow}>
+                <Icon
+                  name="storefront-outline"
+                  size={18}
+                  color={theme.colors.textSecondary}
+                  style={{marginRight: theme.spacing.md}}
+                />
+                <Text style={styles.infoValue}>{store.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Info card */}
         <View style={styles.infoCard}>
@@ -1012,6 +1047,43 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  headerLeft: {
+    width: 80,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  headerRight: {
+    width: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  sectionHeaderText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
   scrollContent: {
     padding: theme.spacing.lg,
