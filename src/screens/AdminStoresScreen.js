@@ -601,9 +601,9 @@ const AdminStoresScreen = () => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
-            onPress={openCreateModal}
+            onPress={() => navigation.navigate('Settings')}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="add-circle-outline" size={28} color={theme.colors.accent} />
+            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleLogout}
