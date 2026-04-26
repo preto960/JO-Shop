@@ -5,7 +5,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import {useCart} from '@context/CartContext';
-import {SystemConfigContext} from '@context/SystemConfigContext';
+import {ConfigContext} from '@context/ConfigContext';
 import theme from '@theme/styles';
 
 // Screens
@@ -117,6 +117,16 @@ const AdminTabs = () => {
     });
   }
 
+  // Stores tab: always show for admin (even without specific permission)
+  if (hasRole('admin') || canViewModule('stores')) {
+    tabs.push({
+      name: 'AdminStores',
+      component: AdminStoresScreen,
+      label: 'Tiendas',
+      icon: 'storefront-outline',
+    });
+  }
+
   if (canViewModule('orders')) {
     tabs.push({
       name: 'AdminOrders',
@@ -146,8 +156,8 @@ const AdminTabs = () => {
   }
 
   // Stores tab only for admin in multi-store mode
-  const {config} = React.useContext(SystemConfigContext);
-  const isMultiStore = config?.multi_store_mode === 'true';
+  const {config} = React.useContext(ConfigContext);
+  const isMultiStore = config?.multi_store === 'true' || config?.multi_store === true;
   if (hasRole('admin') && isMultiStore) {
     tabs.push({
       name: 'AdminStores',

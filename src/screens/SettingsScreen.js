@@ -5,9 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Switch,
   Linking,
   ScrollView,
-  Switch,
   ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuth} from '@context/AuthContext';
-import {useSystemConfig} from '@context/SystemConfigContext';
+import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
@@ -25,14 +25,22 @@ import theme from '@theme/styles';
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const {isAdmin} = useAuth();
-  const {config, isMultiStore, updateConfig} = useSystemConfig();
+  const {config, isMultiStore, updateConfig} = useConfig();
   const [baseUrl, setBaseUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
-  const [configSaving, setConfigSaving] = useState(false);
   const envUrl = ENV.API_URL || '';
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
+
+  // State for the multi-store toggle (local optimistic)
+  const [multiStoreSwitch, setMultiStoreSwitch] = useState(isMultiStore);
+  const [switchLoading, setSwitchLoading] = useState(false);
+
+  // Keep local switch in sync with config context
+  useEffect(() => {
+    setMultiStoreSwitch(isMultiStore);
+  }, [isMultiStore]);
 
   // Cargar configuración guardada (puede ser override del env)
   useEffect(() => {
@@ -99,28 +107,28 @@ const SettingsScreen = () => {
     });
   };
 
-  const handleToggleMultiStore = (value) => {
-    const newValue = value ? 'true' : 'false';
-    const label = value ? 'multi-tienda' : 'tienda única';
-    setModal({
-      visible: true,
-      type: 'confirm',
-      title: `Cambiar a modo ${label}`,
-      message: value
-        ? 'Se habilitará el menú de Tiendas, filtro por tienda en productos y asignación de tienda a usuarios.'
-        : 'Se ocultará el menú de Tiendas, filtro por tienda y asignación de tienda. ¿Continuar?',
-      confirmText: 'Cambiar',
-      onConfirm: async () => {
-        try {
-          setConfigSaving(true);
-          await updateConfig({multi_store_mode: newValue});
-        } catch (err) {
-          setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo actualizar la configuración', confirmText: 'Aceptar', onConfirm: null});
-        } finally {
-          setConfigSaving(false);
-        }
-      },
-    });
+  // ─── Multi-Store Toggle (sin modal, Switch directo) ──────────────────────
+  const handleMultiStoreToggle = async (newValue) => {
+    // Optimistic update
+    setMultiStoreSwitch(newValue);
+    setSwitchLoading(true);
+
+    try {
+      await updateConfig({multi_store: String(newValue)});
+    } catch (err) {
+      // Revert on error
+      setMultiStoreSwitch(!newValue);
+      setModal({
+        visible: true,
+        type: 'alert',
+        title: 'Error',
+        message: 'No se pudo actualizar la configuración. Verifica tu conexión.',
+        confirmText: 'Aceptar',
+        onConfirm: null,
+      });
+    } finally {
+      setSwitchLoading(false);
+    }
   };
 
   const openPrivacyPolicy = () => {
@@ -260,36 +268,50 @@ const SettingsScreen = () => {
         </View>
         )}
 
-        {/* Configuración del sistema — SOLO ADMIN */}
+        {/* ─── Configuración de Multi-Store (solo admin) ─────────────────── */}
         {isAdmin && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sistema</Text>
+          <Text style={styles.sectionTitle}>Modo de Tienda</Text>
           <View style={styles.card}>
-            <View style={styles.configRow}>
-              <View style={styles.configInfo}>
-                <View style={styles.configIconWrap}>
-                  <Icon name="storefront-outline" size={20} color={theme.colors.accent} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <View style={styles.toggleIconRow}>
+                  <Icon name="storefront-outline" size={22} color={theme.colors.accent} />
+                  <Text style={styles.toggleLabel}>Multi-Tienda</Text>
                 </View>
-                <View style={styles.configTextWrap}>
-                  <Text style={styles.configLabel}>Modo multi-tienda</Text>
-                  <Text style={styles.configDesc}>
-                    {isMultiStore
-                      ? 'Los clientes y deliveries verán un selector de tienda al registrarse'
-                      : 'El sistema opera con una sola tienda. No se muestra filtro de tiendas.'}
-                  </Text>
-                </View>
+                <Text style={styles.toggleDescription}>
+                  {multiStoreSwitch
+                    ? 'Los clientes y delivery verán filtro de tienda. Los productos se asignan a tiendas específicas.'
+                    : 'Modo tienda única. No se muestra filtro de tienda ni asignación de productos por tienda.'}
+                </Text>
               </View>
-              <Switch
-                value={isMultiStore}
-                onValueChange={(val) => handleToggleMultiStore(val)}
-                trackColor={{
-                  false: theme.colors.border,
-                  true: theme.colors.accent,
-                }}
-                thumbColor={theme.colors.white}
-                disabled={configSaving}
-              />
+              <View style={styles.switchWrapper}>
+                {switchLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.accent} />
+                ) : (
+                  <Switch
+                    value={multiStoreSwitch}
+                    onValueChange={handleMultiStoreToggle}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.accent,
+                    }}
+                    thumbColor={theme.colors.white}
+                  />
+                )}
+              </View>
             </View>
+
+            <View style={styles.modeIndicator}>
+              <View style={[styles.modeDot, multiStoreSwitch ? styles.modeDotMulti : styles.modeDotSingle]} />
+              <Text style={styles.modeText}>
+                {multiStoreSwitch ? 'Modo Multi-Tienda activado' : 'Modo Tienda Única activado'}
+              </Text>
+            </View>
+
+            <Text style={styles.configHint}>
+              Los usuarios conectados detectarán el cambio automáticamente en los próximos segundos.
+            </Text>
           </View>
         </View>
         )}
@@ -516,6 +538,71 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: theme.colors.accent,
   },
+  // ─── Toggle styles ──────────────────────────────────────────────────────────
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
+  toggleIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  toggleLabel: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  toggleDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+  },
+  switchWrapper: {
+    width: 52,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.sm,
+  },
+  modeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  modeDotSingle: {
+    backgroundColor: '#3498DB',
+  },
+  modeDotMulti: {
+    backgroundColor: theme.colors.accent,
+  },
+  modeText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  configHint: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginTop: theme.spacing.sm,
+    lineHeight: 16,
+  },
+  // ─── About styles ───────────────────────────────────────────────────────────
   aboutRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -537,55 +624,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: theme.colors.border,
     marginLeft: 44,
-  },
-  dangerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-    borderRadius: theme.borderRadius.md,
-    gap: theme.spacing.sm,
-  },
-  dangerButtonText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '500',
-    color: theme.colors.accent,
-  },
-  configRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.spacing.md,
-  },
-  configInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  configIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: '#FDE8EC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  configTextWrap: {
-    flex: 1,
-  },
-  configLabel: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  configDesc: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 16,
   },
   bottomSpacing: {
     height: theme.spacing.xxl,

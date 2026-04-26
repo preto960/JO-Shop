@@ -5,7 +5,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import AppNavigator from '@navigation/AppNavigator';
 import {AuthProvider, useAuth} from '@context/AuthContext';
 import {CartProvider} from '@context/CartContext';
-import {SystemConfigProvider} from '@context/SystemConfigContext';
+import {ConfigProvider} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
@@ -26,7 +26,8 @@ const SCREEN_ROUTES = {
   AdminOrders:     { parent: 'AdminMainTabs',   screen: 'AdminOrders' },
   AdminProducts:   { parent: 'AdminMainTabs',   screen: 'AdminProducts' },
   AdminCategories: { parent: 'AdminMainTabs',   screen: 'AdminCategories' },
-  AdminUsers:      { parent: 'AdminMainTabs',   screen: 'AdminUsers' },
+  AdminStores:    { parent: 'AdminMainTabs',   screen: 'AdminStores' },
+  AdminUsers:     { parent: 'AdminMainTabs',   screen: 'AdminUsers' },
   AdminRoles:      { parent: 'AdminMainTabs',   screen: 'AdminRoles' },
 };
 
@@ -169,33 +170,33 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <SystemConfigProvider>
-        <CartProvider>
-          <NavigationContainer
-            ref={navigationRef}
-            theme={{
-              dark: false,
-              colors: {
-                primary: theme.colors.accent,
-                background: theme.colors.background,
-                card: theme.colors.card,
-                text: theme.colors.text,
-                border: theme.colors.border,
-                notification: theme.colors.accent,
-              },
-            }}>
-            <View style={styles.container}>
-              <StatusBar
-                barStyle="dark-content"
-                backgroundColor={theme.colors.white}
-                translucent={false}
-              />
-              <NotificationHandler />
-              <AppNavigator />
-            </View>
-          </NavigationContainer>
-        </CartProvider>
-        </SystemConfigProvider>
+        <ConfigProvider>
+          <CartProvider>
+            <NavigationContainer
+              ref={navigationRef}
+              theme={{
+                dark: false,
+                colors: {
+                  primary: theme.colors.accent,
+                  background: theme.colors.background,
+                  card: theme.colors.card,
+                  text: theme.colors.text,
+                  border: theme.colors.border,
+                  notification: theme.colors.accent,
+                },
+              }}>
+              <View style={styles.container}>
+                <StatusBar
+                  barStyle="dark-content"
+                  backgroundColor={theme.colors.white}
+                  translucent={false}
+                />
+                <NotificationHandler />
+                <AppNavigator />
+              </View>
+            </NavigationContainer>
+          </CartProvider>
+        </ConfigProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

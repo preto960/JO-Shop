@@ -340,7 +340,31 @@ const createUser = async (userData) => {
   return api.post('/auth/users', userData);
 };
 
+// ==================== SYSTEM CONFIG ====================
+
+const fetchSystemConfig = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/config');
+};
+
+const updateSystemConfig = async (settings) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put('/config', {settings});
+};
+
+// Aliases for backward compatibility
+const fetchConfig = fetchSystemConfig;
+const updateConfig = updateSystemConfig;
+
 // ==================== STORES CRUD ====================
+
+const fetchAdminStores = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/stores', {params: {limit: 50, ...params}});
+};
 
 const createStore = async (storeData) => {
   const api = await createApiClient();
@@ -360,25 +384,8 @@ const deleteStore = async (storeId) => {
   return api.delete(`/stores/${storeId}`);
 };
 
-const fetchStoresAdmin = async (params = {}) => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.get('/stores', {params});
-};
-
-// ==================== SYSTEM CONFIG ====================
-
-const fetchConfig = async () => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.get('/config');
-};
-
-const updateConfig = async (settings) => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.put('/config', {settings});
-};
+// Alias for backward compatibility
+const fetchStoresAdmin = fetchAdminStores;
 
 const apiService = {
   getApiConfig,
@@ -422,14 +429,17 @@ const apiService = {
   // Admin user edit & create
   updateUser,
   createUser,
+  // System config
+  fetchSystemConfig,
+  updateSystemConfig,
+  fetchConfig,
+  updateConfig,
   // Stores CRUD
+  fetchAdminStores,
+  fetchStoresAdmin,
   createStore,
   updateStore,
   deleteStore,
-  fetchStoresAdmin,
-  // System config
-  fetchConfig,
-  updateConfig,
   // Delivery assignment
   assignOrderDelivery,
   fetchDeliveryUsers,

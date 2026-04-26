@@ -14,12 +14,12 @@ import {useNavigation} from '@react-navigation/native';
 import ProductCard from '@components/ProductCard';
 import {EmptyState, ErrorState, LoadingState} from '@components/StateViews';
 import apiService from '@services/api';
-import {useSystemConfig} from '@context/SystemConfigContext';
+import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
-  const {isMultiStore} = useSystemConfig();
+  const {isMultiStore} = useConfig();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
