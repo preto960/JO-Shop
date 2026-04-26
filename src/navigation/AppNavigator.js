@@ -5,7 +5,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import {useCart} from '@context/CartContext';
-import {ConfigContext} from '@context/ConfigContext';
+import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 
 // Screens
@@ -156,8 +156,7 @@ const AdminTabs = () => {
   }
 
   // Stores tab only for admin in multi-store mode
-  const {config} = React.useContext(ConfigContext);
-  const isMultiStore = config?.multi_store === 'true' || config?.multi_store === true;
+  const {isMultiStore} = useConfig();
   if (hasRole('admin') && isMultiStore) {
     tabs.push({
       name: 'AdminStores',
