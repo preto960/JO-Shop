@@ -17,6 +17,7 @@ import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
+import {useAuth} from '@context/AuthContext';
 
 // ─── Status Configuration ─────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ const MyOrdersScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const isFocused = useIsFocused();
+  const {logout} = useAuth();
 
   // Data state
   const [orders, setOrders] = useState([]);
@@ -264,6 +266,10 @@ const MyOrdersScreen = () => {
       }, 400);
     }
   }, [orders]);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   const handleRefresh = useCallback(() => {
     loadOrders(true);
@@ -642,6 +648,11 @@ const MyOrdersScreen = () => {
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
             <Icon name="refresh" size={22} color={theme.colors.text} />
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleLogout}
+            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -712,7 +723,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: 'center',
   },
-  headerRight: { width: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+  headerRight: { width: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
 
   // Loading
   loaderContainer: {

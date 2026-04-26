@@ -26,7 +26,7 @@ import ConfirmModal from '@components/ConfirmModal';
 const CartScreen = () => {
   const navigation = useNavigation();
   const {items, isLoading, totalItems, totalPrice, clearCart} = useCart();
-  const {user} = useAuth();
+  const {user, logout} = useAuth();
 
   // Customer data — pre-fill from user profile
   const [customerName, setCustomerName] = useState('');
@@ -170,6 +170,10 @@ const CartScreen = () => {
   const handleOpenCheckout = () => {
     if (items.length === 0) return;
     setShowCheckoutModal(true);
+  };
+
+  const handleLogout = () => {
+    logout();
   };
 
   const showCustomModal = (config) => {
@@ -776,6 +780,9 @@ const CartScreen = () => {
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={clearCart} activeOpacity={0.7}>
             <Text style={styles.clearText}>Vaciar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>
         </View>
       </View>

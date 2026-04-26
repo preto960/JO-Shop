@@ -15,11 +15,13 @@ import ProductCard from '@components/ProductCard';
 import {EmptyState, ErrorState, LoadingState} from '@components/StateViews';
 import apiService from '@services/api';
 import {useConfig} from '@context/ConfigContext';
+import {useAuth} from '@context/AuthContext';
 import theme from '@theme/styles';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const {isMultiStore} = useConfig();
+  const {user, logout} = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
@@ -198,6 +200,10 @@ const HomeScreen = () => {
 
   const hasActiveFilters = selectedCategory || selectedStore || searchQuery;
 
+  const handleLogout = () => {
+    logout();
+  };
+
   // Renderizar sin configuración
   if (!hasApiConfig && !loading) {
     return (
@@ -205,6 +211,9 @@ const HomeScreen = () => {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <Text style={styles.logo}>JO-Shop</Text>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}} style={styles.headerLogout}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
         <EmptyState
@@ -224,8 +233,11 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.logo}>JO-Shop</Text>
-          <Text style={styles.subtitle}>Descubre productos increíbles</Text>
+          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}} style={styles.headerLogout}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
         </View>
+        <Text style={styles.subtitle}>Descubre productos increíbles</Text>
 
         {/* Barra de búsqueda */}
         <View style={styles.searchContainer}>
@@ -474,6 +486,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
+    flexDirection: 'row',
     backgroundColor: theme.colors.white,
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
@@ -481,7 +494,14 @@ const styles = StyleSheet.create({
     ...theme.shadows.sm,
   },
   headerTop: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: theme.spacing.sm,
+  },
+  headerLogout: {
+    padding: theme.spacing.xs,
   },
   logo: {
     fontSize: theme.fontSize.title,

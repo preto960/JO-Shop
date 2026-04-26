@@ -1485,9 +1485,7 @@ const AdminUsersScreen = () => {
   const toggleCreateRole = useCallback(roleId => {
     setCreateForm(prev => ({
       ...prev,
-      selectedRoleIds: prev.selectedRoleIds.includes(roleId)
-        ? prev.selectedRoleIds.filter(id => id !== roleId)
-        : [...prev.selectedRoleIds, roleId],
+      selectedRoleIds: prev.selectedRoleIds.includes(roleId) ? [] : [roleId],
     }));
   }, []);
 
@@ -1656,10 +1654,10 @@ const AdminUsersScreen = () => {
                 {availableRoles.length > 0 && (
                   <View style={styles.createSection}>
                     <Text style={styles.editSectionTitle}>
-                      Roles
+                      Rol
                     </Text>
                     <Text style={styles.editSectionDescription}>
-                      Selecciona los roles para el usuario
+                      Selecciona un rol
                     </Text>
                     <View style={styles.createRoleCheckWrap}>
                       {availableRoles.map(role => {
@@ -1678,8 +1676,8 @@ const AdminUsersScreen = () => {
                             <Icon
                               name={
                                 isSelected
-                                  ? 'checkbox'
-                                  : 'square-outline'
+                                  ? 'radio-button-on'
+                                  : 'radio-button-off'
                               }
                               size={20}
                               color={
@@ -1704,7 +1702,10 @@ const AdminUsersScreen = () => {
                 )}
 
                 {/* Store selection (multi-store) */}
-                {isMultiStore && createStores.length > 0 && (
+                {(() => {
+                  const selectedRole = availableRoles.find(r => createForm.selectedRoleIds.includes(r.id));
+                  const showStores = selectedRole && selectedRole.name !== 'client';
+                  return showStores && isMultiStore && createStores.length > 0 ? (
                   <View style={styles.createSection}>
                     <Text style={styles.editSectionTitle}>
                       Tiendas
@@ -1746,7 +1747,8 @@ const AdminUsersScreen = () => {
                       })}
                     </View>
                   </View>
-                )}
+                ) : null;
+                })()}
 
                 {/* Submit button */}
                 <TouchableOpacity
