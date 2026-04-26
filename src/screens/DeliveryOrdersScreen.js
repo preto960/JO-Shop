@@ -1060,6 +1060,7 @@ const DeliveryOrdersScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
+          <View style={styles.headerLeft} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Entregas</Text>
             <Text style={styles.headerSubtitle}>Gestión de entregas</Text>
@@ -1087,6 +1088,7 @@ const DeliveryOrdersScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
+        <View style={styles.headerLeft} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Entregas</Text>
           <Text style={styles.headerSubtitle}>
