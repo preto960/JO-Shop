@@ -80,6 +80,21 @@ const AdminProductsScreen = () => {
   const [stores, setStores] = useState([]);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(null);
+  const [showStoreFilter, setShowStoreFilter] = useState(false);
+
+  // Scroll arrow states for category chips
+  const categoryListRef = useRef(null);
+  const categoryWrapperLayout = useRef(null);
+  const [catCanScrollLeft, setCatCanScrollLeft] = useState(false);
+  const [catCanScrollRight, setCatCanScrollRight] = useState(false);
+
+  // Scroll arrow states for store chips
+  const storeListRef = useRef(null);
+  const storeWrapperLayout = useRef(null);
+  const [storeCanScrollLeft, setStoreCanScrollLeft] = useState(false);
+  const [storeCanScrollRight, setStoreCanScrollRight] = useState(false);
+
+  const SCROLL_ARROW_AMOUNT = 150;
 
   const nameInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
@@ -191,6 +206,72 @@ const AdminProductsScreen = () => {
       loadProducts(page + 1);
     }
   }, [loadingMore, refreshing, hasMore, page, loadProducts]);
+
+  // ─── Filter Handlers (same as HomeScreen) ─────────────────────────────────
+
+  const handleCategorySelect = useCallback(categoryId => {
+    setSelectedCategoryFilter(prev => (prev === categoryId ? null : categoryId));
+  }, []);
+
+  const handleStoreSelect = useCallback(storeId => {
+    setSelectedStoreFilter(prev => (prev === storeId ? null : storeId));
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSelectedCategoryFilter(null);
+    setSelectedStoreFilter(null);
+    setSearchQuery('');
+  }, []);
+
+  const hasActiveFilters = selectedCategoryFilter || selectedStoreFilter || searchQuery;
+
+  const scrollCategoryBy = useCallback((direction) => {
+    if (!categoryListRef.current) return;
+    categoryListRef.current.scrollToOffset({
+      offset: (direction === 'left' ? -SCROLL_ARROW_AMOUNT : SCROLL_ARROW_AMOUNT),
+      animated: true,
+    });
+  }, []);
+
+  const scrollStoreBy = useCallback((direction) => {
+    if (!storeListRef.current) return;
+    storeListRef.current.scrollToOffset({
+      offset: (direction === 'left' ? -SCROLL_ARROW_AMOUNT : SCROLL_ARROW_AMOUNT),
+      animated: true,
+    });
+  }, []);
+
+  const handleCategoryScroll = useCallback((event) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    setCatCanScrollLeft(contentOffset.x > 5);
+    setCatCanScrollRight(contentOffset.x + layoutMeasurement.width < contentSize.width - 5);
+  }, []);
+
+  const handleCategoryContentResize = useCallback((contentWidth) => {
+    if (categoryWrapperLayout.current && contentWidth > categoryWrapperLayout.current.width) {
+      setCatCanScrollRight(true);
+    }
+  }, []);
+
+  const handleCategoryLayout = useCallback((event) => {
+    categoryWrapperLayout.current = event.nativeEvent.layout;
+  }, []);
+
+  const handleStoreScroll = useCallback((event) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    setStoreCanScrollLeft(contentOffset.x > 5);
+    setStoreCanScrollRight(contentOffset.x + layoutMeasurement.width < contentSize.width - 5);
+  }, []);
+
+  const handleStoreContentResize = useCallback((contentWidth) => {
+    if (storeWrapperLayout.current && contentWidth > storeWrapperLayout.current.width) {
+      setStoreCanScrollRight(true);
+    }
+  }, []);
+
+  const handleStoreLayout = useCallback((event) => {
+    storeWrapperLayout.current = event.nativeEvent.layout;
+  }, []);
 
   // ─── Form Helpers ─────────────────────────────────────────────────────────
 
@@ -997,75 +1078,156 @@ const AdminProductsScreen = () => {
         </View>
       </View>
 
-      {/* Filters (only when multi-store is active) */}
-      {isMultiStore && (stores.length > 0 || categories.length > 0) && (
+      {/* Category filters */}
+      {categories.length > 0 && (
         <View style={styles.filterRow}>
-          {/* Store filter */}
-          {stores.length > 0 && (
-            <View style={styles.filterChipWrap}>
+          <View style={styles.chipScrollWrapper} onLayout={handleCategoryLayout}>
+            {catCanScrollLeft && (
               <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  selectedStoreFilter && styles.filterChipActive,
-                ]}
-                onPress={() => {
-                  setSelectedStoreFilter(prev =>
-                    prev === null ? (stores.length > 0 ? stores[0].id : null) : null,
-                  );
-                }}
-                activeOpacity={0.7}>
-                <Icon
-                  name="storefront-outline"
-                  size={14}
-                  color={selectedStoreFilter ? theme.colors.white : theme.colors.textSecondary}
-                  style={{marginRight: 4}}
-                />
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedStoreFilter && styles.filterChipTextActive,
-                  ]}
-                  numberOfLines={1}>
-                  {selectedStoreFilter
-                    ? stores.find(s => s.id === selectedStoreFilter)?.name || 'Todas'
-                    : 'Tienda'}
-                </Text>
+                style={styles.scrollArrowLeft}
+                onPress={() => scrollCategoryBy('left')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+              >
+                <Icon name="chevron-back" size={20} color={theme.colors.accent} />
               </TouchableOpacity>
-            </View>
-          )}
-          {/* Category filter */}
-          {categories.length > 0 && (
-            <View style={styles.filterChipWrap}>
+            )}
+            <FlatList
+              ref={categoryListRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleCategoryScroll}
+              scrollEventThrottle={16}
+              data={[{id: null, name: 'Todos'}, ...categories]}
+              keyExtractor={item => `cat-${item.id?.toString() || 'all'}`}
+              renderItem={({item}) => (
+                <TouchableOpacity
+                  onPress={() => handleCategorySelect(item.id)}
+                  style={[
+                    styles.filterChip,
+                    selectedCategoryFilter === item.id && styles.filterChipActive,
+                  ]}
+                  activeOpacity={0.7}>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedCategoryFilter === item.id && styles.filterChipTextActive,
+                    ]}>
+                    {item.name || 'Todos'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              style={styles.filterList}
+              onContentSizeChange={(w) => handleCategoryContentResize(w)}
+            />
+            {catCanScrollRight && (
               <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  selectedCategoryFilter && styles.filterChipActive,
-                ]}
-                onPress={() => {
-                  setSelectedCategoryFilter(prev =>
-                    prev === null ? null : null,
-                  );
-                }}
-                activeOpacity={0.7}>
-                <Icon
-                  name="folder-outline"
-                  size={14}
-                  color={selectedCategoryFilter ? theme.colors.white : theme.colors.textSecondary}
-                  style={{marginRight: 4}}
-                />
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedCategoryFilter && styles.filterChipTextActive,
-                  ]}
-                  numberOfLines={1}>
-                  {selectedCategoryFilter
-                    ? categories.find(c => c.id === selectedCategoryFilter)?.name || 'Todas'
-                    : 'Categoría'}
-                </Text>
+                style={styles.scrollArrowRight}
+                onPress={() => scrollCategoryBy('right')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+              >
+                <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
               </TouchableOpacity>
-            </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Store filter toggle */}
+      {isMultiStore && stores.length > 0 && (
+        <View style={styles.storeFilterRow}>
+          <TouchableOpacity
+            style={styles.storeFilterToggle}
+            onPress={() => setShowStoreFilter(prev => !prev)}>
+            <Icon
+              name="storefront-outline"
+              size={16}
+              color={selectedStoreFilter ? theme.colors.accent : theme.colors.textSecondary}
+            />
+            <Text style={[
+              styles.storeFilterLabel,
+              selectedStoreFilter && styles.storeFilterLabelActive,
+            ]}>
+              {selectedStoreFilter
+                ? stores.find(s => s.id === selectedStoreFilter)?.name || 'Tienda'
+                : 'Filtrar por tienda'}
+            </Text>
+            <Icon
+              name={showStoreFilter ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={theme.colors.textSecondary}
+            />
+          </TouchableOpacity>
+          {hasActiveFilters && (
+            <TouchableOpacity
+              style={styles.clearFiltersBtn}
+              onPress={clearFilters}>
+              <Icon name="close-circle" size={16} color={theme.colors.accent} />
+              <Text style={styles.clearFiltersText}>Limpiar</Text>
+            </TouchableOpacity>
           )}
+        </View>
+      )}
+
+      {/* Store filter chips dropdown */}
+      {isMultiStore && showStoreFilter && stores.length > 0 && (
+        <View style={styles.storeFilterContainer}>
+          <View style={styles.chipScrollWrapper} onLayout={handleStoreLayout}>
+            {storeCanScrollLeft && (
+              <TouchableOpacity
+                style={styles.scrollArrowLeft}
+                onPress={() => scrollStoreBy('left')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+              >
+                <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+              </TouchableOpacity>
+            )}
+            <FlatList
+              ref={storeListRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleStoreScroll}
+              scrollEventThrottle={16}
+              data={[{id: null, name: 'Todas las tiendas'}, ...stores]}
+              keyExtractor={item => `store-${item.id?.toString() || 'all'}`}
+              renderItem={({item}) => (
+                <TouchableOpacity
+                  onPress={() => handleStoreSelect(item.id)}
+                  style={[
+                    styles.storeChip,
+                    selectedStoreFilter === item.id && styles.storeChipActive,
+                  ]}
+                  activeOpacity={0.7}>
+                  <Icon
+                    name="storefront"
+                    size={14}
+                    color={selectedStoreFilter === item.id ? theme.colors.white : theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.storeChipText,
+                      selectedStoreFilter === item.id && styles.storeChipTextActive,
+                    ]}>
+                    {item.name || 'Todas'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              style={styles.filterList}
+              onContentSizeChange={(w) => handleStoreContentResize(w)}
+            />
+            {storeCanScrollRight && (
+              <TouchableOpacity
+                style={styles.scrollArrowRight}
+                onPress={() => scrollStoreBy('right')}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+              >
+                <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -1574,29 +1736,60 @@ const styles = StyleSheet.create({
   // Filters
   filterRow: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-    flexWrap: 'wrap',
   },
-  filterChipWrap: {
-    flexShrink: 1,
-  },
-  filterChip: {
+  chipScrollWrapper: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.inputBg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+  },
+  scrollArrowLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderRadius: theme.borderRadius.xl,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: -1, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  scrollArrowRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: theme.borderRadius.xl,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  filterList: {
+    marginRight: theme.spacing.sm,
+  },
+  filterChip: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.xl,
+    backgroundColor: theme.colors.inputBg,
     marginRight: theme.spacing.sm,
   },
   filterChipActive: {
     backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
   },
   filterChipText: {
     fontSize: theme.fontSize.sm,
@@ -1604,6 +1797,65 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   filterChipTextActive: {
+    color: theme.colors.white,
+  },
+  // Store filter toggle
+  storeFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+  },
+  storeFilterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  storeFilterLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  storeFilterLabelActive: {
+    color: theme.colors.accent,
+    fontWeight: '600',
+  },
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+  },
+  clearFiltersText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.accent,
+    fontWeight: '600',
+  },
+  storeFilterContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.xs,
+  },
+  storeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.xl,
+    backgroundColor: theme.colors.inputBg,
+    marginRight: theme.spacing.sm,
+  },
+  storeChipActive: {
+    backgroundColor: theme.colors.accent,
+  },
+  storeChipText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+  },
+  storeChipTextActive: {
     color: theme.colors.white,
   },
 

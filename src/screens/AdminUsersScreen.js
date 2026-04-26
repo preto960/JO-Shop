@@ -1140,8 +1140,12 @@ const AdminUsersScreen = () => {
                 Formato: año-mes-día (ej. 1990-05-15)
               </Text>
 
-              {/* Store assignment (only in multi-store mode) */}
-              {isMultiStore && editStores.length > 0 && (
+              {/* Store assignment (only in multi-store mode, hide if only role is 'client') */}
+              {(() => {
+                const userRoles = selectedUser.roles || [];
+                const onlyClient = userRoles.length > 0 && userRoles.every(r => r.name === 'client');
+                const showStores = !onlyClient;
+                return showStores && isMultiStore && editStores.length > 0 ? (
                 <>
                   <View style={styles.editDivider} />
                   <View style={styles.editSection}>
@@ -1169,7 +1173,7 @@ const AdminUsersScreen = () => {
                             }}
                             activeOpacity={0.7}>
                             <Icon
-                              name={isSelected ? 'checkbox' : 'square-outline'}
+                              name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                               size={20}
                               color={isSelected ? theme.colors.white : theme.colors.textSecondary}
                             />
@@ -1186,7 +1190,8 @@ const AdminUsersScreen = () => {
                     </View>
                   </View>
                 </>
-              )}
+              ) : null;
+              })()}
 
               {/* Divider */}
               <View style={styles.editDivider} />
@@ -1731,7 +1736,7 @@ const AdminUsersScreen = () => {
                             }}
                             activeOpacity={0.7}>
                             <Icon
-                              name={isSelected ? 'checkbox' : 'square-outline'}
+                              name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                               size={20}
                               color={isSelected ? theme.colors.white : theme.colors.textSecondary}
                             />
