@@ -1140,12 +1140,11 @@ const AdminUsersScreen = () => {
                 Formato: año-mes-día (ej. 1990-05-15)
               </Text>
 
-              {/* Store assignment (only in multi-store mode, hide if only role is 'client') */}
+              {/* Store assignment (only for delivery/editor roles in multi-store mode) */}
               {(() => {
                 const userRoles = selectedUser.roles || [];
-                const onlyClient = userRoles.length > 0 && userRoles.every(r => r.name === 'client');
-                const showStores = !onlyClient;
-                return showStores && isMultiStore && editStores.length > 0 ? (
+                const hasStoreRole = userRoles.some(r => r.name === 'delivery' || r.name === 'editor');
+                return hasStoreRole && isMultiStore && editStores.length > 0 ? (
                 <>
                   <View style={styles.editDivider} />
                   <View style={styles.editSection}>
@@ -1173,7 +1172,7 @@ const AdminUsersScreen = () => {
                             }}
                             activeOpacity={0.7}>
                             <Icon
-                              name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                              name={isSelected ? 'checkbox' : 'square-outline'}
                               size={20}
                               color={isSelected ? theme.colors.white : theme.colors.textSecondary}
                             />
@@ -1491,6 +1490,7 @@ const AdminUsersScreen = () => {
     setCreateForm(prev => ({
       ...prev,
       selectedRoleIds: prev.selectedRoleIds.includes(roleId) ? [] : [roleId],
+      selectedStoreIds: [],
     }));
   }, []);
 
@@ -1706,10 +1706,10 @@ const AdminUsersScreen = () => {
                   </View>
                 )}
 
-                {/* Store selection (multi-store) */}
+                {/* Store selection (multi-store, only for delivery/editor) */}
                 {(() => {
                   const selectedRole = availableRoles.find(r => createForm.selectedRoleIds.includes(r.id));
-                  const showStores = selectedRole && selectedRole.name !== 'client';
+                  const showStores = selectedRole && (selectedRole.name === 'delivery' || selectedRole.name === 'editor');
                   return showStores && isMultiStore && createStores.length > 0 ? (
                   <View style={styles.createSection}>
                     <Text style={styles.editSectionTitle}>
@@ -1736,7 +1736,7 @@ const AdminUsersScreen = () => {
                             }}
                             activeOpacity={0.7}>
                             <Icon
-                              name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                              name={isSelected ? 'checkbox' : 'square-outline'}
                               size={20}
                               color={isSelected ? theme.colors.white : theme.colors.textSecondary}
                             />
