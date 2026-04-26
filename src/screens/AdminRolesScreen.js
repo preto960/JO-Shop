@@ -23,7 +23,7 @@ import theme from '@theme/styles';
 
 const AdminRolesScreen = () => {
   const navigation = useNavigation();
-  const {logout} = useAuth();
+  const {user, logout} = useAuth();
   const nameInputRef = useRef(null);
 
   const handleLogout = async () => {
@@ -340,9 +340,11 @@ const AdminRolesScreen = () => {
             <Text style={styles.headerTitle}>Roles y Permisos</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
+            {!user?.roles?.some(r => r.name === 'editor') && (
+              <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
               <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
             </TouchableOpacity>
@@ -368,9 +370,11 @@ const AdminRolesScreen = () => {
           <Text style={styles.headerTitle}>Roles y Permisos</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
+          {!user?.roles?.some(r => r.name === 'editor') && (
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
             <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>

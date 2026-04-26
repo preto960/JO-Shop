@@ -600,11 +600,13 @@ const AdminStoresScreen = () => {
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Settings')}
-            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
+          {!user?.roles?.some(r => r.name === 'editor') && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Settings')}
+              hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+              <Icon name="settings-outline" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={handleLogout}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
