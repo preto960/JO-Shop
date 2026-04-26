@@ -511,10 +511,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  headerLeft: {
+    width: 68,
+  },
   headerRight: {
-    width: 44,
+    width: 68,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
   logo: {
     fontSize: theme.fontSize.title,

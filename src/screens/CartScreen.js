@@ -787,7 +787,7 @@ const CartScreen = () => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={clearCart} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="trash-outline" size={22} color={theme.colors.accent} />
+            <Icon name="trash-outline" size={22} color={theme.colors.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
             <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
@@ -852,9 +852,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: theme.colors.white,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,

@@ -1961,7 +1961,7 @@ const styles = StyleSheet.create({
     ...theme.shadows.sm,
   },
   headerLeft: {
-    width: 80,
+    width: 68,
   },
   backBtn: {
     width: 40,
@@ -1983,11 +1983,11 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   headerRight: {
-    width: 80,
+    width: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: theme.spacing.xs,
+    gap: 4,
   },
 
   // ── Loading ─────────────────────────────────────────────────────────────

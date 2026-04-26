@@ -1172,6 +1172,9 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
+  headerLeft: {
+    width: 68,
+  },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
@@ -1187,9 +1190,11 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   headerRight: {
+    width: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    justifyContent: 'flex-end',
+    gap: 4,
   },
 
   // Loading

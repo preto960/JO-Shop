@@ -1053,11 +1053,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.white,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
   headerLeft: {
-    width: 80,
+    width: 68,
   },
   headerCenter: {
     flex: 1,
@@ -1069,10 +1070,11 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   headerRight: {
-    width: 80,
+    width: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    gap: 4,
   },
   sectionHeader: {
     flexDirection: 'row',

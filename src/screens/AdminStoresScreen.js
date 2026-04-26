@@ -692,8 +692,7 @@ const styles = StyleSheet.create({
     ...theme.shadows.sm,
   },
   headerLeft: {
-    width: 40,
-    justifyContent: 'center',
+    width: 68,
   },
   headerCenter: {
     flex: 1,
@@ -710,9 +709,11 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   headerRight: {
+    width: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
+    justifyContent: 'flex-end',
+    gap: 4,
   },
 
   // Loading
