@@ -18,6 +18,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
+import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
@@ -35,6 +36,7 @@ const INITIAL_FORM = {
   stock: '',
   categoryId: '',
   active: true,
+  selectedStoreIds: [],
 };
 
 const EMPTY_FORM_ERRORS = {};
@@ -43,6 +45,7 @@ const EMPTY_FORM_ERRORS = {};
 const AdminProductsScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
+  const {isMultiStore} = useConfig();
 
   // Data state
   const [products, setProducts] = useState([]);
@@ -72,6 +75,11 @@ const AdminProductsScreen = () => {
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Multi-store filters
+  const [stores, setStores] = useState([]);
+  const [selectedStoreFilter, setSelectedStoreFilter] = useState(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState(null);
 
   const nameInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
@@ -104,11 +112,18 @@ const AdminProductsScreen = () => {
         }
         setError(null);
 
-        const res = await apiService.fetchProducts({
+        const params = {
           page: pageNum,
           limit: PAGE_LIMIT,
           search: searchQuery || undefined,
-        });
+        };
+        if (isMultiStore && selectedStoreFilter) {
+          params.store = selectedStoreFilter;
+        }
+        if (selectedCategoryFilter) {
+          params.category = selectedCategoryFilter;
+        }
+        const res = await apiService.fetchProducts(params);
 
         const items = Array.isArray(res) ? res : res.data || [];
         const paginationData = res.pagination || null;
@@ -134,16 +149,38 @@ const AdminProductsScreen = () => {
         setLoadingMore(false);
       }
     },
-    [searchQuery],
+    [searchQuery, selectedStoreFilter, selectedCategoryFilter, isMultiStore],
   );
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
 
+  // Load stores for filters when multi-store is ON
+  useEffect(() => {
+    if (isMultiStore) {
+      const loadStores = async () => {
+        try {
+          const res = await apiService.fetchStoresAdmin().catch(() => []);
+          const list = Array.isArray(res)
+            ? res
+            : res.data || res.stores || [];
+          setStores(list);
+        } catch (err) {
+          console.warn('Failed to load stores:', err.message);
+        }
+      };
+      loadStores();
+    } else {
+      setStores([]);
+      setSelectedStoreFilter(null);
+      setSelectedCategoryFilter(null);
+    }
+  }, [isMultiStore]);
+
   useEffect(() => {
     loadProducts(1);
-  }, [searchQuery, loadProducts]);
+  }, [searchQuery, selectedStoreFilter, selectedCategoryFilter, loadProducts]);
 
   const handleRefresh = useCallback(() => {
     loadProducts(1, true);
@@ -180,6 +217,7 @@ const AdminProductsScreen = () => {
       stock: product.stock != null ? String(product.stock) : '',
       categoryId: product.categoryId || product.category?.id || '',
       active: product.active !== false,
+      selectedStoreIds: product.storeIds || [],
     });
     setFormErrors(EMPTY_FORM_ERRORS);
     setModalVisible(true);
@@ -256,6 +294,10 @@ const AdminProductsScreen = () => {
         categoryId: form.categoryId || null,
         active: form.active,
       };
+
+      if (form.selectedStoreIds && form.selectedStoreIds.length > 0) {
+        payload.storeIds = form.selectedStoreIds;
+      }
 
       if (editingProduct) {
         await apiService.updateProduct(editingProduct.id, payload);
@@ -784,6 +826,52 @@ const AdminProductsScreen = () => {
               />
             </View>
 
+            {/* Store selection (multi-store only) */}
+            {isMultiStore && stores.length > 0 && (
+              <View style={styles.createSection}>
+                <Text style={styles.sectionTitle}>
+                  Tiendas
+                </Text>
+                <Text style={styles.sectionDescription}>
+                  Selecciona las tiendas donde estará disponible el producto
+                </Text>
+                <View style={styles.roleCheckWrap}>
+                  {stores.map(store => {
+                    const isSelected = (form.selectedStoreIds || []).includes(store.id);
+                    return (
+                      <TouchableOpacity
+                        key={store.id}
+                        style={[
+                          styles.roleCheck,
+                          isSelected && styles.roleCheckSelected,
+                        ]}
+                        onPress={() => {
+                          const currentIds = form.selectedStoreIds || [];
+                          const newIds = isSelected
+                            ? currentIds.filter(id => id !== store.id)
+                            : [...currentIds, store.id];
+                          updateField('selectedStoreIds', newIds);
+                        }}
+                        activeOpacity={0.7}>
+                        <Icon
+                          name={isSelected ? 'checkbox' : 'square-outline'}
+                          size={20}
+                          color={isSelected ? theme.colors.white : theme.colors.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.roleCheckText,
+                            isSelected && styles.roleCheckTextSelected,
+                          ]}>
+                          {store.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {/* Submit button */}
             <TouchableOpacity
               style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
@@ -812,6 +900,8 @@ const AdminProductsScreen = () => {
     updateField,
     handleSubmit,
     renderCategoryPicker,
+    isMultiStore,
+    stores,
   ]);
 
   const handleLogout = () => {
@@ -906,6 +996,78 @@ const AdminProductsScreen = () => {
           ) : null}
         </View>
       </View>
+
+      {/* Filters (only when multi-store is active) */}
+      {isMultiStore && (stores.length > 0 || categories.length > 0) && (
+        <View style={styles.filterRow}>
+          {/* Store filter */}
+          {stores.length > 0 && (
+            <View style={styles.filterChipWrap}>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  selectedStoreFilter && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setSelectedStoreFilter(prev =>
+                    prev === null ? (stores.length > 0 ? stores[0].id : null) : null,
+                  );
+                }}
+                activeOpacity={0.7}>
+                <Icon
+                  name="storefront-outline"
+                  size={14}
+                  color={selectedStoreFilter ? theme.colors.white : theme.colors.textSecondary}
+                  style={{marginRight: 4}}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedStoreFilter && styles.filterChipTextActive,
+                  ]}
+                  numberOfLines={1}>
+                  {selectedStoreFilter
+                    ? stores.find(s => s.id === selectedStoreFilter)?.name || 'Todas'
+                    : 'Tienda'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* Category filter */}
+          {categories.length > 0 && (
+            <View style={styles.filterChipWrap}>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  selectedCategoryFilter && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setSelectedCategoryFilter(prev =>
+                    prev === null ? null : null,
+                  );
+                }}
+                activeOpacity={0.7}>
+                <Icon
+                  name="folder-outline"
+                  size={14}
+                  color={selectedCategoryFilter ? theme.colors.white : theme.colors.textSecondary}
+                  style={{marginRight: 4}}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedCategoryFilter && styles.filterChipTextActive,
+                  ]}
+                  numberOfLines={1}>
+                  {selectedCategoryFilter
+                    ? categories.find(c => c.id === selectedCategoryFilter)?.name || 'Todas'
+                    : 'Categoría'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Product list */}
       <FlatList
@@ -1407,6 +1569,89 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
+  },
+
+  // Filters
+  filterRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    flexWrap: 'wrap',
+  },
+  filterChipWrap: {
+    flexShrink: 1,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.xl,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
+  },
+  filterChipActive: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  filterChipText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: theme.colors.white,
+  },
+
+  // Store selection in form
+  createSection: {
+    marginTop: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+  },
+  sectionTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  sectionDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+  },
+  roleCheckWrap: {
+    gap: theme.spacing.sm,
+  },
+  roleCheck: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: theme.spacing.sm,
+  },
+  roleCheckSelected: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  roleCheckText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    flex: 1,
+  },
+  roleCheckTextSelected: {
+    color: theme.colors.white,
+    fontWeight: '600',
   },
 });
 
