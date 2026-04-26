@@ -11,7 +11,6 @@ import {
   Switch,
   StyleSheet,
   RefreshControl,
-  Image,
   Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -19,7 +18,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
-import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
 
@@ -29,24 +27,21 @@ const PAGE_LIMIT = 20;
 const INITIAL_FORM = {
   name: '',
   description: '',
-  price: '',
-  image: '',
-  thumbnail: '',
-  stock: '',
-  categoryId: '',
+  phone: '',
+  address: '',
+  logo: '',
   active: true,
 };
 
 const EMPTY_FORM_ERRORS = {};
 
 // ─── Component ────────────────────────────────────────────────────────────────
-const AdminProductsScreen = () => {
+const AdminStoresScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
 
   // Data state
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [stores, setStores] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -59,7 +54,7 @@ const AdminProductsScreen = () => {
 
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
+  const [editingStore, setEditingStore] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState(EMPTY_FORM_ERRORS);
   const [submitting, setSubmitting] = useState(false);
@@ -67,32 +62,18 @@ const AdminProductsScreen = () => {
   // Confirm modal
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
 
-  // Category picker
-  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
-
   // Search
   const [searchQuery, setSearchQuery] = useState('');
 
   const nameInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
-  const priceInputRef = useRef(null);
-  const imageInputRef = useRef(null);
-  const thumbnailInputRef = useRef(null);
-  const stockInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
+  const addressInputRef = useRef(null);
+  const logoInputRef = useRef(null);
 
   // ─── Data Loading ─────────────────────────────────────────────────────────
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const res = await apiService.fetchCategories();
-      const list = Array.isArray(res) ? res : res.data || res.categories || [];
-      setCategories(list);
-    } catch (err) {
-      console.warn('Failed to load categories:', err.message);
-    }
-  }, []);
-
-  const loadProducts = useCallback(
+  const loadStores = useCallback(
     async (pageNum = 1, isRefresh = false) => {
       try {
         if (isRefresh) {
@@ -104,19 +85,18 @@ const AdminProductsScreen = () => {
         }
         setError(null);
 
-        const res = await apiService.fetchProducts({
+        const res = await apiService.fetchAdminStores({
           page: pageNum,
           limit: PAGE_LIMIT,
-          search: searchQuery || undefined,
         });
 
         const items = Array.isArray(res) ? res : res.data || [];
         const paginationData = res.pagination || null;
 
         if (pageNum === 1) {
-          setProducts(items);
+          setStores(items);
         } else {
-          setProducts(prev => [...prev, ...items]);
+          setStores(prev => [...prev, ...items]);
         }
 
         setPagination(paginationData);
@@ -134,33 +114,29 @@ const AdminProductsScreen = () => {
         setLoadingMore(false);
       }
     },
-    [searchQuery],
+    [],
   );
 
   useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
-
-  useEffect(() => {
-    loadProducts(1);
-  }, [searchQuery, loadProducts]);
+    loadStores(1);
+  }, [loadStores]);
 
   const handleRefresh = useCallback(() => {
-    loadProducts(1, true);
-  }, [loadProducts]);
+    loadStores(1, true);
+  }, [loadStores]);
 
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && !refreshing && hasMore) {
-      loadProducts(page + 1);
+      loadStores(page + 1);
     }
-  }, [loadingMore, refreshing, hasMore, page, loadProducts]);
+  }, [loadingMore, refreshing, hasMore, page, loadStores]);
 
   // ─── Form Helpers ─────────────────────────────────────────────────────────
 
   const resetForm = useCallback(() => {
     setForm(INITIAL_FORM);
     setFormErrors(EMPTY_FORM_ERRORS);
-    setEditingProduct(null);
+    setEditingStore(null);
   }, []);
 
   const openCreateModal = useCallback(() => {
@@ -169,17 +145,15 @@ const AdminProductsScreen = () => {
     setTimeout(() => nameInputRef.current?.focus(), 300);
   }, [resetForm]);
 
-  const openEditModal = useCallback(product => {
-    setEditingProduct(product);
+  const openEditModal = useCallback(store => {
+    setEditingStore(store);
     setForm({
-      name: product.name || '',
-      description: product.description || '',
-      price: product.price != null ? String(product.price) : '',
-      image: product.image || '',
-      thumbnail: product.thumbnail || '',
-      stock: product.stock != null ? String(product.stock) : '',
-      categoryId: product.categoryId || product.category?.id || '',
-      active: product.active !== false,
+      name: store.name || '',
+      description: store.description || '',
+      phone: store.phone || '',
+      address: store.address || '',
+      logo: store.logo || '',
+      active: store.active !== false,
     });
     setFormErrors(EMPTY_FORM_ERRORS);
     setModalVisible(true);
@@ -195,15 +169,6 @@ const AdminProductsScreen = () => {
     setFormErrors(prev => ({...prev, [field]: undefined}));
   }, []);
 
-  const getCategoryName = useCallback(
-    categoryId => {
-      if (!categoryId) return null;
-      const cat = categories.find(c => c.id === categoryId);
-      return cat ? cat.name : null;
-    },
-    [categories],
-  );
-
   // ─── Validation ───────────────────────────────────────────────────────────
 
   const validateForm = useCallback(() => {
@@ -211,27 +176,12 @@ const AdminProductsScreen = () => {
 
     if (!form.name.trim()) {
       errors.name = 'El nombre es obligatorio';
+    } else if (form.name.trim().length < 2) {
+      errors.name = 'Mínimo 2 caracteres';
     }
 
-    if (!form.price.trim()) {
-      errors.price = 'El precio es obligatorio';
-    } else if (isNaN(Number(form.price)) || Number(form.price) < 0) {
-      errors.price = 'Precio inválido';
-    }
-
-    if (
-      form.stock.trim() &&
-      (isNaN(Number(form.stock)) || Number(form.stock) < 0)
-    ) {
-      errors.stock = 'Stock inválido';
-    }
-
-    if (form.image.trim() && !isValidUrl(form.image.trim())) {
-      errors.image = 'URL inválida';
-    }
-
-    if (form.thumbnail.trim() && !isValidUrl(form.thumbnail.trim())) {
-      errors.thumbnail = 'URL inválida';
+    if (form.logo.trim() && !isValidUrl(form.logo.trim())) {
+      errors.logo = 'URL inválida';
     }
 
     setFormErrors(errors);
@@ -248,46 +198,44 @@ const AdminProductsScreen = () => {
 
       const payload = {
         name: form.name.trim(),
-        description: form.description.trim(),
-        price: parseFloat(Number(form.price)),
-        image: form.image.trim() || null,
-        thumbnail: form.thumbnail.trim() || null,
-        stock: parseInt(Number(form.stock), 10) || 0,
-        categoryId: form.categoryId || null,
+        description: form.description.trim() || null,
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
+        logo: form.logo.trim() || null,
         active: form.active,
       };
 
-      if (editingProduct) {
-        await apiService.updateProduct(editingProduct.id, payload);
+      if (editingStore) {
+        await apiService.updateStore(editingStore.id, payload);
       } else {
-        await apiService.createProduct(payload);
+        await apiService.createStore(payload);
       }
 
       closeModal();
-      loadProducts(1, true);
+      loadStores(1, true);
     } catch (err) {
-      setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo guardar el producto', confirmText: 'Aceptar', onConfirm: null});
+      setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo guardar la tienda', confirmText: 'Aceptar', onConfirm: null});
     } finally {
       setSubmitting(false);
     }
-  }, [form, editingProduct, validateForm, closeModal, loadProducts]);
+  }, [form, editingStore, validateForm, closeModal, loadStores]);
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(
-    product => {
+    store => {
       setModal({
         visible: true,
         type: 'danger',
-        title: 'Eliminar producto',
-        message: `¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`,
+        title: 'Eliminar tienda',
+        message: `¿Estás seguro de que deseas eliminar "${store.name}"? Esta acción no se puede deshacer si tiene productos asociados.`,
         confirmText: 'Eliminar',
         onConfirm: async () => {
           try {
-            await apiService.deleteProduct(product.id);
-            setProducts(prev => prev.filter(p => p.id !== product.id));
+            await apiService.deleteStore(store.id);
+            setStores(prev => prev.filter(s => s.id !== store.id));
           } catch (err) {
-            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo eliminar el producto', confirmText: 'Aceptar', onConfirm: null});
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo eliminar la tienda', confirmText: 'Aceptar', onConfirm: null});
           }
         },
       });
@@ -298,26 +246,26 @@ const AdminProductsScreen = () => {
   // ─── Toggle Active ────────────────────────────────────────────────────────
 
   const handleToggleActive = useCallback(
-    product => {
-      const newStatus = !product.active;
+    store => {
+      const newStatus = !store.active;
       const label = newStatus ? 'activar' : 'desactivar';
 
       setModal({
         visible: true,
         type: 'confirm',
-        title: `${newStatus ? 'Activar' : 'Desactivar'} producto`,
-        message: `¿Deseas ${label} "${product.name}"?`,
+        title: `${newStatus ? 'Activar' : 'Desactivar'} tienda`,
+        message: `¿Deseas ${label} "${store.name}"?`,
         confirmText: newStatus ? 'Activar' : 'Desactivar',
         onConfirm: async () => {
           try {
-            await apiService.updateProduct(product.id, {active: newStatus});
-            setProducts(prev =>
-              prev.map(p =>
-                p.id === product.id ? {...p, active: newStatus} : p,
+            await apiService.updateStore(store.id, {active: newStatus});
+            setStores(prev =>
+              prev.map(s =>
+                s.id === store.id ? {...s, active: newStatus} : s,
               ),
             );
           } catch (err) {
-            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo actualizar el producto', confirmText: 'Aceptar', onConfirm: null});
+            setModal({visible: true, type: 'alert', title: 'Error', message: err.message || 'No se pudo actualizar la tienda', confirmText: 'Aceptar', onConfirm: null});
           }
         },
       });
@@ -330,7 +278,7 @@ const AdminProductsScreen = () => {
   const renderEmpty = useCallback(() => {
     if (loading) return null;
 
-    if (error && products.length === 0) {
+    if (error && stores.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <Icon name="alert-circle-outline" size={56} color={theme.colors.accent} />
@@ -338,7 +286,7 @@ const AdminProductsScreen = () => {
           <Text style={styles.emptyText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => loadProducts(1)}
+            onPress={() => loadStores(1)}
             activeOpacity={0.8}>
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
@@ -346,28 +294,16 @@ const AdminProductsScreen = () => {
       );
     }
 
-    if (searchQuery) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Icon name="search-outline" size={56} color={theme.colors.textLight} />
-          <Text style={styles.emptyTitle}>Sin resultados</Text>
-          <Text style={styles.emptyText}>
-            No se encontraron productos para "{searchQuery}"
-          </Text>
-        </View>
-      );
-    }
-
     return (
       <View style={styles.emptyContainer}>
-        <Icon name="pricetag-outline" size={56} color={theme.colors.textLight} />
-        <Text style={styles.emptyTitle}>Sin productos</Text>
+        <Icon name="storefront-outline" size={56} color={theme.colors.textLight} />
+        <Text style={styles.emptyTitle}>Sin tiendas</Text>
         <Text style={styles.emptyText}>
-          Agrega tu primer producto tocando el botón +
+          Crea tu primera tienda tocando el botón +
         </Text>
       </View>
     );
-  }, [loading, error, products.length, searchQuery, loadProducts]);
+  }, [loading, error, stores.length, loadStores]);
 
   const renderFooter = useCallback(() => {
     if (!loadingMore) return null;
@@ -379,56 +315,50 @@ const AdminProductsScreen = () => {
     );
   }, [loadingMore]);
 
-  const renderProductCard = useCallback(
+  const renderStoreCard = useCallback(
     ({item}) => {
-      const categoryName = getCategoryName(item.categoryId || item.category?.id);
       const isActive = item.active !== false;
+      const initial = (item.name || 'T').charAt(0).toUpperCase();
 
       return (
         <View style={styles.card}>
-          {/* Avatar thumbnail */}
-          <View style={styles.cardAvatar}>
-            {item.thumbnail || item.image ? (
-              <Image
-                source={{uri: item.thumbnail || item.image}}
-                style={styles.cardAvatarImg}
-                resizeMode="cover"
-              />
+          {/* Avatar */}
+          <View style={[styles.cardAvatar, !isActive && styles.cardAvatarInactive]}>
+            {item.logo ? (
+              <Icon name="image" size={20} color={isActive ? theme.colors.textSecondary : theme.colors.textLight} />
             ) : (
-              <View style={styles.cardAvatarPlaceholder}>
-                <Icon
-                  name="image-outline"
-                  size={20}
-                  color={theme.colors.textLight}
-                />
-              </View>
+              <Text style={[styles.cardAvatarText, !isActive && styles.cardAvatarTextInactive]}>
+                {initial}
+              </Text>
             )}
           </View>
 
-          {/* Product info */}
-          <View style={styles.cardBody}>
+          {/* Store info */}
+          <TouchableOpacity
+            style={styles.cardBody}
+            onPress={() => openEditModal(item)}
+            activeOpacity={0.7}>
             <Text style={styles.cardName} numberOfLines={1}>
               {item.name}
             </Text>
             <View style={styles.cardSubInfo}>
-              {categoryName ? (
-                <Text style={styles.cardCategory} numberOfLines={1}>
-                  {categoryName}
+              {item.owner && (
+                <Text style={styles.cardOwner} numberOfLines={1}>
+                  {item.owner.name}
                 </Text>
-              ) : null}
-              <Text style={styles.cardDot}>{categoryName ? ' · ' : ''}</Text>
-              <Text
-                style={[
-                  styles.cardStock,
-                  item.stock === 0 && styles.cardStockDanger,
-                ]}>
-                {item.stock === 0 ? 'Agotado' : `Stock: ${item.stock}`}
-              </Text>
+              )}
+              {item._count?.products !== undefined && (
+                <Text style={styles.cardProducts}>
+                  {item._count.products} prod.
+                </Text>
+              )}
             </View>
-            <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
-          </View>
+            <Text style={styles.cardAddress} numberOfLines={1}>
+              {item.address || 'Sin dirección'}
+            </Text>
+          </TouchableOpacity>
 
-          {/* Active toggle + actions */}
+          {/* Actions */}
           <View style={styles.cardActions}>
             <TouchableOpacity
               onPress={() => handleToggleActive(item)}
@@ -456,145 +386,13 @@ const AdminProductsScreen = () => {
         </View>
       );
     },
-    [getCategoryName, handleToggleActive, openEditModal, handleDelete],
+    [handleToggleActive, openEditModal, handleDelete],
   );
-
-  // ─── Render Category Picker ───────────────────────────────────────────────
-
-  const renderCategoryPicker = useCallback(() => {
-    const selectedName = getCategoryName(form.categoryId);
-
-    return (
-      <View style={styles.pickerWrapper}>
-        <Text style={styles.label}>Categoría</Text>
-        <TouchableOpacity
-          style={[
-            styles.pickerTrigger,
-            formErrors.categoryId && styles.inputError,
-          ]}
-          onPress={() => setCategoryPickerVisible(true)}
-          activeOpacity={0.7}>
-          <Text
-            style={[
-              styles.pickerText,
-              !selectedName && styles.pickerPlaceholder,
-            ]}
-            numberOfLines={1}>
-            {selectedName || 'Seleccionar categoría (opcional)'}
-          </Text>
-          <Icon
-            name="chevron-down"
-            size={18}
-            color={theme.colors.textSecondary}
-          />
-        </TouchableOpacity>
-        {formErrors.categoryId && (
-          <Text style={styles.errorText}>{formErrors.categoryId}</Text>
-        )}
-
-        <Modal
-          visible={categoryPickerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setCategoryPickerVisible(false)}>
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setCategoryPickerVisible(false)}>
-            <View style={styles.pickerSheet}>
-              <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Seleccionar Categoría</Text>
-                <TouchableOpacity
-                  onPress={() => setCategoryPickerVisible(false)}
-                  hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-                  <Icon
-                    name="close"
-                    size={24}
-                    color={theme.colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* None option */}
-              <TouchableOpacity
-                style={[
-                  styles.pickerOption,
-                  !form.categoryId && styles.pickerOptionSelected,
-                ]}
-                onPress={() => {
-                  updateField('categoryId', '');
-                  setCategoryPickerVisible(false);
-                }}
-                activeOpacity={0.7}>
-                <Text
-                  style={[
-                    styles.pickerOptionText,
-                    !form.categoryId && styles.pickerOptionTextSelected,
-                  ]}>
-                  Sin categoría
-                </Text>
-                {!form.categoryId && (
-                  <Icon
-                    name="checkmark"
-                    size={20}
-                    color={theme.colors.accent}
-                  />
-                )}
-              </TouchableOpacity>
-
-              <ScrollView
-                style={styles.pickerList}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}>
-                {categories.map(cat => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.pickerOption,
-                      form.categoryId === cat.id &&
-                        styles.pickerOptionSelected,
-                    ]}
-                    onPress={() => {
-                      updateField('categoryId', cat.id);
-                      setCategoryPickerVisible(false);
-                    }}
-                    activeOpacity={0.7}>
-                    <Text
-                      style={[
-                        styles.pickerOptionText,
-                        form.categoryId === cat.id &&
-                          styles.pickerOptionTextSelected,
-                      ]}>
-                      {cat.name}
-                    </Text>
-                    {form.categoryId === cat.id && (
-                      <Icon
-                        name="checkmark"
-                        size={20}
-                        color={theme.colors.accent}
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-      </View>
-    );
-  }, [
-    categoryPickerVisible,
-    categories,
-    form.categoryId,
-    formErrors.categoryId,
-    getCategoryName,
-    updateField,
-  ]);
 
   // ─── Render Form Modal ────────────────────────────────────────────────────
 
   const renderFormModal = useCallback(() => {
-    const isEditing = !!editingProduct;
+    const isEditing = !!editingStore;
 
     return (
       <Modal
@@ -611,7 +409,7 @@ const AdminProductsScreen = () => {
               <Icon name="close" size={28} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {isEditing ? 'Editar Producto' : 'Nuevo Producto'}
+              {isEditing ? 'Editar Tienda' : 'Nueva Tienda'}
             </Text>
             <View style={{width: 28}} />
           </View>
@@ -623,24 +421,6 @@ const AdminProductsScreen = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             automaticallyAdjustKeyboardInsets>
-            {/* Preview thumbnail */}
-            {(form.image || form.thumbnail) && (
-              <View style={styles.imagePreview}>
-                <Image
-                  source={{uri: form.thumbnail || form.image}}
-                  style={styles.imagePreviewThumb}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
-                  style={styles.imagePreviewRemove}
-                  onPress={() => {
-                    updateField('thumbnail', '');
-                    updateField('image', '');
-                  }}>
-                  <Icon name="close-circle" size={22} color={theme.colors.accent} />
-                </TouchableOpacity>
-              </View>
-            )}
 
             {/* Name */}
             <Text style={styles.label}>
@@ -651,7 +431,7 @@ const AdminProductsScreen = () => {
               style={[styles.input, formErrors.name && styles.inputError]}
               value={form.name}
               onChangeText={val => updateField('name', val)}
-              placeholder="Nombre del producto"
+              placeholder="Nombre de la tienda"
               placeholderTextColor={theme.colors.textLight}
               returnKeyType="next"
               onSubmitEditing={() => descriptionInputRef.current?.focus()}
@@ -668,89 +448,55 @@ const AdminProductsScreen = () => {
               style={[styles.input, styles.inputMultiline]}
               value={form.description}
               onChangeText={val => updateField('description', val)}
-              placeholder="Descripción del producto"
+              placeholder="Descripción de la tienda"
               placeholderTextColor={theme.colors.textLight}
               returnKeyType="next"
-              onSubmitEditing={() => priceInputRef.current?.focus()}
-              maxLength={1000}
+              onSubmitEditing={() => phoneInputRef.current?.focus()}
+              maxLength={500}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
             />
 
-            {/* Price & Stock row */}
+            {/* Phone & Address row */}
             <View style={styles.row}>
               <View style={styles.rowItem}>
-                <Text style={styles.label}>
-                  Precio <Text style={styles.required}>*</Text>
-                </Text>
+                <Text style={styles.label}>Teléfono</Text>
                 <TextInput
-                  ref={priceInputRef}
-                  style={[
-                    styles.input,
-                    formErrors.price && styles.inputError,
-                  ]}
-                  value={form.price}
-                  onChangeText={val => updateField('price', val)}
-                  placeholder="0.00"
+                  ref={phoneInputRef}
+                  style={styles.input}
+                  value={form.phone}
+                  onChangeText={val => updateField('phone', val)}
+                  placeholder="+52 55 1234"
                   placeholderTextColor={theme.colors.textLight}
-                  keyboardType="decimal-pad"
+                  keyboardType="phone-pad"
                   returnKeyType="next"
-                  onSubmitEditing={() => stockInputRef.current?.focus()}
+                  onSubmitEditing={() => addressInputRef.current?.focus()}
                 />
-                {formErrors.price && (
-                  <Text style={styles.errorText}>{formErrors.price}</Text>
-                )}
               </View>
               <View style={styles.rowItem}>
-                <Text style={styles.label}>Stock</Text>
+                <Text style={styles.label}>Dirección</Text>
                 <TextInput
-                  ref={stockInputRef}
-                  style={[
-                    styles.input,
-                    formErrors.stock && styles.inputError,
-                  ]}
-                  value={form.stock}
-                  onChangeText={val => updateField('stock', val)}
-                  placeholder="0"
+                  ref={addressInputRef}
+                  style={styles.input}
+                  value={form.address}
+                  onChangeText={val => updateField('address', val)}
+                  placeholder="Dirección"
                   placeholderTextColor={theme.colors.textLight}
-                  keyboardType="number-pad"
                   returnKeyType="next"
-                  onSubmitEditing={() => imageInputRef.current?.focus()}
+                  onSubmitEditing={() => logoInputRef.current?.focus()}
                 />
-                {formErrors.stock && (
-                  <Text style={styles.errorText}>{formErrors.stock}</Text>
-                )}
               </View>
             </View>
 
-            {/* Image URL */}
-            <Text style={styles.label}>URL de Imagen</Text>
+            {/* Logo URL */}
+            <Text style={styles.label}>URL del Logo</Text>
             <TextInput
-              ref={imageInputRef}
-              style={[styles.input, formErrors.image && styles.inputError]}
-              value={form.image}
-              onChangeText={val => updateField('image', val)}
-              placeholder="https://ejemplo.com/imagen.jpg"
-              placeholderTextColor={theme.colors.textLight}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              returnKeyType="next"
-              onSubmitEditing={() => thumbnailInputRef.current?.focus()}
-            />
-            {formErrors.image && (
-              <Text style={styles.errorText}>{formErrors.image}</Text>
-            )}
-
-            {/* Thumbnail URL */}
-            <Text style={styles.label}>URL de Miniatura</Text>
-            <TextInput
-              ref={thumbnailInputRef}
-              style={[styles.input, formErrors.thumbnail && styles.inputError]}
-              value={form.thumbnail}
-              onChangeText={val => updateField('thumbnail', val)}
-              placeholder="https://ejemplo.com/miniatura.jpg"
+              ref={logoInputRef}
+              style={[styles.input, formErrors.logo && styles.inputError]}
+              value={form.logo}
+              onChangeText={val => updateField('logo', val)}
+              placeholder="https://ejemplo.com/logo.png"
               placeholderTextColor={theme.colors.textLight}
               autoCapitalize="none"
               autoCorrect={false}
@@ -758,19 +504,16 @@ const AdminProductsScreen = () => {
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
             />
-            {formErrors.thumbnail && (
-              <Text style={styles.errorText}>{formErrors.thumbnail}</Text>
+            {formErrors.logo && (
+              <Text style={styles.errorText}>{formErrors.logo}</Text>
             )}
-
-            {/* Category picker */}
-            {renderCategoryPicker()}
 
             {/* Active toggle */}
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Producto activo</Text>
+                <Text style={styles.toggleLabel}>Tienda activa</Text>
                 <Text style={styles.toggleDescription}>
-                  Los productos inactivos no se muestran en la tienda
+                  Las tiendas inactivas no se muestran en la app
                 </Text>
               </View>
               <Switch
@@ -794,7 +537,7 @@ const AdminProductsScreen = () => {
                 <ActivityIndicator size="small" color={theme.colors.white} />
               ) : (
                 <Text style={styles.submitButtonText}>
-                  {isEditing ? 'Guardar Cambios' : 'Crear Producto'}
+                  {isEditing ? 'Guardar Cambios' : 'Crear Tienda'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -804,14 +547,13 @@ const AdminProductsScreen = () => {
     );
   }, [
     modalVisible,
-    editingProduct,
+    editingStore,
     form,
     formErrors,
     submitting,
     closeModal,
     updateField,
     handleSubmit,
-    renderCategoryPicker,
   ]);
 
   // ─── Main Render ──────────────────────────────────────────────────────────
@@ -820,23 +562,16 @@ const AdminProductsScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Productos</Text>
+            <Text style={styles.headerTitle}>Tiendas</Text>
             <Text style={styles.headerSubtitle}>
-              Administrar catálogo
+              Gestionar tiendas
             </Text>
           </View>
-          <View style={styles.headerRight} />
         </View>
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
-          <Text style={styles.loaderText}>Cargando productos...</Text>
+          <Text style={styles.loaderText}>Cargando tiendas...</Text>
         </View>
       </SafeAreaView>
     );
@@ -857,18 +592,11 @@ const AdminProductsScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-            style={styles.backBtn}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerLeft} />
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Productos</Text>
+          <Text style={styles.headerTitle}>Tiendas</Text>
           <Text style={styles.headerSubtitle}>
-            {products.length} producto{products.length !== 1 ? 's' : ''}
+            {stores.length} tienda{stores.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.headerRight}>
@@ -885,49 +613,15 @@ const AdminProductsScreen = () => {
         </View>
       </View>
 
-      {/* Search bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Icon
-            name="search"
-            size={18}
-            color={theme.colors.textSecondary}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Buscar productos..."
-            placeholderTextColor={theme.colors.textLight}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery ? (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon
-                name="close-circle"
-                size={18}
-                color={theme.colors.textSecondary}
-              />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Product list */}
+      {/* Store list */}
       <FlatList
-        data={products}
+        data={stores}
         keyExtractor={item => String(item.id)}
-        renderItem={renderProductCard}
+        renderItem={renderStoreCard}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
         contentContainerStyle={
-          products.length === 0 ? styles.emptyList : styles.listContent
+          stores.length === 0 ? styles.emptyList : styles.listContent
         }
         refreshControl={
           <RefreshControl
@@ -971,7 +665,7 @@ const AdminProductsScreen = () => {
   );
 };
 
-// ─── Simple URL validator (inline to avoid import issues) ─────────────────────
+// ─── Simple URL validator ─────────────────────────────────────────────────────
 function isValidUrl(string) {
   if (!string || typeof string !== 'string') return false;
   const pattern = /^https?:\/\/([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/.*)?$/;
@@ -997,11 +691,6 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     width: 40,
-    justifyContent: 'center',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
     justifyContent: 'center',
   },
   headerCenter: {
@@ -1035,32 +724,6 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
-  },
-
-  // Search
-  searchContainer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.borderRadius.full,
-    paddingHorizontal: theme.spacing.md,
-    height: 42,
-  },
-  searchIcon: {
-    marginRight: theme.spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    height: 42,
-    padding: 0,
-    ...Platform.select({ios: {paddingVertical: 2}}),
   },
 
   // List
@@ -1119,7 +782,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Product card (list row)
+  // Store card
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1131,21 +794,24 @@ const styles = StyleSheet.create({
     ...theme.shadows.sm,
   },
   cardAvatar: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
     borderRadius: theme.borderRadius.sm,
-    overflow: 'hidden',
     backgroundColor: theme.colors.inputBg,
-  },
-  cardAvatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  cardAvatarPlaceholder: {
-    width: '100%',
-    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cardAvatarInactive: {
+    opacity: 0.5,
+  },
+  cardAvatarText: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.accent,
+  },
+  cardAvatarTextInactive: {
+    color: theme.colors.textLight,
   },
   cardBody: {
     flex: 1,
@@ -1160,28 +826,21 @@ const styles = StyleSheet.create({
   cardSubInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.sm,
     marginTop: 2,
   },
-  cardCategory: {
+  cardOwner: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    flex: 1,
+  },
+  cardProducts: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
   },
-  cardDot: {
+  cardAddress: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textLight,
-  },
-  cardStock: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-  },
-  cardStockDanger: {
-    color: theme.colors.accent,
-    fontWeight: '600',
-  },
-  cardPrice: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '700',
-    color: theme.colors.accent,
     marginTop: 2,
   },
   cardActions: {
@@ -1194,27 +853,22 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xs,
   },
   iconActionBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: theme.spacing.xs,
   },
 
   // FAB
   fab: {
     position: 'absolute',
-    bottom: theme.spacing.xxl,
-    right: theme.spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: theme.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.lg,
-    elevation: 8,
+    ...theme.shadows.md,
+    elevation: 6,
   },
 
   // Modal
@@ -1229,8 +883,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    ...theme.shadows.sm,
   },
   modalTitle: {
     fontSize: theme.fontSize.lg,
@@ -1241,43 +894,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalBodyContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
+    padding: theme.spacing.lg,
     paddingBottom: theme.spacing.xxl,
-  },
-
-  // Image preview
-  imagePreview: {
-    alignSelf: 'center',
-    marginBottom: theme.spacing.lg,
-    position: 'relative',
-  },
-  imagePreviewThumb: {
-    width: 120,
-    height: 120,
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.inputBg,
-  },
-  imagePreviewRemove: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: theme.colors.card,
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.sm,
   },
 
   // Form
   label: {
-    fontSize: theme.fontSize.sm,
+    fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   required: {
     color: theme.colors.accent,
@@ -1286,12 +913,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? theme.spacing.md + 2 : theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    minHeight: 46,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
   },
   inputMultiline: {
     minHeight: 80,
@@ -1299,12 +925,11 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent + '08',
   },
   errorText: {
-    fontSize: theme.fontSize.xs,
+    fontSize: theme.fontSize.sm,
     color: theme.colors.accent,
-    marginTop: 2,
+    marginTop: theme.spacing.xs,
   },
   row: {
     flexDirection: 'row',
@@ -1313,90 +938,15 @@ const styles = StyleSheet.create({
   rowItem: {
     flex: 1,
   },
-
-  // Category picker
-  pickerWrapper: {
-    marginTop: theme.spacing.sm,
-  },
-  pickerTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? theme.spacing.md + 2 : theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    minHeight: 46,
-  },
-  pickerText: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-  },
-  pickerPlaceholder: {
-    color: theme.colors.textLight,
-  },
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: theme.colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
-    backgroundColor: theme.colors.white,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    maxHeight: '60%',
-    ...theme.shadows.lg,
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  pickerTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  pickerList: {
-    paddingHorizontal: theme.spacing.sm,
-  },
-  pickerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-  },
-  pickerOptionSelected: {
-    backgroundColor: theme.colors.accent + '10',
-  },
-  pickerOptionText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-  },
-  pickerOptionTextSelected: {
-    color: theme.colors.accent,
-    fontWeight: '600',
-  },
-
-  // Toggle
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    marginTop: theme.spacing.lg,
   },
   toggleInfo: {
     flex: 1,
@@ -1408,12 +958,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   toggleDescription: {
-    fontSize: theme.fontSize.xs,
+    fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
-
-  // Submit button
   submitButton: {
     backgroundColor: theme.colors.accent,
     borderRadius: theme.borderRadius.md,
@@ -1421,7 +969,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: theme.spacing.xl,
-    minHeight: 50,
     ...theme.shadows.sm,
   },
   submitButtonDisabled: {
@@ -1434,4 +981,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdminProductsScreen;
+export default AdminStoresScreen;

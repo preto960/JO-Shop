@@ -334,6 +334,46 @@ const updateUser = async (userId, userData) => {
   return api.put(`/auth/users/${userId}`, userData);
 };
 
+// ==================== SYSTEM CONFIG ====================
+
+const fetchSystemConfig = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/config');
+};
+
+const updateSystemConfig = async (settings) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put('/config', {settings});
+};
+
+// ==================== STORES CRUD ====================
+
+const fetchAdminStores = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/stores', {params: {limit: 50, ...params}});
+};
+
+const createStore = async (storeData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/stores', storeData);
+};
+
+const updateStore = async (storeId, storeData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/stores/${storeId}`, storeData);
+};
+
+const deleteStore = async (storeId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/stores/${storeId}`);
+};
+
 const apiService = {
   getApiConfig,
   saveApiConfig,
@@ -380,6 +420,14 @@ const apiService = {
   fetchDeliveryUsers,
   fetchAvailableOrders,
   acceptOrder,
+  // System config
+  fetchSystemConfig,
+  updateSystemConfig,
+  // Stores CRUD
+  fetchAdminStores,
+  createStore,
+  updateStore,
+  deleteStore,
 };
 
 export default apiService;

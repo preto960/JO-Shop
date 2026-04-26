@@ -5,6 +5,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import AppNavigator from '@navigation/AppNavigator';
 import {AuthProvider, useAuth} from '@context/AuthContext';
 import {CartProvider} from '@context/CartContext';
+import {ConfigProvider} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
@@ -25,7 +26,8 @@ const SCREEN_ROUTES = {
   AdminOrders:     { parent: 'AdminMainTabs',   screen: 'AdminOrders' },
   AdminProducts:   { parent: 'AdminMainTabs',   screen: 'AdminProducts' },
   AdminCategories: { parent: 'AdminMainTabs',   screen: 'AdminCategories' },
-  AdminUsers:      { parent: 'AdminMainTabs',   screen: 'AdminUsers' },
+  AdminStores:    { parent: 'AdminMainTabs',   screen: 'AdminStores' },
+  AdminUsers:     { parent: 'AdminMainTabs',   screen: 'AdminUsers' },
   AdminRoles:      { parent: 'AdminMainTabs',   screen: 'AdminRoles' },
 };
 
@@ -168,8 +170,9 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <CartProvider>
-          <NavigationContainer
+        <ConfigProvider>
+          <CartProvider>
+            <NavigationContainer
             ref={navigationRef}
             theme={{
               dark: false,
@@ -192,7 +195,8 @@ const App = () => {
               <AppNavigator />
             </View>
           </NavigationContainer>
-        </CartProvider>
+          </CartProvider>
+        </ConfigProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -22,6 +22,7 @@ import AdminCategoriesScreen from '@screens/AdminCategoriesScreen';
 import AdminOrdersScreen from '@screens/AdminOrdersScreen';
 import AdminRolesScreen from '@screens/AdminRolesScreen';
 import AdminUsersScreen from '@screens/AdminUsersScreen';
+import AdminStoresScreen from '@screens/AdminStoresScreen';
 import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
@@ -112,6 +113,16 @@ const AdminTabs = () => {
       component: AdminCategoriesScreen,
       label: 'Categorías',
       icon: 'folder-outline',
+    });
+  }
+
+  // Stores tab: always show for admin (even without specific permission)
+  if (hasRole('admin') || canViewModule('stores')) {
+    tabs.push({
+      name: 'AdminStores',
+      component: AdminStoresScreen,
+      label: 'Tiendas',
+      icon: 'storefront-outline',
     });
   }
 

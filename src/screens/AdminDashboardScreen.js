@@ -164,6 +164,17 @@ const AdminDashboardScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => navigation.navigate('AdminStores')}
+            style={styles.actionCard}
+            activeOpacity={0.8}>
+            <View style={[styles.actionIcon, {backgroundColor: '#FFF3E0'}]}>
+              <Icon name="storefront-outline" size={24} color="#E67E22" />
+            </View>
+            <Text style={styles.actionTitle}>Tiendas</Text>
+            <Text style={styles.actionSub}>Gestionar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => navigation.navigate('AdminOrders')}
             style={styles.actionCard}
             activeOpacity={0.8}>
