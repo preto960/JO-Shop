@@ -756,7 +756,15 @@ const CartScreen = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mi Carrito</Text>
+          <View style={styles.headerLeft} />
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Mi Carrito</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
         <EmptyState
           icon="cart-outline"
@@ -778,8 +786,8 @@ const CartScreen = () => {
           <Text style={styles.headerTitle}>Mi Carrito</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={clearCart} activeOpacity={0.7}>
-            <Text style={styles.clearText}>Vaciar</Text>
+          <TouchableOpacity onPress={clearCart} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Icon name="trash-outline" size={22} color={theme.colors.accent} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
             <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
@@ -856,10 +864,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
   },
-  clearText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.accent,
-    fontWeight: '500',
+  headerLeft: {
+    width: 68,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerRight: {
+    width: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
   },
   list: {
     paddingHorizontal: theme.spacing.md,
