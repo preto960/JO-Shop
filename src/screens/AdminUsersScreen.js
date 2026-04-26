@@ -66,7 +66,7 @@ const AdminUsersScreen = () => {
     phone: '',
     birthdate: '',
     active: true,
-    selectedStoreId: null,
+    selectedStoreIds: [],
   });
   const [submitting, setSubmitting] = useState(false);
   const [editStores, setEditStores] = useState([]);
@@ -91,7 +91,7 @@ const AdminUsersScreen = () => {
     password: '',
     phone: '',
     selectedRoleIds: [],
-    selectedStoreId: null,
+    selectedStoreIds: [],
   });
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createStores, setCreateStores] = useState([]);
@@ -209,7 +209,7 @@ const AdminUsersScreen = () => {
           ? String(userData.birthdate).substring(0, 10)
           : '',
         active: userData.active !== false,
-        selectedStoreId: userData.storeId || userData.store?.id || null,
+        selectedStoreIds: (userData.stores || []).map(s => s.id),
       });
       // Asegurar que selectedUser sigue seteado antes de abrir el edit
       setSelectedUser(userData);
@@ -284,8 +284,8 @@ const AdminUsersScreen = () => {
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
-        ...(editForm.selectedStoreId !== undefined
-          ? {storeId: editForm.selectedStoreId}
+        ...(editForm.selectedStoreIds !== undefined
+          ? {storeIds: editForm.selectedStoreIds}
           : {}),
       });
 
@@ -295,12 +295,9 @@ const AdminUsersScreen = () => {
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
-        storeId: editForm.selectedStoreId ?? selectedUser.storeId ?? null,
-        store: editForm.selectedStoreId
-          ? editStores.find(s => s.id === editForm.selectedStoreId) || selectedUser.store
-          : editForm.selectedStoreId === null
-            ? null
-            : selectedUser.store,
+        stores: editForm.selectedStoreIds
+          ? editStores.filter(s => editForm.selectedStoreIds.includes(s.id))
+          : selectedUser.stores || [],
       };
       setSelectedUser(updatedUser);
       setUsers(prev =>
@@ -1149,123 +1146,43 @@ const AdminUsersScreen = () => {
                   <View style={styles.editDivider} />
                   <View style={styles.editSection}>
                     <Text style={styles.editSectionTitle}>
-                      Tienda asignada
+                      Tiendas asignadas
                     </Text>
                     <Text style={styles.editSectionDescription}>
-                      Selecciona la tienda a la que pertenece el usuario
+                      Selecciona las tiendas a las que pertenece el usuario
                     </Text>
-                    <View style={styles.createStoreDropdown}>
-                      <TouchableOpacity
-                        style={styles.createStoreDropdownTrigger}
-                        onPress={() => {}}
-                        disabled
-                        activeOpacity={0.7}>
-                        <Icon
-                          name="storefront-outline"
-                          size={18}
-                          color={theme.colors.textSecondary}
-                          style={{marginRight: theme.spacing.sm}}
-                        />
-                        {editForm.selectedStoreId ? (
-                          <Text
-                            style={styles.createStoreDropdownText}
-                            numberOfLines={1}>
-                            {editStores.find(
-                              s => s.id === editForm.selectedStoreId,
-                            )?.name || 'Seleccionar tienda'}
-                          </Text>
-                        ) : (
-                          <Text
-                            style={
-                              styles.createStoreDropdownPlaceholder
-                            }>
-                            Seleccionar tienda
-                          </Text>
-                        )}
-                        <Icon
-                          name="chevron-down"
-                          size={18}
-                          color={theme.colors.textSecondary}
-                          style={{marginLeft: 'auto'}}
-                        />
-                      </TouchableOpacity>
-                      {/* Store options */}
-                      <View style={styles.createStoreOptionsWrap}>
-                        <TouchableOpacity
-                          style={[
-                            styles.createStoreOption,
-                            editForm.selectedStoreId === null &&
-                              styles.createStoreOptionSelected,
-                          ]}
-                          onPress={() =>
-                            updateEditField('selectedStoreId', null)
-                          }
-                          activeOpacity={0.7}>
-                          <Icon
-                            name={
-                              editForm.selectedStoreId === null
-                                ? 'radio-button-on'
-                                : 'radio-button-off'
-                            }
-                            size={20}
-                            color={
-                              editForm.selectedStoreId === null
-                                ? theme.colors.accent
-                                : theme.colors.textSecondary
-                            }
-                          />
-                          <Text
+                    <View style={styles.createRoleCheckWrap}>
+                      {editStores.map(store => {
+                        const isSelected = editForm.selectedStoreIds.includes(store.id);
+                        return (
+                          <TouchableOpacity
+                            key={store.id}
                             style={[
-                              styles.createStoreOptionText,
-                              editForm.selectedStoreId === null &&
-                                styles.createStoreOptionTextSelected,
-                            ]}>
-                            Sin tienda
-                          </Text>
-                        </TouchableOpacity>
-                        {editStores.map(store => {
-                          const isSelected =
-                            editForm.selectedStoreId === store.id;
-                          return (
-                            <TouchableOpacity
-                              key={store.id}
+                              styles.createRoleCheck,
+                              isSelected && styles.createRoleCheckSelected,
+                            ]}
+                            onPress={() => {
+                              const newIds = isSelected
+                                ? editForm.selectedStoreIds.filter(id => id !== store.id)
+                                : [...editForm.selectedStoreIds, store.id];
+                              updateEditField('selectedStoreIds', newIds);
+                            }}
+                            activeOpacity={0.7}>
+                            <Icon
+                              name={isSelected ? 'checkbox' : 'square-outline'}
+                              size={20}
+                              color={isSelected ? theme.colors.white : theme.colors.textSecondary}
+                            />
+                            <Text
                               style={[
-                                styles.createStoreOption,
-                                isSelected &&
-                                  styles.createStoreOptionSelected,
-                              ]}
-                              onPress={() =>
-                                updateEditField(
-                                  'selectedStoreId',
-                                  isSelected ? null : store.id,
-                                )
-                              }
-                              activeOpacity={0.7}>
-                              <Icon
-                                name={
-                                  isSelected
-                                    ? 'radio-button-on'
-                                    : 'radio-button-off'
-                                }
-                                size={20}
-                                color={
-                                  isSelected
-                                    ? theme.colors.accent
-                                    : theme.colors.textSecondary
-                                }
-                              />
-                              <Text
-                                style={[
-                                  styles.createStoreOptionText,
-                                  isSelected &&
-                                    styles.createStoreOptionTextSelected,
-                                ]}>
-                                {store.name}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
+                                styles.createRoleCheckText,
+                                isSelected && styles.createRoleCheckTextSelected,
+                              ]}>
+                              {store.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
                 </>
@@ -1521,7 +1438,7 @@ const AdminUsersScreen = () => {
       password: '',
       phone: '',
       selectedRoleIds: [],
-      selectedStoreId: null,
+      selectedStoreIds: [],
     });
     setCreateLoading(true);
     setCreateVisible(true);
@@ -1609,8 +1526,8 @@ const AdminUsersScreen = () => {
             : undefined,
       };
 
-      if (createForm.selectedStoreId) {
-        payload.storeId = createForm.selectedStoreId;
+      if (createForm.selectedStoreIds && createForm.selectedStoreIds.length > 0) {
+        payload.storeIds = createForm.selectedStoreIds;
       }
 
       await apiService.createUser(payload);
@@ -1787,94 +1704,46 @@ const AdminUsersScreen = () => {
                 )}
 
                 {/* Store selection (multi-store) */}
-                {isMultiStore && (
+                {isMultiStore && createStores.length > 0 && (
                   <View style={styles.createSection}>
                     <Text style={styles.editSectionTitle}>
-                      Tienda
+                      Tiendas
                     </Text>
                     <Text style={styles.editSectionDescription}>
-                      Asigna una tienda al usuario
+                      Selecciona las tiendas asignadas al usuario
                     </Text>
-                    <View style={styles.createStoreDropdown}>
-                      <TouchableOpacity
-                        style={styles.createStoreDropdownTrigger}
-                        onPress={() => {}}
-                        disabled
-                        activeOpacity={0.7}>
-                        <Icon
-                          name="storefront-outline"
-                          size={18}
-                          color={theme.colors.textSecondary}
-                          style={{marginRight: theme.spacing.sm}}
-                        />
-                        {createForm.selectedStoreId ? (
-                          <Text
-                            style={styles.createStoreDropdownText}
-                            numberOfLines={1}>
-                            {createStores.find(
-                              s => s.id === createForm.selectedStoreId,
-                            )?.name || 'Seleccionar tienda'}
-                          </Text>
-                        ) : (
-                          <Text
-                            style={
-                              styles.createStoreDropdownPlaceholder
-                            }>
-                            Seleccionar tienda
-                          </Text>
-                        )}
-                        <Icon
-                          name="chevron-down"
-                          size={18}
-                          color={theme.colors.textSecondary}
-                          style={{marginLeft: 'auto'}}
-                        />
-                      </TouchableOpacity>
-                      {/* Store options */}
-                      <View style={styles.createStoreOptionsWrap}>
-                        {createStores.map(store => {
-                          const isSelected =
-                            createForm.selectedStoreId === store.id;
-                          return (
-                            <TouchableOpacity
-                              key={store.id}
+                    <View style={styles.createRoleCheckWrap}>
+                      {createStores.map(store => {
+                        const isSelected = createForm.selectedStoreIds.includes(store.id);
+                        return (
+                          <TouchableOpacity
+                            key={store.id}
+                            style={[
+                              styles.createRoleCheck,
+                              isSelected && styles.createRoleCheckSelected,
+                            ]}
+                            onPress={() => {
+                              const newIds = isSelected
+                                ? createForm.selectedStoreIds.filter(id => id !== store.id)
+                                : [...createForm.selectedStoreIds, store.id];
+                              updateCreateField('selectedStoreIds', newIds);
+                            }}
+                            activeOpacity={0.7}>
+                            <Icon
+                              name={isSelected ? 'checkbox' : 'square-outline'}
+                              size={20}
+                              color={isSelected ? theme.colors.white : theme.colors.textSecondary}
+                            />
+                            <Text
                               style={[
-                                styles.createStoreOption,
-                                isSelected &&
-                                  styles.createStoreOptionSelected,
-                              ]}
-                              onPress={() =>
-                                updateCreateField(
-                                  'selectedStoreId',
-                                  isSelected ? null : store.id,
-                                )
-                              }
-                              activeOpacity={0.7}>
-                              <Icon
-                                name={
-                                  isSelected
-                                    ? 'radio-button-on'
-                                    : 'radio-button-off'
-                                }
-                                size={20}
-                                color={
-                                  isSelected
-                                    ? theme.colors.accent
-                                    : theme.colors.textSecondary
-                                }
-                              />
-                              <Text
-                                style={[
-                                  styles.createStoreOptionText,
-                                  isSelected &&
-                                    styles.createStoreOptionTextSelected,
-                                ]}>
-                                {store.name}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
+                                styles.createRoleCheckText,
+                                isSelected && styles.createRoleCheckTextSelected,
+                              ]}>
+                              {store.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
                 )}
