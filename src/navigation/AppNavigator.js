@@ -117,8 +117,9 @@ const AdminTabs = () => {
     });
   }
 
-  // Stores tab: always show for admin (even without specific permission)
-  if (hasRole('admin') || canViewModule('stores')) {
+  // Stores tab: only show in multi-store mode for admin or users with stores permission
+  const {isMultiStore} = useConfig();
+  if (isMultiStore && (hasRole('admin') || canViewModule('stores'))) {
     tabs.push({
       name: 'AdminStores',
       component: AdminStoresScreen,
@@ -152,17 +153,6 @@ const AdminTabs = () => {
       component: AdminUsersScreen,
       label: 'Usuarios',
       icon: 'people-outline',
-    });
-  }
-
-  // Stores tab only for admin in multi-store mode
-  const {isMultiStore} = useConfig();
-  if (hasRole('admin') && isMultiStore) {
-    tabs.push({
-      name: 'AdminStores',
-      component: AdminStoresScreen,
-      label: 'Tiendas',
-      icon: 'storefront-outline',
     });
   }
 
