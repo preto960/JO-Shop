@@ -5,9 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Switch,
   Linking,
   ScrollView,
+<<<<<<< HEAD
   Switch,
+=======
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
   ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -15,7 +19,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuth} from '@context/AuthContext';
+<<<<<<< HEAD
 import {useSystemConfig} from '@context/SystemConfigContext';
+=======
+import {useConfig} from '@context/ConfigContext';
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
@@ -25,7 +33,11 @@ import theme from '@theme/styles';
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const {isAdmin} = useAuth();
+<<<<<<< HEAD
   const {config, isMultiStore, updateConfig} = useSystemConfig();
+=======
+  const {config, isMultiStore, updateConfig} = useConfig();
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
   const [baseUrl, setBaseUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -33,6 +45,15 @@ const SettingsScreen = () => {
   const [configSaving, setConfigSaving] = useState(false);
   const envUrl = ENV.API_URL || '';
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
+
+  // State for the multi-store toggle (local optimistic)
+  const [multiStoreSwitch, setMultiStoreSwitch] = useState(isMultiStore);
+  const [switchLoading, setSwitchLoading] = useState(false);
+
+  // Keep local switch in sync with config context
+  useEffect(() => {
+    setMultiStoreSwitch(isMultiStore);
+  }, [isMultiStore]);
 
   // Cargar configuración guardada (puede ser override del env)
   useEffect(() => {
@@ -99,6 +120,7 @@ const SettingsScreen = () => {
     });
   };
 
+<<<<<<< HEAD
   const handleToggleMultiStore = (value) => {
     const newValue = value ? 'true' : 'false';
     const label = value ? 'multi-tienda' : 'tienda única';
@@ -121,6 +143,30 @@ const SettingsScreen = () => {
         }
       },
     });
+=======
+  // ─── Multi-Store Toggle (sin modal, Switch directo) ──────────────────────
+  const handleMultiStoreToggle = async (newValue) => {
+    // Optimistic update
+    setMultiStoreSwitch(newValue);
+    setSwitchLoading(true);
+
+    try {
+      await updateConfig({multi_store: String(newValue)});
+    } catch (err) {
+      // Revert on error
+      setMultiStoreSwitch(!newValue);
+      setModal({
+        visible: true,
+        type: 'alert',
+        title: 'Error',
+        message: 'No se pudo actualizar la configuración. Verifica tu conexión.',
+        confirmText: 'Aceptar',
+        onConfirm: null,
+      });
+    } finally {
+      setSwitchLoading(false);
+    }
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
   };
 
   const openPrivacyPolicy = () => {
@@ -260,6 +306,7 @@ const SettingsScreen = () => {
         </View>
         )}
 
+<<<<<<< HEAD
         {/* Configuración del sistema — SOLO ADMIN */}
         {isAdmin && (
         <View style={styles.section}>
@@ -290,6 +337,52 @@ const SettingsScreen = () => {
                 disabled={configSaving}
               />
             </View>
+=======
+        {/* ─── Configuración de Multi-Store (solo admin) ─────────────────── */}
+        {isAdmin && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Modo de Tienda</Text>
+          <View style={styles.card}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <View style={styles.toggleIconRow}>
+                  <Icon name="storefront-outline" size={22} color={theme.colors.accent} />
+                  <Text style={styles.toggleLabel}>Multi-Tienda</Text>
+                </View>
+                <Text style={styles.toggleDescription}>
+                  {multiStoreSwitch
+                    ? 'Los clientes y delivery verán filtro de tienda. Los productos se asignan a tiendas específicas.'
+                    : 'Modo tienda única. No se muestra filtro de tienda ni asignación de productos por tienda.'}
+                </Text>
+              </View>
+              <View style={styles.switchWrapper}>
+                {switchLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.accent} />
+                ) : (
+                  <Switch
+                    value={multiStoreSwitch}
+                    onValueChange={handleMultiStoreToggle}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.accent,
+                    }}
+                    thumbColor={theme.colors.white}
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.modeIndicator}>
+              <View style={[styles.modeDot, multiStoreSwitch ? styles.modeDotMulti : styles.modeDotSingle]} />
+              <Text style={styles.modeText}>
+                {multiStoreSwitch ? 'Modo Multi-Tienda activado' : 'Modo Tienda Única activado'}
+              </Text>
+            </View>
+
+            <Text style={styles.configHint}>
+              Los usuarios conectados detectarán el cambio automáticamente en los próximos segundos.
+            </Text>
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
           </View>
         </View>
         )}
@@ -516,6 +609,71 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: theme.colors.accent,
   },
+  // ─── Toggle styles ──────────────────────────────────────────────────────────
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
+  toggleIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  toggleLabel: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  toggleDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+  },
+  switchWrapper: {
+    width: 52,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.sm,
+  },
+  modeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  modeDotSingle: {
+    backgroundColor: '#3498DB',
+  },
+  modeDotMulti: {
+    backgroundColor: theme.colors.accent,
+  },
+  modeText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  configHint: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginTop: theme.spacing.sm,
+    lineHeight: 16,
+  },
+  // ─── About styles ───────────────────────────────────────────────────────────
   aboutRow: {
     flexDirection: 'row',
     alignItems: 'center',

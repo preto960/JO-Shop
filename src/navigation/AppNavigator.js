@@ -117,6 +117,16 @@ const AdminTabs = () => {
     });
   }
 
+  // Stores tab: always show for admin (even without specific permission)
+  if (hasRole('admin') || canViewModule('stores')) {
+    tabs.push({
+      name: 'AdminStores',
+      component: AdminStoresScreen,
+      label: 'Tiendas',
+      icon: 'storefront-outline',
+    });
+  }
+
   if (canViewModule('orders')) {
     tabs.push({
       name: 'AdminOrders',

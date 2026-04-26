@@ -334,14 +334,38 @@ const updateUser = async (userId, userData) => {
   return api.put(`/auth/users/${userId}`, userData);
 };
 
+<<<<<<< HEAD
 const createUser = async (userData) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
   return api.post('/auth/users', userData);
+=======
+// ==================== SYSTEM CONFIG ====================
+
+const fetchSystemConfig = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/config');
+};
+
+const updateSystemConfig = async (settings) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put('/config', {settings});
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
 };
 
 // ==================== STORES CRUD ====================
 
+<<<<<<< HEAD
+=======
+const fetchAdminStores = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/stores', {params: {limit: 50, ...params}});
+};
+
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
 const createStore = async (storeData) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
@@ -360,6 +384,7 @@ const deleteStore = async (storeId) => {
   return api.delete(`/stores/${storeId}`);
 };
 
+<<<<<<< HEAD
 const fetchStoresAdmin = async (params = {}) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
@@ -380,6 +405,8 @@ const updateConfig = async (settings) => {
   return api.put('/config', {settings});
 };
 
+=======
+>>>>>>> 4130fa3e5706e1bc810c77d0dadf4cd1bb8ff014
 const apiService = {
   getApiConfig,
   saveApiConfig,
@@ -435,6 +462,14 @@ const apiService = {
   fetchDeliveryUsers,
   fetchAvailableOrders,
   acceptOrder,
+  // System config
+  fetchSystemConfig,
+  updateSystemConfig,
+  // Stores CRUD
+  fetchAdminStores,
+  createStore,
+  updateStore,
+  deleteStore,
 };
 
 export default apiService;
