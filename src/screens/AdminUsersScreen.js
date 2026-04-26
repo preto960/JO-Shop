@@ -66,6 +66,7 @@ const AdminUsersScreen = () => {
     phone: '',
     birthdate: '',
     active: true,
+    selectedRoleIds: [],
     selectedStoreIds: [],
   });
   const [submitting, setSubmitting] = useState(false);
@@ -209,6 +210,7 @@ const AdminUsersScreen = () => {
           ? String(userData.birthdate).substring(0, 10)
           : '',
         active: userData.active !== false,
+        selectedRoleIds: (userData.roles || []).map(r => r.id),
         selectedStoreIds: (userData.stores || []).map(s => s.id),
       });
       // Asegurar que selectedUser sigue seteado antes de abrir el edit
@@ -269,6 +271,14 @@ const AdminUsersScreen = () => {
     setEditForm(prev => ({...prev, [field]: value}));
   }, []);
 
+  const toggleEditRole = useCallback(roleId => {
+    setEditForm(prev => ({
+      ...prev,
+      selectedRoleIds: prev.selectedRoleIds.includes(roleId) ? [] : [roleId],
+      selectedStoreIds: [],
+    }));
+  }, []);
+
   // ─── Save User (phone, birthdate, active) ───────────────────────────────
 
   const handleSaveUser = useCallback(async () => {
@@ -279,22 +289,46 @@ const AdminUsersScreen = () => {
       const api = await apiService.createApiClient();
       if (!api) throw new Error('No hay URL del servidor configurada');
 
-      await api.put(`/auth/users/${selectedUser.id}`, {
+      const payload = {
         name: editForm.name || undefined,
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
-        ...(editForm.selectedStoreIds !== undefined
-          ? {storeIds: editForm.selectedStoreIds}
-          : {}),
-      });
+      };
+
+      // Include storeIds if applicable
+      if (editForm.selectedStoreIds !== undefined) {
+        payload.storeIds = editForm.selectedStoreIds;
+      }
+
+      // Include roleIds if changed
+      if (editForm.selectedRoleIds.length > 0) {
+        payload.roleIds = editForm.selectedRoleIds;
+      }
+
+      await api.put(`/auth/users/${selectedUser.id}`, payload);
+
+      // Update roles via API if changed
+      const originalRoleIds = (selectedUser.roles || []).map(r => r.id);
+      const newRoleIds = editForm.selectedRoleIds;
+      const rolesChanged =
+        JSON.stringify([...originalRoleIds].sort()) !==
+        JSON.stringify([...newRoleIds].sort());
+
+      if (rolesChanged) {
+        await apiService.updateUserRoles(selectedUser.id, newRoleIds);
+      }
 
       // Update local state
+      const updatedRoles = editForm.selectedRoleIds
+        .map(id => availableRoles.find(r => r.id === id) || {id, name: id})
+        .filter(Boolean);
       const updatedUser = {
         ...selectedUser,
         phone: editForm.phone || null,
         birthdate: editForm.birthdate || null,
         active: editForm.active,
+        roles: updatedRoles,
         stores: editForm.selectedStoreIds
           ? editStores.filter(s => editForm.selectedStoreIds.includes(s.id))
           : selectedUser.stores || [],
@@ -317,7 +351,7 @@ const AdminUsersScreen = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [selectedUser, editForm, editStores, currentUser, fetchProfile]);
+  }, [selectedUser, editForm, editStores, availableRoles, currentUser, fetchProfile]);
 
   // ─── Deactivate Confirmation ────────────────────────────────────────────
 
@@ -1011,9 +1045,6 @@ const AdminUsersScreen = () => {
     if (!selectedUser) return null;
 
     const isActive = editForm.active;
-    const userRoleIds = new Set(
-      (selectedUser.roles || []).map(r => r.id),
-    );
     const userPermIds = new Set(
       (selectedUser.permissions || []).map(
         p => p.id || p.permissionId,
@@ -1140,152 +1171,105 @@ const AdminUsersScreen = () => {
                 Formato: año-mes-día (ej. 1990-05-15)
               </Text>
 
-              {/* Store assignment (only for delivery/editor roles in multi-store mode) */}
-              {(() => {
-                const userRoles = selectedUser.roles || [];
-                const hasStoreRole = userRoles.some(r => r.name === 'delivery' || r.name === 'editor');
-                return hasStoreRole && isMultiStore && editStores.length > 0 ? (
-                <>
-                  <View style={styles.editDivider} />
-                  <View style={styles.editSection}>
-                    <Text style={styles.editSectionTitle}>
-                      Tiendas asignadas
-                    </Text>
-                    <Text style={styles.editSectionDescription}>
-                      Selecciona las tiendas a las que pertenece el usuario
-                    </Text>
-                    <View style={styles.createRoleCheckWrap}>
-                      {editStores.map(store => {
-                        const isSelected = editForm.selectedStoreIds.includes(store.id);
-                        return (
-                          <TouchableOpacity
-                            key={store.id}
-                            style={[
-                              styles.createRoleCheck,
-                              isSelected && styles.createRoleCheckSelected,
-                            ]}
-                            onPress={() => {
-                              const newIds = isSelected
-                                ? editForm.selectedStoreIds.filter(id => id !== store.id)
-                                : [...editForm.selectedStoreIds, store.id];
-                              updateEditField('selectedStoreIds', newIds);
-                            }}
-                            activeOpacity={0.7}>
-                            <Icon
-                              name={isSelected ? 'checkbox' : 'square-outline'}
-                              size={20}
-                              color={isSelected ? theme.colors.white : theme.colors.textSecondary}
-                            />
-                            <Text
-                              style={[
-                                styles.createRoleCheckText,
-                                isSelected && styles.createRoleCheckTextSelected,
-                              ]}>
-                              {store.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                </>
-              ) : null;
-              })()}
-
-              {/* Divider */}
-              <View style={styles.editDivider} />
-
-              {/* Roles section */}
-              <View style={styles.editSection}>
-                <Text style={styles.editSectionTitle}>Roles</Text>
-                <Text style={styles.editSectionDescription}>
-                  Administrar los roles asignados al usuario
-                </Text>
-
-                {/* Current roles as removable badges */}
-                {selectedUser.roles && selectedUser.roles.length > 0 ? (
-                  <View style={styles.editCurrentRoles}>
-                    <Text style={styles.editSubLabel}>Roles actuales</Text>
-                    <View style={styles.editRoleBadgesWrap}>
-                      {selectedUser.roles.map(role => (
-                        <View
+              {/* Roles selection with radio buttons (single select) */}
+              {availableRoles.length > 0 && (
+                <View style={styles.createSection}>
+                  <Text style={styles.editSectionTitle}>
+                    Rol
+                  </Text>
+                  <Text style={styles.editSectionDescription}>
+                    Selecciona un rol
+                  </Text>
+                  <View style={styles.createRoleCheckWrap}>
+                    {availableRoles.map(role => {
+                      const isSelected = editForm.selectedRoleIds.includes(
+                        role.id,
+                      );
+                      return (
+                        <TouchableOpacity
                           key={role.id}
                           style={[
-                            styles.editRoleBadge,
-                            role.name === 'admin' &&
-                              styles.editRoleBadgeAdmin,
-                          ]}>
+                            styles.createRoleCheck,
+                            isSelected && styles.createRoleCheckSelected,
+                          ]}
+                          onPress={() => toggleEditRole(role.id)}
+                          activeOpacity={0.7}>
+                          <Icon
+                            name={
+                              isSelected
+                                ? 'radio-button-on'
+                                : 'radio-button-off'
+                            }
+                            size={20}
+                            color={
+                              isSelected
+                                ? theme.colors.white
+                                : theme.colors.textSecondary
+                            }
+                          />
                           <Text
                             style={[
-                              styles.editRoleBadgeText,
-                              role.name === 'admin' &&
-                                styles.editRoleBadgeTextAdmin,
+                              styles.createRoleCheckText,
+                              isSelected &&
+                                styles.createRoleCheckTextSelected,
                             ]}>
                             {role.name}
                           </Text>
-                          <TouchableOpacity
-                            onPress={() =>
-                              handleRemoveRole(selectedUser.id, role.id)
-                            }
-                            disabled={rolesSaving}
-                            hitSlop={{
-                              top: 4,
-                              bottom: 4,
-                              left: 2,
-                              right: 2,
-                            }}>
-                            <Icon
-                              name="close-circle"
-                              size={16}
-                              color={
-                                role.name === 'admin'
-                                  ? 'rgba(255,255,255,0.7)'
-                                  : theme.colors.textLight
-                              }
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                ) : (
-                  <Text style={styles.editEmptyRoles}>
-                    Sin roles asignados
-                  </Text>
-                )}
+                </View>
+              )}
 
-                {/* Available roles to add */}
-                {availableRoles.length > 0 && (
-                  <View style={styles.editAvailableRoles}>
-                    <Text style={styles.editSubLabel}>
-                      Roles disponibles
-                    </Text>
-                    <View style={styles.editRoleBadgesWrap}>
-                      {availableRoles
-                        .filter(r => !userRoleIds.has(r.id))
-                        .map(role => (
-                          <TouchableOpacity
-                            key={role.id}
-                            style={styles.editRoleAddBadge}
-                            onPress={() =>
-                              handleAddRole(selectedUser.id, role.id)
-                            }
-                            disabled={rolesSaving}
-                            activeOpacity={0.7}>
-                            <Icon
-                              name="add-circle-outline"
-                              size={14}
-                              color={theme.colors.accent}
-                            />
-                            <Text style={styles.editRoleAddBadgeText}>
-                              {role.name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                    </View>
+              {/* Store assignment (only for delivery/editor roles in multi-store mode) */}
+              {(() => {
+                const selectedRole = availableRoles.find(r => editForm.selectedRoleIds.includes(r.id));
+                const showStores = selectedRole && (selectedRole.name === 'delivery' || selectedRole.name === 'editor');
+                return showStores && isMultiStore && editStores.length > 0 ? (
+                <View style={styles.createSection}>
+                  <Text style={styles.editSectionTitle}>
+                    Tiendas
+                  </Text>
+                  <Text style={styles.editSectionDescription}>
+                    Selecciona las tiendas asignadas al usuario
+                  </Text>
+                  <View style={styles.createRoleCheckWrap}>
+                    {editStores.map(store => {
+                      const isSelected = editForm.selectedStoreIds.includes(store.id);
+                      return (
+                        <TouchableOpacity
+                          key={store.id}
+                          style={[
+                            styles.createRoleCheck,
+                            isSelected && styles.createRoleCheckSelected,
+                          ]}
+                          onPress={() => {
+                            const newIds = isSelected
+                              ? editForm.selectedStoreIds.filter(id => id !== store.id)
+                              : [...editForm.selectedStoreIds, store.id];
+                            updateEditField('selectedStoreIds', newIds);
+                          }}
+                          activeOpacity={0.7}>
+                          <Icon
+                            name={isSelected ? 'checkbox' : 'square-outline'}
+                            size={20}
+                            color={isSelected ? theme.colors.white : theme.colors.textSecondary}
+                          />
+                          <Text
+                            style={[
+                              styles.createRoleCheckText,
+                              isSelected && styles.createRoleCheckTextSelected,
+                            ]}>
+                            {store.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                )}
-              </View>
+                </View>
+              ) : null;
+              })()}
 
               {/* Divider */}
               <View style={styles.editDivider} />
@@ -1426,9 +1410,8 @@ const AdminUsersScreen = () => {
     getGroupedPermissions,
     closeEdit,
     updateEditField,
+    toggleEditRole,
     handleToggleActive,
-    handleRemoveRole,
-    handleAddRole,
     handleTogglePermission,
     handleSaveUser,
   ]);
