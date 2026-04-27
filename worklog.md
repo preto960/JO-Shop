@@ -63,6 +63,74 @@ Creación completa de un frontend Next.js 16 para la aplicación de e-commerce J
 
 ## Total: 28 archivos creados
 
+---
+
+## Refactor: Eliminación de URLs basadas en roles — Landing pública
+
+### Fecha: 2025-07
+
+### Motivación
+Eliminar `/admin/` y `/delivery/` de las URLs. Todas las vistas comparten URLs limpias.
+El sistema de roles/permisos controla el acceso, no la estructura de URLs.
+La landing page (`/`) es PÚBLICA — no requiere login para navegar productos.
+
+### Cambios realizados
+
+#### Estructura de rutas nueva
+| Ruta Anterior | Ruta Nueva | Notas |
+|---|---|---|
+| `/` (redirector) | `/` | Landing page PÚBLICA |
+| `/home` | `/` (redirect) | Redirige a `/` |
+| `/admin` | `/dashboard` | `(management)/dashboard/` |
+| `/admin/products` | `/manage-products` | `(management)/manage-products/` |
+| `/admin/categories` | `/manage-categories` | `(management)/manage-categories/` |
+| `/admin/orders` | `/manage-orders` | `(management)/manage-orders/` |
+| `/admin/roles` | `/manage-roles` | `(management)/manage-roles/` |
+| `/admin/users` | `/manage-users` | `(management)/manage-users/` |
+| `/admin/stores` | `/manage-stores` | `(management)/manage-stores/` |
+| `/delivery` | `/deliveries` | `(delivery)/deliveries/` |
+| `/orders` | `/my-orders` | `my-orders/` |
+| `/cart` | `/cart` | PÚBLICA (sin auth) |
+| N/A | `/checkout` | NUEVO - flujo de compra |
+
+#### Archivos creados/modificados
+- `src/app/page.tsx` — Landing page pública con header propio, carrito, login hint
+- `src/app/(management)/layout.tsx` — Layout con guardia admin/editor
+- `src/app/(management)/dashboard/page.tsx` — Dashboard admin
+- `src/app/(management)/manage-products/page.tsx` — CRUD productos
+- `src/app/(management)/manage-categories/page.tsx` — CRUD categorías
+- `src/app/(management)/manage-orders/page.tsx` — Gestión pedidos
+- `src/app/(management)/manage-roles/page.tsx` — CRUD roles
+- `src/app/(management)/manage-users/page.tsx` — CRUD usuarios
+- `src/app/(management)/manage-stores/page.tsx` — CRUD tiendas
+- `src/app/(delivery)/layout.tsx` — Layout con guardia delivery
+- `src/app/(delivery)/deliveries/page.tsx` — Entregas
+- `src/app/checkout/page.tsx` — Nuevo checkout page
+- `src/app/my-orders/page.tsx` — Renombrado desde `/orders`
+- `src/app/home/page.tsx` — Redirect a `/`
+- `src/components/Header.tsx` — Cart icon con badge
+- `src/components/AppHeader.tsx` — Cart icon con badge
+- `src/components/SidebarMenu.tsx` — Rutas actualizadas
+- `src/components/BottomNav.tsx` — Rutas actualizadas
+- `src/app/login/page.tsx` — Redirect con saved path support
+- `src/app/register/page.tsx` — Redirect con saved path support
+- `src/app/cart/page.tsx` — Público, botón checkout/login
+- `src/app/product/[id]/page.tsx` — Back button → `/`
+
+#### Directorios eliminados
+- `src/app/admin/` → movido a `(management)/`
+- `src/app/delivery/` → movido a `(delivery)/`
+- `src/app/orders/` → movido a `my-orders/`
+
+#### Características técnicas del refactor
+- Route groups `(management)` y `(delivery)` no afectan URLs
+- Cart persistido en localStorage funciona entre login/register
+- `joshop_redirect_after_login` guarda ruta para redirigir post-auth
+- Cart icon con badge visible en Header, AppHeader y landing page
+- Checkout flow: carrito → login si necesario → confirmar → my-orders
+- Landing page muestra productos sin auth, hide addToCart si no logueado
+- Build exitoso: 19 rutas, 0 errores
+
 ## Características técnicas
 - Next.js 15 con App Router y TypeScript estricto
 - Tailwind CSS 4 con variables CSS custom
