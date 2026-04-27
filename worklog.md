@@ -140,3 +140,27 @@ La landing page (`/`) es PÚBLICA — no requiere login para navegar productos.
 - Diseño responsive mobile-first
 - Toda la UI en español
 - Deploy-ready para Vercel
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix horizontal scroll item cutoff and manage-products blank page
+
+Work Log:
+- Analyzed landing page horizontal scroll sections (Mas vendidos, Ofertas, Category pills) - all used `scrollbar-hide` class hiding the scrollbar with no alternative navigation
+- Removed `scrollbar-hide` from all three horizontal scroll sections
+- Added visible thin scrollbar via `.scroll-container` CSS class
+- Added left/right scroll arrow buttons (ChevronLeft/ChevronRight) to "Más vendidos" and "Ofertas" sections
+- Added `paddingRight: 16` to scroll containers to prevent last item clipping
+- Added `scroll-snap` for smooth snapping behavior
+- Removed `overflow: hidden` from products grid that was clipping items
+- For manage-products: Added `page=1&limit=100` pagination params to API call
+- Added `tryExtractProducts()` deep fallback function to handle any API response shape
+- Added `fetchError` state and error UI with retry button
+- Added console logging for debugging API response format
+- Build succeeded, pushed to GitHub (dab0e0d)
+
+Stage Summary:
+- Landing page now has visible scrollbar + arrow buttons for horizontal scroll sections
+- manage-products now has better error handling, pagination support, and visible error state
+- All changes deployed to https://jo-frontend-shop.vercel.app
