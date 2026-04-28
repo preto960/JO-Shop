@@ -11,6 +11,8 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Share,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -25,13 +27,13 @@ const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
 
 const ProfileScreen = () => {
-  const {user, isAdmin, hasRole, logout, fetchProfile, send2FACode, verify2FASetup} = useAuth();
+  const {user, isAdmin, hasRole, logout, fetchProfile, send2FACode, verify2FASetup, setupTOTP, enableTOTP, generateBackupCodes} = useAuth();
   const {isMultiStore} = useConfig();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // 2FA state machine: idle → confirming → verifying → idle
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false);
-  const [twoFaStep, setTwoFaStep] = useState('idle'); // 'idle' | 'confirming' | 'verifying'
+  const [twoFaStep, setTwoFaStep] = useState('idle'); // 'idle' | 'confirming' | 'verifying' | 'setup-totp' | 'verify-totp' | 'backup-codes' | 'choose-method'
   const [twoFaAction, setTwoFaAction] = useState(null); // 'enable' | 'disable'
   const [twoFaLoading, setTwoFaLoading] = useState(false);
   const [twoFaError, setTwoFaError] = useState('');
@@ -39,6 +41,15 @@ const ProfileScreen = () => {
   const [twoFaResendCooldown, setTwoFaResendCooldown] = useState(0);
   const twoFaInputRefs = useRef([]);
   const mountedRef = useRef(true);
+
+  // TOTP-specific state
+  const [twoFaMethod, setTwoFaMethod] = useState(null); // 'email' | 'totp'
+  const [totpQrCode, setTotpQrCode] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpBackupCodes, setTotpBackupCodes] = useState([]);
+  const [backupCodesConfirmed, setBackupCodesConfirmed] = useState(false);
+  const [generatingBackupCodes, setGeneratingBackupCodes] = useState(false);
+  const totpInputRefs = useRef([]);
 
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -195,9 +206,14 @@ const ProfileScreen = () => {
   const handle2FaCancel = useCallback(() => {
     setTwoFaStep('idle');
     setTwoFaAction(null);
+    setTwoFaMethod(null);
     setTwoFaError('');
     setTwoFaOtp(['', '', '', '', '', '']);
     setTwoFaResendCooldown(0);
+    setTotpQrCode('');
+    setTotpSecret('');
+    setTotpBackupCodes([]);
+    setBackupCodesConfirmed(false);
   }, []);
 
   const handle2FaOtpChange = useCallback((index, value) => {
@@ -235,6 +251,147 @@ const ProfileScreen = () => {
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  // ─── 2FA: Method selection ────────────────────────────────────────────
+
+  const handle2FaChooseMethod = useCallback(() => {
+    if (twoFactorEnabled) {
+      // Disabling: go straight to confirming (email-based)
+      handle2FaStart('disable');
+    } else {
+      // Enabling: show method selection
+      setTwoFaStep('choose-method');
+      setTwoFaError('');
+    }
+  }, [twoFactorEnabled, handle2FaStart]);
+
+  const handle2FaSelectMethod = useCallback((method) => {
+    setTwoFaMethod(method);
+    if (method === 'email') {
+      handle2FaStart('enable');
+    } else if (method === 'totp') {
+      handle2FaStartTOTP();
+    }
+  }, [handle2FaStart]);
+
+  // ─── 2FA: TOTP Flow ───────────────────────────────────────────────────
+
+  const handle2FaStartTOTP = useCallback(async () => {
+    setTwoFaLoading(true);
+    setTwoFaError('');
+    setTwoFaOtp(['', '', '', '', '', '']);
+    const result = await setupTOTP();
+    if (result.success) {
+      setTotpQrCode(result.qrCode);
+      setTotpSecret(result.secret);
+      setTwoFaStep('setup-totp');
+    } else {
+      setTwoFaError(result.error || 'No se pudo iniciar la configuracion TOTP');
+    }
+    setTwoFaLoading(false);
+  }, [setupTOTP]);
+
+  const handle2FaProceedToVerifyTotp = useCallback(() => {
+    setTwoFaStep('verify-totp');
+    setTwoFaOtp(['', '', '', '', '', '']);
+    setTwoFaError('');
+    setTimeout(() => totpInputRefs.current[0]?.focus(), 300);
+  }, []);
+
+  const handleEnableTotp = useCallback(async () => {
+    const code = twoFaOtp.join('');
+    if (code.length !== OTP_LENGTH) {
+      setTwoFaError('Ingresa los 6 digitos del codigo');
+      return;
+    }
+    setTwoFaLoading(true);
+    setTwoFaError('');
+    const result = await enableTOTP(code);
+    if (result.success) {
+      setTwoFactorEnabled(result.twoFactorEnabled);
+      setTotpBackupCodes(result.backupCodes || []);
+      setBackupCodesConfirmed(false);
+      setTwoFaStep('backup-codes');
+      await fetchProfile();
+    } else {
+      setTwoFaError(result.error || 'Codigo invalido');
+      setTwoFaOtp(['', '', '', '', '', '']);
+      totpInputRefs.current[0]?.focus();
+    }
+    setTwoFaLoading(false);
+  }, [twoFaOtp, enableTOTP, fetchProfile]);
+
+  const handleBackupCodesContinue = useCallback(() => {
+    if (!backupCodesConfirmed) return;
+    setTwoFaStep('idle');
+    setTwoFaMethod(null);
+    setTotpBackupCodes([]);
+    setBackupCodesConfirmed(false);
+    setTotpQrCode('');
+    setTotpSecret('');
+    setTwoFaAction(null);
+    setModal({
+      visible: true, type: 'alert',
+      title: '2FA Activado',
+      message: 'Se ha activado la autenticacion en 2 pasos con tu app authenticator. A partir de ahora se te pedira un codigo al iniciar sesion.',
+      confirmText: 'Aceptar', onConfirm: null,
+    });
+  }, [backupCodesConfirmed]);
+
+  const handleGenerateBackupCodes = useCallback(async () => {
+    setGeneratingBackupCodes(true);
+    setTwoFaError('');
+    const result = await generateBackupCodes();
+    if (result.success) {
+      setTotpBackupCodes(result.backupCodes || []);
+      setBackupCodesConfirmed(false);
+      setTwoFaStep('backup-codes');
+    } else {
+      setTwoFaError(result.error || 'No se pudieron generar los codigos de respaldo');
+    }
+    setGeneratingBackupCodes(false);
+  }, [generateBackupCodes]);
+
+  const handleCopyBackupCodes = useCallback(async () => {
+    const text = totpBackupCodes.join('\n');
+    try {
+      await Share.share({
+        message: `Codigos de respaldo 2FA:\n\n${text}`,
+      });
+    } catch {
+      // User cancelled or error — no action needed
+    }
+  }, [totpBackupCodes]);
+
+  const handleTotpOtpChange = useCallback((index, value) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue.length > 1) {
+      const chars = numericValue.slice(0, OTP_LENGTH).split('');
+      const newOtp = [...twoFaOtp];
+      chars.forEach((char, i) => {
+        if (index + i < OTP_LENGTH) newOtp[index + i] = char;
+      });
+      setTwoFaOtp(newOtp);
+      const nextIndex = Math.min(index + chars.length, OTP_LENGTH - 1);
+      totpInputRefs.current[nextIndex]?.focus();
+      return;
+    }
+    const newOtp = [...twoFaOtp];
+    newOtp[index] = numericValue;
+    setTwoFaOtp(newOtp);
+    if (numericValue && index < OTP_LENGTH - 1) {
+      totpInputRefs.current[index + 1]?.focus();
+    }
+  }, [twoFaOtp]);
+
+  const handleTotpKeyPress = useCallback((index, key) => {
+    if (key === 'Backspace' && !twoFaOtp[index] && index > 0) {
+      const newOtp = [...twoFaOtp];
+      newOtp[index - 1] = '';
+      setTwoFaOtp(newOtp);
+      totpInputRefs.current[index - 1]?.focus();
+    }
+  }, [twoFaOtp]);
 
   // ─── Google Places Search ─────────────────────────────────────────────
 
@@ -662,55 +819,366 @@ const ProfileScreen = () => {
 
             {/* STEP: Idle - Estado actual + boton de accion */}
             {twoFaStep === 'idle' && (
-              <View style={styles.securityCard}>
-                <View style={styles.securityRow}>
-                  <View style={styles.securityInfo}>
-                    <View style={[
-                      styles.securityIconWrap,
-                      twoFactorEnabled && { backgroundColor: theme.colors.success + '15' },
-                    ]}>
+              <>
+                <View style={styles.securityCard}>
+                  <View style={styles.securityRow}>
+                    <View style={styles.securityInfo}>
+                      <View style={[
+                        styles.securityIconWrap,
+                        twoFactorEnabled && { backgroundColor: theme.colors.success + '15' },
+                      ]}>
+                        <Icon
+                          name={twoFactorEnabled ? 'shield-checkmark' : 'shield-outline'}
+                          size={22}
+                          color={twoFactorEnabled ? theme.colors.success : theme.colors.textSecondary}
+                        />
+                      </View>
+                      <View style={styles.securityTextWrap}>
+                        <Text style={styles.securityLabel}>Autenticacion en 2 pasos</Text>
+                        <Text style={styles.securityDescription}>
+                          {twoFactorEnabled
+                            ? `Activada (${user?.twoFactorType === 'totp' ? 'App Authenticator' : 'Correo electronico'})`
+                            : 'Desactivada: tu sesion inicia solo con correo y contrasena'}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={handle2FaChooseMethod}
+                      style={[
+                        styles.twoFaActionBtn,
+                        twoFactorEnabled
+                          ? { backgroundColor: '#FDE8EC', borderColor: '#FF6B6B' }
+                          : { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' },
+                      ]}
+                      activeOpacity={0.7}
+                    >
                       <Icon
-                        name={twoFactorEnabled ? 'shield-checkmark' : 'shield-outline'}
-                        size={22}
-                        color={twoFactorEnabled ? theme.colors.success : theme.colors.textSecondary}
+                        name={twoFactorEnabled ? 'close-circle-outline' : 'checkmark-circle-outline'}
+                        size={18}
+                        color={twoFactorEnabled ? '#FF6B6B' : '#4CAF50'}
                       />
-                    </View>
-                    <View style={styles.securityTextWrap}>
-                      <Text style={styles.securityLabel}>Autenticacion en 2 pasos</Text>
-                      <Text style={styles.securityDescription}>
-                        {twoFactorEnabled
-                          ? 'Activada: se te pedira un codigo al iniciar sesion'
-                          : 'Desactivada: tu sesion inicia solo con correo y contrasena'}
+                      <Text style={[
+                        styles.twoFaActionBtnText,
+                        { color: twoFactorEnabled ? '#FF6B6B' : '#4CAF50' },
+                      ]}>
+                        {twoFactorEnabled ? 'Desactivar' : 'Activar'}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   </View>
+                </View>
+
+                {/* When 2FA is enabled with TOTP, show "Generate new backup codes" */}
+                {twoFactorEnabled && user?.twoFactorType === 'totp' && (
                   <TouchableOpacity
-                    onPress={() => handle2FaStart(twoFactorEnabled ? 'disable' : 'enable')}
-                    style={[
-                      styles.twoFaActionBtn,
-                      twoFactorEnabled
-                        ? { backgroundColor: '#FDE8EC', borderColor: '#FF6B6B' }
-                        : { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' },
-                    ]}
+                    onPress={handleGenerateBackupCodes}
+                    style={[styles.securityCard, styles.backupCodesActionCard]}
+                    disabled={generatingBackupCodes}
                     activeOpacity={0.7}
                   >
-                    <Icon
-                      name={twoFactorEnabled ? 'close-circle-outline' : 'checkmark-circle-outline'}
-                      size={18}
-                      color={twoFactorEnabled ? '#FF6B6B' : '#4CAF50'}
-                    />
-                    <Text style={[
-                      styles.twoFaActionBtnText,
-                      { color: twoFactorEnabled ? '#FF6B6B' : '#4CAF50' },
-                    ]}>
-                      {twoFactorEnabled ? 'Desactivar' : 'Activar'}
-                    </Text>
+                    <View style={styles.securityInfo}>
+                      <View style={styles.securityIconWrap}>
+                        <Icon
+                          name="key-outline"
+                          size={20}
+                          color={theme.colors.textSecondary}
+                        />
+                      </View>
+                      <View style={styles.securityTextWrap}>
+                        <Text style={styles.securityLabel}>Codigos de respaldo</Text>
+                        <Text style={styles.securityDescription}>
+                          Genera nuevos codigos de un solo uso en caso de perder acceso a tu app authenticator.
+                        </Text>
+                      </View>
+                    </View>
+                    {generatingBackupCodes ? (
+                      <ActivityIndicator size="small" color={theme.colors.accent} />
+                    ) : (
+                      <Icon name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+                    )}
                   </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {/* STEP: Choose Method - Seleccionar email o totp */}
+            {twoFaStep === 'choose-method' && (
+              <View style={styles.securityCard}>
+                <View style={styles.twoFaConfirmHeader}>
+                  <Icon name="shield-checkmark-outline" size={40} color={theme.colors.success} />
+                  <Text style={styles.twoFaConfirmTitle}>Activar autenticacion en 2 pasos</Text>
+                  <Text style={styles.twoFaConfirmDesc}>
+                    Elige el metodo para recibir tu codigo de verificacion.
+                  </Text>
                 </View>
+
+                {twoFaError ? (
+                  <View style={styles.errorBox}>
+                    <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                    <Text style={styles.errorText}>{twoFaError}</Text>
+                  </View>
+                ) : null}
+
+                {/* Method: Email */}
+                <TouchableOpacity
+                  onPress={() => handle2FaSelectMethod('email')}
+                  style={styles.methodOption}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.methodOptionIcon, { backgroundColor: '#E3F2FD' }]}>
+                    <Icon name="mail-outline" size={22} color="#1976D2" />
+                  </View>
+                  <View style={styles.methodOptionInfo}>
+                    <Text style={styles.methodOptionLabel}>Por correo electronico</Text>
+                    <Text style={styles.methodOptionDesc}>
+                      Recibiras un codigo de 6 digitos por correo cada vez que inicies sesion.
+                    </Text>
+                  </View>
+                  <Icon name="chevron-forward" size={20} color={theme.colors.textLight} />
+                </TouchableOpacity>
+
+                <View style={styles.methodDivider} />
+
+                {/* Method: TOTP Authenticator App */}
+                <TouchableOpacity
+                  onPress={() => handle2FaSelectMethod('totp')}
+                  style={styles.methodOption}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.methodOptionIcon, { backgroundColor: '#E8F5E9' }]}>
+                    <Icon name="phone-portrait-outline" size={22} color="#4CAF50" />
+                  </View>
+                  <View style={styles.methodOptionInfo}>
+                    <Text style={styles.methodOptionLabel}>Por App Authenticator</Text>
+                    <Text style={styles.methodOptionDesc}>
+                      Usa Google Authenticator, Authy u otra app TOTP para generar codigos offline.
+                    </Text>
+                  </View>
+                  <Icon name="chevron-forward" size={20} color={theme.colors.textLight} />
+                </TouchableOpacity>
+
+                {/* Cancel */}
+                <TouchableOpacity onPress={handle2FaCancel} style={styles.twoFaCancelLink} activeOpacity={0.7}>
+                  <Text style={styles.twoFaCancelLinkText}>Cancelar</Text>
+                </TouchableOpacity>
               </View>
             )}
 
-            {/* STEP: Confirming - Explicacion + enviar codigo */}
+            {/* STEP: Setup TOTP - Show QR code and secret */}
+            {twoFaStep === 'setup-totp' && (
+              <View style={styles.securityCard}>
+                {twoFaLoading ? (
+                  <View style={styles.twoFaVerifyContent}>
+                    <ActivityIndicator size="large" color={theme.colors.accent} />
+                    <Text style={styles.twoFaVerifyDesc} style={{ marginTop: 12 }}>Generando codigo QR...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.twoFaConfirmHeader}>
+                      <Icon name="phone-portrait-outline" size={40} color={theme.colors.success} />
+                      <Text style={styles.twoFaConfirmTitle}>Configura tu App Authenticator</Text>
+                      <Text style={styles.twoFaConfirmDesc}>
+                        Escanea el codigo QR con tu app authenticator (Google Authenticator, Authy, etc.)
+                      </Text>
+                    </View>
+
+                    {twoFaError ? (
+                      <View style={styles.errorBox}>
+                        <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                        <Text style={styles.errorText}>{twoFaError}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* QR Code Image */}
+                    {totpQrCode ? (
+                      <View style={styles.qrCodeContainer}>
+                        <Image
+                          source={{ uri: totpQrCode }}
+                          style={styles.qrCodeImage}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    ) : null}
+
+                    {/* Secret Key (manual entry fallback) */}
+                    {totpSecret ? (
+                      <View style={styles.totpSecretContainer}>
+                        <Text style={styles.totpSecretLabel}>Clave secreta (si no puedes escanear):</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Share.share({ message: totpSecret });
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.totpSecretValueWrap}>
+                            <Text style={styles.totpSecretValue} selectable>
+                              {totpSecret}
+                            </Text>
+                            <Icon name="copy-outline" size={16} color={theme.colors.accent} />
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+
+                    <View style={styles.twoFaBtnRow}>
+                      <TouchableOpacity
+                        onPress={handle2FaCancel}
+                        style={styles.twoFaCancelBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.twoFaCancelBtnText}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handle2FaProceedToVerifyTotp}
+                        style={[styles.twoFaSendBtn, { backgroundColor: theme.colors.success }]}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.twoFaSendBtnText}>Continuar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* STEP: Verify TOTP - Enter 6-digit code from authenticator */}
+            {twoFaStep === 'verify-totp' && (
+              <View style={styles.securityCard}>
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                  style={styles.twoFaVerifyContent}
+                >
+                  <Icon
+                    name="phone-portrait-outline"
+                    size={40}
+                    color={theme.colors.accent}
+                    style={{ marginBottom: 12 }}
+                  />
+                  <Text style={styles.twoFaVerifyTitle}>Verifica tu App Authenticator</Text>
+                  <Text style={styles.twoFaVerifyDesc}>
+                    Ingresa el codigo de 6 digitos que muestra tu app authenticator.
+                  </Text>
+
+                  {twoFaError ? (
+                    <View style={styles.errorBox}>
+                      <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                      <Text style={styles.errorText}>{twoFaError}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* OTP Inputs */}
+                  <View style={styles.twoFaOtpContainer}>
+                    {twoFaOtp.map((digit, index) => (
+                      <TextInput
+                        key={`totp-${index}`}
+                        ref={ref => totpInputRefs.current[index] = ref}
+                        style={[
+                          styles.twoFaOtpInput,
+                          digit && styles.twoFaOtpInputFilled,
+                        ]}
+                        value={digit}
+                        onChangeText={value => handleTotpOtpChange(index, value)}
+                        onKeyPress={({nativeEvent}) => handleTotpKeyPress(index, nativeEvent.key)}
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        selectTextOnFocus
+                      />
+                    ))}
+                  </View>
+
+                  {/* Boton verificar */}
+                  <TouchableOpacity
+                    onPress={handleEnableTotp}
+                    style={[
+                      styles.twoFaVerifyBtn,
+                      { backgroundColor: theme.colors.success },
+                      (twoFaLoading || twoFaOtp.join('').length !== OTP_LENGTH) && styles.buttonDisabled,
+                    ]}
+                    disabled={twoFaLoading || twoFaOtp.join('').length !== OTP_LENGTH}
+                    activeOpacity={0.7}
+                  >
+                    {twoFaLoading ? (
+                      <ActivityIndicator size="small" color={theme.colors.white} />
+                    ) : (
+                      <Text style={styles.twoFaVerifyBtnText}>Verificar y activar</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Cancelar */}
+                  <TouchableOpacity onPress={handle2FaCancel} style={styles.twoFaCancelLink} activeOpacity={0.7}>
+                    <Text style={styles.twoFaCancelLinkText}>Cancelar</Text>
+                  </TouchableOpacity>
+                </KeyboardAvoidingView>
+              </View>
+            )}
+
+            {/* STEP: Backup Codes - One-time display */}
+            {twoFaStep === 'backup-codes' && (
+              <View style={styles.securityCard}>
+                <View style={styles.twoFaConfirmHeader}>
+                  <Icon name="key-outline" size={40} color={theme.colors.success} />
+                  <Text style={styles.twoFaConfirmTitle}>Codigos de respaldo</Text>
+                  <Text style={styles.twoFaConfirmDesc}>
+                    Guarda estos codigos en un lugar seguro. Cada codigo solo puede usarse una vez para iniciar sesion si pierdes acceso a tu app authenticator.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleCopyBackupCodes}
+                  style={styles.backupCodesCopyBtn}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="copy-outline" size={16} color={theme.colors.white} />
+                  <Text style={styles.backupCodesCopyBtnText}>Copiar todos</Text>
+                </TouchableOpacity>
+
+                <ScrollView
+                  style={styles.backupCodesScroll}
+                  contentContainerStyle={styles.backupCodesList}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {totpBackupCodes.map((code, index) => (
+                    <View key={index} style={styles.backupCodeItem}>
+                      <Text style={styles.backupCodeIndex}>{index + 1}.</Text>
+                      <Text style={styles.backupCodeText} selectable>{code}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {/* Checkbox */}
+                <TouchableOpacity
+                  onPress={() => setBackupCodesConfirmed(!backupCodesConfirmed)}
+                  style={styles.backupCodesCheckboxRow}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.backupCodesCheckbox,
+                    backupCodesConfirmed && styles.backupCodesCheckboxChecked,
+                  ]}>
+                    {backupCodesConfirmed && (
+                      <Icon name="checkmark" size={14} color={theme.colors.white} />
+                    )}
+                  </View>
+                  <Text style={styles.backupCodesCheckboxLabel}>
+                    He guardado mis codigos de respaldo en un lugar seguro
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleBackupCodesContinue}
+                  style={[
+                    styles.twoFaVerifyBtn,
+                    { backgroundColor: theme.colors.success, marginTop: theme.spacing.md },
+                    !backupCodesConfirmed && styles.buttonDisabled,
+                  ]}
+                  disabled={!backupCodesConfirmed}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.twoFaVerifyBtnText}>Continuar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* STEP: Confirming - Explicacion + enviar codigo (email flow) */}
             {twoFaStep === 'confirming' && (
               <View style={styles.securityCard}>
                 <View style={styles.twoFaConfirmHeader}>
@@ -769,7 +1237,7 @@ const ProfileScreen = () => {
               </View>
             )}
 
-            {/* STEP: Verifying - Ingresar OTP de 6 digitos */}
+            {/* STEP: Verifying - Ingresar OTP de 6 digitos (email flow) */}
             {twoFaStep === 'verifying' && (
               <View style={styles.securityCard}>
                 <KeyboardAvoidingView
@@ -1645,6 +2113,162 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+  // Method selector
+  methodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  methodOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  methodOptionInfo: {
+    flex: 1,
+  },
+  methodOptionLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  methodOptionDesc: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  methodDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginHorizontal: theme.spacing.md,
+  },
+  // TOTP QR code
+  qrCodeContainer: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    marginVertical: theme.spacing.md,
+  },
+  qrCodeImage: {
+    width: 200,
+    height: 200,
+  },
+  // TOTP secret key
+  totpSecretContainer: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginVertical: theme.spacing.sm,
+  },
+  totpSecretLabel: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
+  },
+  totpSecretValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  totpSecretValue: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.text,
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  // Backup codes
+  backupCodesActionCard: {
+    marginTop: theme.spacing.sm,
+  },
+  backupCodesCopyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    alignSelf: 'center',
+    marginVertical: theme.spacing.sm,
+  },
+  backupCodesCopyBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.white,
+  },
+  backupCodesScroll: {
+    maxHeight: 250,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+  },
+  backupCodesList: {
+    padding: theme.spacing.sm,
+  },
+  backupCodeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: 5,
+    paddingHorizontal: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  backupCodeIndex: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+    color: theme.colors.textLight,
+    width: 20,
+  },
+  backupCodeText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.text,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 0.5,
+  },
+  backupCodesCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  backupCodesCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backupCodesCheckboxChecked: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  backupCodesCheckboxLabel: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   // Address cards
   addressCard: {

@@ -140,6 +140,7 @@ export const AuthProvider = ({children}) => {
           requiresOtp: true,
           email: response.email,
           otpCode: response.code,
+          twoFactorType: response.twoFactorType || 'email',
         };
       }
 
@@ -168,7 +169,7 @@ export const AuthProvider = ({children}) => {
   }, [saveSession]);
 
   // Login con OTP (2FA)
-  const loginWithOtp = useCallback(async (email, otpCode) => {
+  const loginWithOtp = useCallback(async (email, otpCode, verifyType = 'email') => {
     try {
       dispatch({type: ACTIONS.SET_LOADING, payload: true});
       dispatch({type: ACTIONS.CLEAR_ERROR});
@@ -182,6 +183,7 @@ export const AuthProvider = ({children}) => {
       const response = await api.post('/auth/login-verify', {
         email,
         code: otpCode,
+        type: verifyType,
       });
       console.log('[AuthContext] loginWithOtp - response:', JSON.stringify(response));
       const {user, token, refreshToken} = response;
@@ -447,6 +449,67 @@ export const AuthProvider = ({children}) => {
     }
   }, []);
 
+  // ─── 2FA TOTP: Obtener QR y secret para configurar authenticator ───────
+  const setupTOTP = useCallback(async () => {
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) throw new Error('No hay conexion con el servidor');
+
+      const response = await api.get('/auth/2fa/totp/setup');
+      return {
+        success: true,
+        qrCode: response.qrCode,
+        secret: response.secret,
+        otpauthUrl: response.otpauthUrl,
+      };
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'No se pudo generar la configuracion TOTP';
+      return { success: false, error: message };
+    }
+  }, []);
+
+  // ─── 2FA TOTP: Verificar codigo y activar TOTP ────────────────────────
+  const enableTOTP = useCallback(async (code) => {
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) throw new Error('No hay conexion con el servidor');
+
+      const response = await api.post('/auth/2fa/totp/enable', { code });
+
+      // Actualizar usuario en estado
+      if (response.user) {
+        dispatch({ type: ACTIONS.UPDATE_PROFILE, payload: {
+          twoFactorEnabled: response.user.twoFactorEnabled,
+          twoFactorType: response.user.twoFactorType,
+        }});
+      }
+
+      return {
+        success: true,
+        twoFactorEnabled: response.twoFactorEnabled,
+        twoFactorType: response.twoFactorType,
+        backupCodes: response.backupCodes,
+      };
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'No se pudo activar TOTP';
+      return { success: false, error: message };
+    }
+  }, []);
+
+  // ─── 2FA: Generar nuevos codigos de recuperacion ──────────────────────
+  const generateBackupCodes = useCallback(async () => {
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) throw new Error('No hay conexion con el servidor');
+
+      const response = await api.get('/auth/2fa/backup-codes');
+      return { success: true, backupCodes: response.backupCodes };
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'No se pudieron generar los codigos';
+      return { success: false, error: message };
+    }
+  }, []);
+
   // ─── Helpers de permisos ───────────────────────────────────────────────────
 
   const permissionCodes = state.user?.permissions?.map(p => p.code) || [];
@@ -487,6 +550,9 @@ export const AuthProvider = ({children}) => {
     send2FACode,
     verify2FASetup,
     resendOtpCode,
+    setupTOTP,
+    enableTOTP,
+    generateBackupCodes,
     isAdmin,
     hasPermission,
     hasAnyPermission,

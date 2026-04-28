@@ -20,7 +20,7 @@ const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
 
 const VerificationScreen = ({route, navigation}) => {
-  const {email, type = 'login', user, token, refreshToken, otpCode, onComplete} = route.params || {};
+  const {email, type = 'login', user, token, refreshToken, otpCode, twoFactorType = 'email', onComplete} = route.params || {};
   const {loginWithOtp, resendOtpCode, isAuthenticated, isAdmin, hasRole} = useAuth();
   const isDelivery = hasRole('delivery');
 
@@ -84,10 +84,11 @@ const VerificationScreen = ({route, navigation}) => {
   useEffect(() => {
     if (type !== 'login') {
       handleGenerateOtp();
-    } else {
-      // Para login, iniciar cooldown ya que el codigo fue enviado con /auth/login
+    } else if (twoFactorType === 'email') {
+      // Para login con email, iniciar cooldown ya que el codigo fue enviado con /auth/login
       setResendCooldown(RESEND_COOLDOWN);
     }
+    // Para TOTP no se inicia cooldown porque no se envía código
   }, []);
 
   // Auto-rellenar OTP en modo desarrollo
@@ -180,8 +181,8 @@ const VerificationScreen = ({route, navigation}) => {
     try {
       if (type === 'login') {
         // Flujo de login: verificar OTP via loginWithOtp
-        console.log('[VerificationScreen] Llamando loginWithOtp con email:', displayEmail, 'code:', code);
-        const result = await loginWithOtp(displayEmail, code);
+        console.log('[VerificationScreen] Llamando loginWithOtp con email:', displayEmail, 'code:', code, 'type:', twoFactorType);
+        const result = await loginWithOtp(displayEmail, code, twoFactorType);
         console.log('[VerificationScreen] loginWithOtp result:', JSON.stringify(result));
         if (!result.success) {
           Alert.alert('Error', result.error || 'Error al verificar el código');
@@ -274,14 +275,24 @@ const VerificationScreen = ({route, navigation}) => {
         <View style={styles.content}>
           {/* Icono */}
           <View style={styles.iconContainer}>
-            <Icon name="shield-checkmark" size={60} color={theme.colors.accent} />
+            <Icon
+              name={twoFactorType === 'totp' ? 'phone-key-outline' : 'shield-checkmark'}
+              size={60}
+              color={theme.colors.accent}
+            />
           </View>
 
-          <Text style={styles.title}>Verificacion en 2 pasos</Text>
-          <Text style={styles.subtitle}>
-            Ingresa el codigo de 6 digitos que enviamos a:
+          <Text style={styles.title}>
+            {twoFactorType === 'totp' ? 'Autenticacion con App' : 'Verificacion en 2 pasos'}
           </Text>
-          <Text style={styles.emailText}>{displayEmail}</Text>
+          <Text style={styles.subtitle}>
+            {twoFactorType === 'totp'
+              ? 'Ingresa el codigo de 6 digitos de tu aplicacion authenticator'
+              : 'Ingresa el codigo de 6 digitos que enviamos a:'}
+          </Text>
+          {twoFactorType !== 'totp' && (
+            <Text style={styles.emailText}>{displayEmail}</Text>
+          )}
           <Text style={styles.typeHint}>Para completar tu {typeLabel}</Text>
 
           {/* Inputs OTP */}

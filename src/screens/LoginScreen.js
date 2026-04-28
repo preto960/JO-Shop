@@ -44,6 +44,7 @@ const LoginScreen = ({navigation}) => {
             email: result.email,
             type: 'login',
             otpCode: result.otpCode,
+            twoFactorType: result.twoFactorType || 'email',
           });
         } catch (navError) {
           console.log('[LoginScreen] replace fallo, intentando navigate:', navError);
@@ -51,6 +52,7 @@ const LoginScreen = ({navigation}) => {
             email: result.email,
             type: 'login',
             otpCode: result.otpCode,
+            twoFactorType: result.twoFactorType || 'email',
           });
         }
       } else {
