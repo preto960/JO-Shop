@@ -231,6 +231,7 @@ const AppNavigator = () => {
 
   return (
     <Stack.Navigator
+      key={isAuthenticated ? 'auth' : 'guest'}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
