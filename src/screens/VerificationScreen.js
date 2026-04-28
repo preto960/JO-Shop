@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {CommonActions} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
 import {useAuth} from '@context/AuthContext';
@@ -20,7 +21,31 @@ const RESEND_COOLDOWN = 60;
 
 const VerificationScreen = ({route, navigation}) => {
   const {email, type = 'login', user, token, refreshToken, otpCode, onComplete} = route.params || {};
-  const {loginWithOtp, resendOtpCode} = useAuth();
+  const {loginWithOtp, resendOtpCode, isAuthenticated, isAdmin, hasRole} = useAuth();
+  const isDelivery = hasRole('delivery');
+
+  // Cuando el login con OTP exita, isAuthenticated cambia a true
+  // Navegar automaticamente a la pantalla principal correcta
+  useEffect(() => {
+    if (!isAuthenticated || type !== 'login') return;
+
+    const timer = setTimeout(() => {
+      try {
+        let targetScreen = 'CustomerTabs';
+        if (isDelivery) targetScreen = 'DeliveryMainTabs';
+        else if (isAdmin) targetScreen = 'AdminMainTabs';
+
+        navigation.dispatch(CommonActions.reset({
+          index: 0,
+          routes: [{name: targetScreen}],
+        }));
+      } catch (e) {
+        console.log('[VerificationScreen] Navigation reset error:', e.message);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, type, isDelivery, isAdmin, navigation]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
