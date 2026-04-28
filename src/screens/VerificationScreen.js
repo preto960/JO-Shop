@@ -276,7 +276,7 @@ const VerificationScreen = ({route, navigation}) => {
           {/* Icono */}
           <View style={styles.iconContainer}>
             <Icon
-              name={twoFactorType === 'totp' ? 'smartphone-outline' : 'shield-checkmark'}
+              name={twoFactorType === 'totp' ? 'phone-portrait-outline' : 'shield-checkmark'}
               size={60}
               color={theme.colors.accent}
             />
@@ -330,26 +330,30 @@ const VerificationScreen = ({route, navigation}) => {
             )}
           </TouchableOpacity>
 
-          {/* Reenviar codigo */}
-          <View style={styles.resendContainer}>
-            {resendCooldown > 0 ? (
-              <Text style={styles.resendCooldownText}>
-                Reenviar en {formatCooldown(resendCooldown)}
-              </Text>
-            ) : (
-              <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
-                <Text style={styles.resendButtonText}>
-                  Reenviar codigo
+          {/* Reenviar codigo - solo para email, no para TOTP */}
+          {twoFactorType !== 'totp' && (
+            <View style={styles.resendContainer}>
+              {resendCooldown > 0 ? (
+                <Text style={styles.resendCooldownText}>
+                  Reenviar en {formatCooldown(resendCooldown)}
                 </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              ) : (
+                <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
+                  <Text style={styles.resendButtonText}>
+                    Reenviar codigo
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Ayuda */}
           <View style={styles.helpContainer}>
             <Icon name="information-circle-outline" size={16} color={theme.colors.textLight} />
             <Text style={styles.helpText}>
-              Si no recibes el codigo, revisa tu carpeta de spam o correo no deseado.
+              {twoFactorType === 'totp'
+                ? 'Abre tu aplicacion authenticator (Google Authenticator, Authy, etc.) para obtener el codigo.'
+                : 'Si no recibes el codigo, revisa tu carpeta de spam o correo no deseado.'}
             </Text>
           </View>
         </View>
