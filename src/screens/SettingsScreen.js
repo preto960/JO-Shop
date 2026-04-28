@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Linking,
   ScrollView,
   ActivityIndicator,
+  Image,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -19,6 +21,7 @@ import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
+import * as ImagePicker from 'expo-image-picker';
 import ConfirmModal from '@components/ConfirmModal';
 import theme from '@theme/styles';
 
@@ -129,6 +132,103 @@ const SettingsScreen = () => {
     } finally {
       setSwitchLoading(false);
     }
+  };
+
+  // ─── Appearance State ────────────────────────────────────────────────
+  const [shopName, setShopName] = useState(config.shop_name || 'JO-Shop');
+  const [primaryColor, setPrimaryColor] = useState(config.primary_color || '#FF6B35');
+  const [accentColor, setAccentColor] = useState(config.accent_color || '#E94560');
+  const [savingAppearance, setSavingAppearance] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  useEffect(() => {
+    setShopName(config.shop_name || 'JO-Shop');
+    setPrimaryColor(config.primary_color || '#FF6B35');
+    setAccentColor(config.accent_color || '#E94560');
+  }, [config.shop_name, config.primary_color, config.accent_color]);
+
+  const handleSaveAppearance = useCallback(async () => {
+    setSavingAppearance(true);
+    try {
+      await updateConfig({
+        shop_name: shopName,
+        primary_color: primaryColor,
+        accent_color: accentColor,
+      });
+    } catch (err) {
+      setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo guardar la apariencia.', confirmText: 'Aceptar', onConfirm: null});
+    } finally {
+      setSavingAppearance(false);
+    }
+  }, [shopName, primaryColor, accentColor, updateConfig]);
+
+  const handlePickLogo = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: false,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+          Alert.alert('Error', 'La imagen no debe superar 2MB');
+          return;
+        }
+        setLogoUploading(true);
+        try {
+          const api = await apiService.createApiClient();
+          const formData = new FormData();
+          const fileUri = asset.uri;
+          const filename = fileUri.split('/').pop() || 'logo.png';
+          const match = /^data:(.+);base64,(.+)$/.exec(fileUri);
+          const uri = match ? fileUri : fileUri;
+          formData.append('file', {
+            uri,
+            name: filename,
+            type: asset.mimeType || 'image/jpeg',
+          } as any);
+          const res = await api.post('/config/upload-logo', formData, {
+            headers: {'Content-Type': 'multipart/form-data'},
+            transformRequest: (data) => data,
+          });
+          const logoUrl = res?.url || res?.data?.url;
+          if (logoUrl) {
+            await updateConfig({shop_logo_url: logoUrl});
+          }
+        } catch (err) {
+          Alert.alert('Error', 'No se pudo subir el logo.');
+        } finally {
+          setLogoUploading(false);
+        }
+      }
+    } catch (err) {
+      // User cancelled picker
+    }
+  }, [updateConfig]);
+
+  const handleDeleteLogo = useCallback(async () => {
+    setModal({
+      visible: true, type: 'confirm', title: 'Eliminar logo',
+      message: 'Se eliminara el logo actual del sistema.',
+      confirmText: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          const api = await apiService.createApiClient();
+          await api.delete('/config/upload-logo');
+          await updateConfig({shop_logo_url: ''});
+        } catch (err) {
+          Alert.alert('Error', 'No se pudo eliminar el logo.');
+        }
+      },
+    });
+  }, [updateConfig]);
+
+  const resetAppearanceDefaults = () => {
+    setShopName('JO-Shop');
+    setPrimaryColor('#FF6B35');
+    setAccentColor('#E94560');
   };
 
   const openPrivacyPolicy = () => {
@@ -312,6 +412,120 @@ const SettingsScreen = () => {
             <Text style={styles.configHint}>
               Los usuarios conectados detectarán el cambio automáticamente en los próximos segundos.
             </Text>
+          </View>
+        </View>
+        )}
+
+        {/* ─── Apariencia (solo admin) ──────────────────────────────────── */}
+        {isAdmin && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Apariencia</Text>
+          <View style={styles.card}>
+            {/* Nombre del sistema */}
+            <Text style={styles.appearanceLabel}>Nombre del sistema</Text>
+            <View style={styles.appearanceInputWrap}>
+              <Icon name="text-outline" size={18} color={theme.colors.textSecondary} />
+              <TextInput
+                value={shopName}
+                onChangeText={setShopName}
+                placeholder="JO-Shop"
+                placeholderTextColor={theme.colors.textLight}
+                style={styles.appearanceInput}
+                autoCapitalize="words"
+              />
+            </View>
+
+            {/* Colores */}
+            <View style={styles.colorsRow}>
+              <View style={styles.colorItem}>
+                <Text style={styles.appearanceLabel}>Color primario</Text>
+                <View style={styles.colorInputRow}>
+                  <View style={[styles.colorPreview, {backgroundColor: primaryColor}]} />
+                  <TextInput
+                    value={primaryColor}
+                    onChangeText={text => { if (/^#[0-9A-Fa-f]{0,6}$/.test(text)) setPrimaryColor(text); }}
+                    placeholder="#FF6B35"
+                    placeholderTextColor={theme.colors.textLight}
+                    style={styles.colorTextInput}
+                    maxLength={7}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+              <View style={styles.colorItem}>
+                <Text style={styles.appearanceLabel}>Color secundario</Text>
+                <View style={styles.colorInputRow}>
+                  <View style={[styles.colorPreview, {backgroundColor: accentColor}]} />
+                  <TextInput
+                    value={accentColor}
+                    onChangeText={text => { if (/^#[0-9A-Fa-f]{0,6}$/.test(text)) setAccentColor(text); }}
+                    placeholder="#E94560"
+                    placeholderTextColor={theme.colors.textLight}
+                    style={styles.colorTextInput}
+                    maxLength={7}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Preview */}
+            <Text style={[styles.appearanceLabel, {marginTop: 4}]}>Vista previa</Text>
+            <View style={[styles.previewCard, {backgroundColor: `linear-gradient(135deg, ${primaryColor}, ${accentColor})`}]}>
+              <Text style={styles.previewName}>{shopName || 'JO-Shop'}</Text>
+              <Text style={styles.previewSubtext}>Tu tienda de confianza</Text>
+            </View>
+            <View style={styles.previewColors}>
+              <View style={[styles.previewSwatch, {backgroundColor: primaryColor}]} />
+              <View style={[styles.previewSwatch, {backgroundColor: accentColor}]} />
+            </View>
+
+            {/* Logo */}
+            <Text style={[styles.appearanceLabel, {marginTop: 4}]}>Logo del sistema</Text>
+            <View style={styles.logoRow}>
+              <TouchableOpacity onPress={handlePickLogo} disabled={logoUploading} activeOpacity={0.7}>
+                <View style={styles.logoPreview}>
+                  {logoUploading ? (
+                    <ActivityIndicator size="small" color={theme.colors.accent} />
+                  ) : config.shop_logo_url ? (
+                    <Image source={{uri: config.shop_logo_url}} style={styles.logoImage} resizeMode="cover" />
+                  ) : (
+                    <Icon name="image-outline" size={28} color={theme.colors.textLight} />
+                  )}
+                </View>
+              </TouchableOpacity>
+              <View style={styles.logoActions}>
+                <TouchableOpacity onPress={handlePickLogo} disabled={logoUploading} style={styles.logoBtn} activeOpacity={0.7}>
+                  <Icon name="cloud-upload-outline" size={16} color={theme.colors.accent} />
+                  <Text style={styles.logoBtnText}>{logoUploading ? 'Subiendo...' : 'Subir logo'}</Text>
+                </TouchableOpacity>
+                {config.shop_logo_url ? (
+                  <TouchableOpacity onPress={handleDeleteLogo} style={styles.logoBtn} activeOpacity={0.7}>
+                    <Icon name="trash-outline" size={16} color="#EF4444" />
+                    <Text style={[styles.logoBtnText, {color: '#EF4444'}]}>Eliminar</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+            <Text style={styles.logoHint}>Maximo 2MB. Formatos: JPG, PNG, WebP</Text>
+
+            {/* Save / Reset */}
+            <View style={styles.appearanceButtons}>
+              <TouchableOpacity onPress={resetAppearanceDefaults} style={styles.appearanceResetBtn} activeOpacity={0.7}>
+                <Icon name="refresh-outline" size={16} color={theme.colors.textSecondary} />
+                <Text style={styles.appearanceResetBtnText}>Restaurar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveAppearance} disabled={savingAppearance} style={[styles.appearanceSaveBtn, savingAppearance && {opacity: 0.6}]} activeOpacity={0.7}>
+                {savingAppearance ? (
+                  <ActivityIndicator size="small" color={theme.colors.white} />
+                ) : (
+                  <Icon name="checkmark-outline" size={16} color={theme.colors.white} />
+                )}
+                <Text style={styles.appearanceSaveBtnText}>
+                  {savingAppearance ? 'Guardando...' : 'Guardar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
         )}
@@ -636,6 +850,178 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: theme.spacing.xxl,
+  },
+  // ─── Appearance styles ────────────────────────────────────────────────────
+  appearanceLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  appearanceInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    height: 48,
+    marginBottom: 16,
+  },
+  appearanceInput: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    height: '100%',
+    padding: 0,
+  },
+  colorsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  colorItem: {
+    flex: 1,
+  },
+  colorInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    height: 48,
+    gap: 8,
+  },
+  colorPreview: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  colorTextInput: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    fontFamily: 'monospace',
+    height: '100%',
+    padding: 0,
+  },
+  previewCard: {
+    borderRadius: theme.borderRadius.md,
+    padding: 16,
+    minHeight: 80,
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  previewName: {
+    color: 'white',
+    fontWeight: '800',
+    fontSize: 20,
+  },
+  previewSubtext: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+  },
+  previewColors: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  previewSwatch: {
+    flex: 1,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  logoPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: theme.colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  logoActions: {
+    flex: 1,
+    gap: 8,
+  },
+  logoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  logoBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+  logoHint: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginBottom: 16,
+  },
+  appearanceButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  appearanceResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.inputBg,
+  },
+  appearanceResetBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  appearanceSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.accent,
+  },
+  appearanceSaveBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+    color: theme.colors.white,
   },
 });
 
