@@ -219,13 +219,13 @@ const LoadingScreen = () => (
 
 // Navegación principal
 const AppNavigator = () => {
-  const {isLoading, isAuthenticated, isAdmin, hasRole} = useAuth();
+  const {isLoading, isRestoring, isAuthenticated, isAdmin, hasRole} = useAuth();
 
   // Verificar si el usuario tiene algún permiso de admin (o rol admin)
   const isStaff = hasRole('admin') || hasRole('editor');
   const isDelivery = hasRole('delivery');
 
-  if (isLoading) {
+  if (isRestoring) {
     return <LoadingScreen />;
   }
 

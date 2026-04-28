@@ -11,6 +11,7 @@ const AuthContext = createContext(null);
 
 const ACTIONS = {
   SET_LOADING: 'SET_LOADING',
+  SET_RESTORING: 'SET_RESTORING',
   SET_USER: 'SET_USER',
   LOGIN: 'LOGIN',
   LOGOUT: 'LOGOUT',
@@ -24,7 +25,8 @@ const initialState = {
   user: null,
   token: null,
   refreshToken: null,
-  isLoading: true,
+  isLoading: false,
+  isRestoring: true,
   isAuthenticated: false,
   error: null,
 };
@@ -33,6 +35,8 @@ const authReducer = (state, action) => {
   switch (action.type) {
     case ACTIONS.SET_LOADING:
       return {...state, isLoading: action.payload};
+    case ACTIONS.SET_RESTORING:
+      return {...state, isRestoring: action.payload};
     case ACTIONS.SET_USER:
       return {...state, user: action.payload, isLoading: false};
     case ACTIONS.LOGIN:
@@ -43,12 +47,14 @@ const authReducer = (state, action) => {
         refreshToken: action.payload.refreshToken,
         isAuthenticated: true,
         isLoading: false,
+        isRestoring: false,
         error: null,
       };
     case ACTIONS.LOGOUT:
       return {
         ...initialState,
         isLoading: false,
+        isRestoring: false,
       };
     case ACTIONS.UPDATE_PROFILE:
       return {...state, user: {...state.user, ...action.payload}};
@@ -64,6 +70,7 @@ const authReducer = (state, action) => {
         refreshToken: action.payload.refreshToken,
         isAuthenticated: !!action.payload.token,
         isLoading: false,
+        isRestoring: false,
       };
     default:
       return state;
@@ -101,10 +108,10 @@ export const AuthProvider = ({children}) => {
             },
           });
         } else {
-          dispatch({type: ACTIONS.SET_LOADING, payload: false});
+          dispatch({type: ACTIONS.SET_RESTORING, payload: false});
         }
       } catch {
-        dispatch({type: ACTIONS.SET_LOADING, payload: false});
+        dispatch({type: ACTIONS.SET_RESTORING, payload: false});
       }
     };
     restoreSession();
