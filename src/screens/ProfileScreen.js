@@ -29,7 +29,7 @@ const RESEND_COOLDOWN = 60;
 const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile, send2FACode, verify2FASetup, setupTOTP, enableTOTP, generateBackupCodes} = useAuth();
   const {isMultiStore} = useConfig();
-  const [loggingOut, setLoggingOut] = useState(false);
+
 
   // 2FA state machine: idle → confirming → verifying → idle
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false);
@@ -593,20 +593,6 @@ const ProfileScreen = () => {
     [],
   );
 
-  // ─── Logout ────────────────────────────────────────────────────────────
-
-  const handleLogout = () => {
-    setModal({
-      visible: true, type: 'danger', title: 'Cerrar sesión',
-      message: '¿Estás seguro de que deseas cerrar sesión?',
-      confirmText: 'Cerrar sesión',
-      onConfirm: () => {
-        setLoggingOut(true);
-        setTimeout(() => logout(), 300);
-      },
-    });
-  };
-
   // ─── Data ──────────────────────────────────────────────────────────────
 
   const roleNames = user?.roles?.map(r => r.name) || [];
@@ -641,11 +627,7 @@ const ProfileScreen = () => {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Perfil</Text>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.headerRight} />
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
