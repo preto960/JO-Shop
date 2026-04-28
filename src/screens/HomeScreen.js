@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -20,7 +21,10 @@ import theme from '@theme/styles';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
-  const {isMultiStore} = useConfig();
+  const {config, isMultiStore} = useConfig();
+  const shopName = config.shop_name || 'JO-Shop';
+  const shopLogoUrl = config.shop_logo_url || '';
+  const primaryColor = config.primary_color || theme.colors.primary;
   const {user, logout} = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -210,7 +214,11 @@ const HomeScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <View style={styles.headerCenter}>
-            <Text style={styles.logo}>JO-Shop</Text>
+            {shopLogoUrl ? (
+              <Image source={{uri: shopLogoUrl}} style={[styles.logoImage, {tintColor: primaryColor}]} resizeMode="contain" />
+            ) : (
+              <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
+            )}
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
@@ -234,7 +242,11 @@ const HomeScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerCenter}>
-          <Text style={styles.logo}>JO-Shop</Text>
+          {shopLogoUrl ? (
+            <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
+          ) : (
+            <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
+          )}
           <Text style={styles.subtitle}>Descubre productos increíbles</Text>
         </View>
         <View style={styles.headerRight}>
@@ -526,6 +538,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: theme.colors.primary,
     letterSpacing: -0.5,
+  },
+  logoImage: {
+    width: 120,
+    height: 36,
   },
   subtitle: {
     fontSize: theme.fontSize.xs,

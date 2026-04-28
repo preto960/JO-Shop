@@ -188,7 +188,7 @@ const SettingsScreen = () => {
             uri,
             name: filename,
             type: asset.mimeType || 'image/jpeg',
-          } as any);
+          });
           const res = await api.post('/config/upload-logo', formData, {
             headers: {'Content-Type': 'multipart/form-data'},
             transformRequest: (data) => data,

@@ -34,9 +34,11 @@ const Tab = createBottomTabNavigator();
 // Badge del carrito
 const CartBadge = () => {
   const {totalItems} = useCart();
+  const {config} = useConfig();
   if (totalItems === 0) return null;
+  const badgeColor = config.primary_color || theme.colors.accent;
   return (
-    <View style={styles.badge}>
+    <View style={[styles.badge, {backgroundColor: badgeColor}]}>
       <Text style={styles.badgeText}>{totalItems > 99 ? '99+' : totalItems}</Text>
     </View>
   );
@@ -44,12 +46,14 @@ const CartBadge = () => {
 
 // Tabs del cliente
 const CustomerTabs = () => {
+  const {config} = useConfig();
+  const activeColor = config.primary_color || theme.colors.accent;
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: theme.colors.accent,
+        tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
@@ -166,11 +170,14 @@ const AdminTabs = () => {
     });
   }
 
+  const {config} = useConfig();
+  const activeColor = config.primary_color || theme.colors.accent;
+
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.accent,
+        tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
@@ -188,11 +195,13 @@ const AdminTabs = () => {
 
 // Tabs del delivery - solo entregas
 const DeliveryTabs = () => {
+  const {config} = useConfig();
+  const activeColor = config.primary_color || theme.colors.accent;
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.accent,
+        tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
