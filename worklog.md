@@ -164,3 +164,24 @@ Stage Summary:
 - Landing page now has visible scrollbar + arrow buttons for horizontal scroll sections
 - manage-products now has better error handling, pagination support, and visible error state
 - All changes deployed to https://jo-frontend-shop.vercel.app
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Add configuration/settings view for admin role in web app
+
+Work Log:
+- Analyzed mobile app SettingsScreen.js — found 3 sections: Backend URL (admin-only), Multi-Store toggle (admin-only), About (always visible)
+- Updated ConfigContext.tsx — added updateConfig() function (PUT /config with {settings}) and isSaving state
+- Created /settings page at src/app/(management)/settings/page.tsx with:
+  - Multi-Store toggle (admin-only) — Switch component with immediate state + API update
+  - Backend Server section (admin-only) — Read-only URL display, connection test button, external link
+  - About section — App version, platform, current role, user info
+- Added "Configuracion" nav item to SidebarMenu.tsx for admin users only
+- Build succeeded, pushed to GitHub (145612f)
+
+Stage Summary:
+- New route: /settings with full config management
+- ConfigContext now supports write operations via updateConfig()
+- Settings page matches mobile app functionality
+- Only admin users see the Configuracion menu item
