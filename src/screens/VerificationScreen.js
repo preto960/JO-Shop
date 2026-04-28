@@ -276,7 +276,7 @@ const VerificationScreen = ({route, navigation}) => {
           {/* Icono */}
           <View style={styles.iconContainer}>
             <Icon
-              name={twoFactorType === 'totp' ? 'phone-key-outline' : 'shield-checkmark'}
+              name={twoFactorType === 'totp' ? 'smartphone-outline' : 'shield-checkmark'}
               size={60}
               color={theme.colors.accent}
             />
