@@ -20,7 +20,7 @@ const RESEND_COOLDOWN = 60;
 
 const VerificationScreen = ({route, navigation}) => {
   const {email, type = 'login', user, token, refreshToken, otpCode, onComplete} = route.params || {};
-  const {loginWithOtp} = useAuth();
+  const {loginWithOtp, resendOtpCode} = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -53,10 +53,15 @@ const VerificationScreen = ({route, navigation}) => {
     setTimeout(() => inputRefs.current[0]?.focus(), 300);
   }, []);
 
-  // Generar OTP al montar (solo para tipos que no son login, ya que el login envía el OTP)
+  // Generar OTP al montar
+  // - Para login: no generar, el codigo ya fue enviado en el endpoint /auth/login
+  // - Para otros tipos (register/reset): usar endpoint general
   useEffect(() => {
     if (type !== 'login') {
       handleGenerateOtp();
+    } else {
+      // Para login, iniciar cooldown ya que el codigo fue enviado con /auth/login
+      setResendCooldown(RESEND_COOLDOWN);
     }
   }, []);
 
@@ -187,7 +192,17 @@ const VerificationScreen = ({route, navigation}) => {
     setOtp(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
 
-    await handleGenerateOtp();
+    if (type === 'login') {
+      // Para login 2FA, usar el endpoint dedicado de resend
+      const result = await resendOtpCode(displayEmail);
+      if (result.success) {
+        setResendCooldown(RESEND_COOLDOWN);
+      } else {
+        Alert.alert('Error', result.error || 'No se pudo reenviar el codigo');
+      }
+    } else {
+      await handleGenerateOtp();
+    }
   };
 
   const formatCooldown = (seconds) => {

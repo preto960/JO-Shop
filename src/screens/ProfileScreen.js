@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
-  Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -20,14 +21,24 @@ import theme from '@theme/styles';
 import ENV from '@config/env';
 import ConfirmModal from '@components/ConfirmModal';
 
+const OTP_LENGTH = 6;
+const RESEND_COOLDOWN = 60;
+
 const ProfileScreen = () => {
-  const {user, isAdmin, hasRole, logout, fetchProfile} = useAuth();
+  const {user, isAdmin, hasRole, logout, fetchProfile, send2FACode, verify2FASetup} = useAuth();
   const {isMultiStore} = useConfig();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // 2FA toggle state
+  // 2FA state machine: idle → confirming → verifying → idle
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false);
-  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFaStep, setTwoFaStep] = useState('idle'); // 'idle' | 'confirming' | 'verifying'
+  const [twoFaAction, setTwoFaAction] = useState(null); // 'enable' | 'disable'
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const [twoFaError, setTwoFaError] = useState('');
+  const [twoFaOtp, setTwoFaOtp] = useState(['', '', '', '', '', '']);
+  const [twoFaResendCooldown, setTwoFaResendCooldown] = useState(0);
+  const twoFaInputRefs = useRef([]);
+  const mountedRef = useRef(true);
 
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -92,6 +103,22 @@ const ProfileScreen = () => {
     }
   }, [isCustomer, isDeliveryRole, loadAddresses]);
 
+  // Limpiar refs al desmontar
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Countdown para reenviar 2FA
+  useEffect(() => {
+    if (twoFaResendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      if (mountedRef.current) {
+        setTwoFaResendCooldown(prev => Math.max(0, prev - 1));
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [twoFaResendCooldown]);
+
   // Sincronizar twoFactorEnabled cuando se actualiza el perfil
   useEffect(() => {
     if (user?.twoFactorEnabled !== undefined) {
@@ -99,49 +126,115 @@ const ProfileScreen = () => {
     }
   }, [user?.twoFactorEnabled]);
 
-  // ─── Toggle 2FA ─────────────────────────────────────────────────────
+  // ─── 2FA: 3-Step Flow (idle → confirming → verifying) ──────────────
 
-  const handleToggle2FA = useCallback(async (newValue) => {
-    setTwoFactorLoading(true);
-    try {
-      const api = await apiService.createApiClient();
-      if (!api) {
-        setModal({
-          visible: true, type: 'alert', title: 'Error',
-          message: 'No hay conexion con el servidor.',
-          confirmText: 'Aceptar', onConfirm: null,
-        });
-        setTwoFactorEnabled(!newValue);
-        return;
-      }
+  const handle2FaStart = useCallback((action) => {
+    setTwoFaAction(action);
+    setTwoFaError('');
+    setTwoFaOtp(['', '', '', '', '', '']);
+    setTwoFaStep('confirming');
+  }, []);
 
-      const res = await api.put('/auth/two-factor', { enabled: newValue });
+  const handle2FaSendCode = useCallback(async () => {
+    setTwoFaLoading(true);
+    setTwoFaError('');
+    const result = await send2FACode(twoFaAction);
+    if (result.success) {
+      setTwoFaStep('verifying');
+      setTwoFaResendCooldown(RESEND_COOLDOWN);
+      // Enfocar primer input OTP
+      setTimeout(() => twoFaInputRefs.current[0]?.focus(), 300);
+    } else {
+      setTwoFaError(result.error);
+    }
+    setTwoFaLoading(false);
+  }, [twoFaAction, send2FACode]);
 
-      if (res.twoFactorEnabled !== undefined) {
-        setTwoFactorEnabled(res.twoFactorEnabled);
-      }
-      await fetchProfile();
-
+  const handle2FaVerify = useCallback(async () => {
+    const code = twoFaOtp.join('');
+    if (code.length !== OTP_LENGTH) {
+      setTwoFaError('Ingresa los 6 digitos del codigo');
+      return;
+    }
+    setTwoFaLoading(true);
+    setTwoFaError('');
+    const result = await verify2FASetup(code, twoFaAction);
+    if (result.success) {
+      setTwoFactorEnabled(result.twoFactorEnabled);
+      setTwoFaStep('idle');
+      setTwoFaAction(null);
       setModal({
         visible: true, type: 'alert',
-        title: newValue ? '2FA Activado' : '2FA Desactivado',
-        message: newValue
+        title: result.twoFactorEnabled ? '2FA Activado' : '2FA Desactivado',
+        message: result.twoFactorEnabled
           ? 'Se ha activado la autenticacion en 2 pasos. A partir de ahora se te pedira un codigo al iniciar sesion.'
           : 'Se ha desactivado la autenticacion en 2 pasos.',
         confirmText: 'Aceptar', onConfirm: null,
       });
-    } catch (err) {
-      setTwoFactorEnabled(!newValue);
-      const errorMessage = err.response?.data?.error || err.message || 'No se pudo cambiar la configuracion.';
-      setModal({
-        visible: true, type: 'alert', title: 'Error',
-        message: errorMessage,
-        confirmText: 'Aceptar', onConfirm: null,
-      });
-    } finally {
-      setTwoFactorLoading(false);
+    } else {
+      setTwoFaError(result.error);
+      setTwoFaOtp(['', '', '', '', '', '']);
+      twoFaInputRefs.current[0]?.focus();
     }
-  }, [fetchProfile]);
+    setTwoFaLoading(false);
+  }, [twoFaOtp, twoFaAction, verify2FASetup]);
+
+  const handle2FaResend = useCallback(async () => {
+    if (twoFaResendCooldown > 0) return;
+    setTwoFaOtp(['', '', '', '', '', '']);
+    const result = await send2FACode(twoFaAction);
+    if (result.success) {
+      setTwoFaResendCooldown(RESEND_COOLDOWN);
+      setTwoFaError('');
+      twoFaInputRefs.current[0]?.focus();
+    } else {
+      setTwoFaError(result.error);
+    }
+  }, [twoFaAction, twoFaResendCooldown, send2FACode]);
+
+  const handle2FaCancel = useCallback(() => {
+    setTwoFaStep('idle');
+    setTwoFaAction(null);
+    setTwoFaError('');
+    setTwoFaOtp(['', '', '', '', '', '']);
+    setTwoFaResendCooldown(0);
+  }, []);
+
+  const handle2FaOtpChange = useCallback((index, value) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue.length > 1) {
+      const chars = numericValue.slice(0, OTP_LENGTH).split('');
+      const newOtp = [...twoFaOtp];
+      chars.forEach((char, i) => {
+        if (index + i < OTP_LENGTH) newOtp[index + i] = char;
+      });
+      setTwoFaOtp(newOtp);
+      const nextIndex = Math.min(index + chars.length, OTP_LENGTH - 1);
+      twoFaInputRefs.current[nextIndex]?.focus();
+      return;
+    }
+    const newOtp = [...twoFaOtp];
+    newOtp[index] = numericValue;
+    setTwoFaOtp(newOtp);
+    if (numericValue && index < OTP_LENGTH - 1) {
+      twoFaInputRefs.current[index + 1]?.focus();
+    }
+  }, [twoFaOtp]);
+
+  const handle2FaKeyPress = useCallback((index, key) => {
+    if (key === 'Backspace' && !twoFaOtp[index] && index > 0) {
+      const newOtp = [...twoFaOtp];
+      newOtp[index - 1] = '';
+      setTwoFaOtp(newOtp);
+      twoFaInputRefs.current[index - 1]?.focus();
+    }
+  }, [twoFaOtp]);
+
+  const formatCooldown = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   // ─── Google Places Search ─────────────────────────────────────────────
 
@@ -566,45 +659,201 @@ const ProfileScreen = () => {
               <Icon name="shield-checkmark-outline" size={18} color={theme.colors.accent} />{' '}
               Seguridad
             </Text>
-            <View style={styles.securityCard}>
-              <View style={styles.securityRow}>
-                <View style={styles.securityInfo}>
-                  <View style={styles.securityIconWrap}>
+
+            {/* STEP: Idle - Estado actual + boton de accion */}
+            {twoFaStep === 'idle' && (
+              <View style={styles.securityCard}>
+                <View style={styles.securityRow}>
+                  <View style={styles.securityInfo}>
+                    <View style={[
+                      styles.securityIconWrap,
+                      twoFactorEnabled && { backgroundColor: theme.colors.success + '15' },
+                    ]}>
+                      <Icon
+                        name={twoFactorEnabled ? 'shield-checkmark' : 'shield-outline'}
+                        size={22}
+                        color={twoFactorEnabled ? theme.colors.success : theme.colors.textSecondary}
+                      />
+                    </View>
+                    <View style={styles.securityTextWrap}>
+                      <Text style={styles.securityLabel}>Autenticacion en 2 pasos</Text>
+                      <Text style={styles.securityDescription}>
+                        {twoFactorEnabled
+                          ? 'Activada: se te pedira un codigo al iniciar sesion'
+                          : 'Desactivada: tu sesion inicia solo con correo y contrasena'}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => handle2FaStart(twoFactorEnabled ? 'disable' : 'enable')}
+                    style={[
+                      styles.twoFaActionBtn,
+                      twoFactorEnabled
+                        ? { backgroundColor: '#FDE8EC', borderColor: '#FF6B6B' }
+                        : { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' },
+                    ]}
+                    activeOpacity={0.7}
+                  >
                     <Icon
-                      name={twoFactorEnabled ? 'shield-checkmark' : 'shield-outline'}
-                      size={22}
-                      color={twoFactorEnabled ? theme.colors.success : theme.colors.textSecondary}
+                      name={twoFactorEnabled ? 'close-circle-outline' : 'checkmark-circle-outline'}
+                      size={18}
+                      color={twoFactorEnabled ? '#FF6B6B' : '#4CAF50'}
                     />
-                  </View>
-                  <View style={styles.securityTextWrap}>
-                    <Text style={styles.securityLabel}>Autenticacion en 2 pasos</Text>
-                    <Text style={styles.securityDescription}>
-                      {twoFactorEnabled
-                        ? 'Activada: se te pedira un codigo al iniciar sesion'
-                        : 'Desactivada: tu sesion inicia solo con correo y contrasena'}
+                    <Text style={[
+                      styles.twoFaActionBtnText,
+                      { color: twoFactorEnabled ? '#FF6B6B' : '#4CAF50' },
+                    ]}>
+                      {twoFactorEnabled ? 'Desactivar' : 'Activar'}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
-                <Switch
-                  value={twoFactorEnabled}
-                  onValueChange={handleToggle2FA}
-                  disabled={twoFactorLoading}
-                  trackColor={{
-                    false: theme.colors.border,
-                    true: theme.colors.success,
-                  }}
-                  thumbColor={theme.colors.white}
-                  ios_backgroundColor={theme.colors.border}
-                />
               </View>
-              {twoFactorLoading && (
-                <ActivityIndicator
-                  size="small"
-                  color={theme.colors.accent}
-                  style={styles.securityLoader}
-                />
-              )}
-            </View>
+            )}
+
+            {/* STEP: Confirming - Explicacion + enviar codigo */}
+            {twoFaStep === 'confirming' && (
+              <View style={styles.securityCard}>
+                <View style={styles.twoFaConfirmHeader}>
+                  <Icon
+                    name={twoFaAction === 'enable' ? 'shield-checkmark-outline' : 'shield-outline'}
+                    size={40}
+                    color={twoFaAction === 'enable' ? theme.colors.success : '#FF6B6B'}
+                  />
+                  <Text style={styles.twoFaConfirmTitle}>
+                    {twoFaAction === 'enable' ? 'Activar' : 'Desactivar'} autenticacion en 2 pasos
+                  </Text>
+                  <Text style={styles.twoFaConfirmDesc}>
+                    {twoFaAction === 'enable'
+                      ? 'Enviaremos un codigo de verificacion a tu correo electronico para confirmar tu identidad.'
+                      : 'Enviaremos un codigo de verificacion a tu correo electronico para confirmar que deseas desactivar esta funcion.'}
+                  </Text>
+                </View>
+
+                {twoFaError ? (
+                  <View style={styles.errorBox}>
+                    <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                    <Text style={styles.errorText}>{twoFaError}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.twoFaBtnRow}>
+                  <TouchableOpacity
+                    onPress={handle2FaCancel}
+                    style={styles.twoFaCancelBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.twoFaCancelBtnText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handle2FaSendCode}
+                    style={[
+                      styles.twoFaSendBtn,
+                      twoFaAction === 'enable'
+                        ? { backgroundColor: theme.colors.success }
+                        : { backgroundColor: '#FF6B6B' },
+                      twoFaLoading && styles.buttonDisabled,
+                    ]}
+                    disabled={twoFaLoading}
+                    activeOpacity={0.7}
+                  >
+                    {twoFaLoading ? (
+                      <ActivityIndicator size="small" color={theme.colors.white} />
+                    ) : (
+                      <Icon name="mail-outline" size={18} color={theme.colors.white} />
+                    )}
+                    <Text style={styles.twoFaSendBtnText}>
+                      {twoFaLoading ? 'Enviando...' : 'Enviar codigo'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* STEP: Verifying - Ingresar OTP de 6 digitos */}
+            {twoFaStep === 'verifying' && (
+              <View style={styles.securityCard}>
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                  style={styles.twoFaVerifyContent}
+                >
+                  <Icon
+                    name="mail-open-outline"
+                    size={40}
+                    color={theme.colors.accent}
+                    style={{ marginBottom: 12 }}
+                  />
+                  <Text style={styles.twoFaVerifyTitle}>Ingresa el codigo de 6 digitos</Text>
+                  <Text style={styles.twoFaVerifyDesc}>
+                    Enviamos un codigo a <Text style={{ fontWeight: '600', color: theme.colors.accent }}>{user?.email}</Text>
+                  </Text>
+
+                  {twoFaError ? (
+                    <View style={styles.errorBox}>
+                      <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                      <Text style={styles.errorText}>{twoFaError}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* OTP Inputs */}
+                  <View style={styles.twoFaOtpContainer}>
+                    {twoFaOtp.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        ref={ref => twoFaInputRefs.current[index] = ref}
+                        style={[
+                          styles.twoFaOtpInput,
+                          digit && styles.twoFaOtpInputFilled,
+                        ]}
+                        value={digit}
+                        onChangeText={value => handle2FaOtpChange(index, value)}
+                        onKeyPress={({nativeEvent}) => handle2FaKeyPress(index, nativeEvent.key)}
+                        keyboardType="number-pad"
+                        maxLength={1}
+                        selectTextOnFocus
+                      />
+                    ))}
+                  </View>
+
+                  {/* Boton verificar */}
+                  <TouchableOpacity
+                    onPress={handle2FaVerify}
+                    style={[
+                      styles.twoFaVerifyBtn,
+                      twoFaAction === 'enable'
+                        ? { backgroundColor: theme.colors.success }
+                        : { backgroundColor: '#FF6B6B' },
+                      (twoFaLoading || twoFaOtp.join('').length !== OTP_LENGTH) && styles.buttonDisabled,
+                    ]}
+                    disabled={twoFaLoading || twoFaOtp.join('').length !== OTP_LENGTH}
+                    activeOpacity={0.7}
+                  >
+                    {twoFaLoading ? (
+                      <ActivityIndicator size="small" color={theme.colors.white} />
+                    ) : (
+                      <Text style={styles.twoFaVerifyBtnText}>Verificar</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Reenviar */}
+                  <View style={styles.twoFaResendContainer}>
+                    {twoFaResendCooldown > 0 ? (
+                      <Text style={styles.twoFaResendCooldownText}>
+                        Reenviar en {formatCooldown(twoFaResendCooldown)}
+                      </Text>
+                    ) : (
+                      <TouchableOpacity onPress={handle2FaResend} activeOpacity={0.7}>
+                        <Text style={styles.twoFaResendBtnText}>Reenviar codigo</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Cancelar */}
+                  <TouchableOpacity onPress={handle2FaCancel} style={styles.twoFaCancelLink} activeOpacity={0.7}>
+                    <Text style={styles.twoFaCancelLinkText}>Cancelar</Text>
+                  </TouchableOpacity>
+                </KeyboardAvoidingView>
+              </View>
+            )}
           </View>
         )}
 
@@ -1243,6 +1492,159 @@ const styles = StyleSheet.create({
   },
   securityLoader: {
     marginTop: theme.spacing.sm,
+  },
+  // 2FA Flow styles
+  twoFaActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1.5,
+  },
+  twoFaActionBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+  },
+  twoFaConfirmHeader: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+  },
+  twoFaConfirmTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  twoFaConfirmDesc: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FDE8EC',
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.sm + 2,
+    marginVertical: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.accent,
+    fontWeight: '500',
+  },
+  twoFaBtnRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  twoFaCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  twoFaCancelBtnText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  twoFaSendBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+  },
+  twoFaSendBtnText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.white,
+  },
+  twoFaVerifyContent: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+  },
+  twoFaVerifyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  twoFaVerifyDesc: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  twoFaOtpContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginVertical: 20,
+  },
+  twoFaOtpInput: {
+    width: 46,
+    height: 54,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.inputBg,
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  twoFaOtpInputFilled: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent + '08',
+  },
+  twoFaVerifyBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  twoFaVerifyBtnText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.white,
+  },
+  twoFaResendContainer: {
+    marginTop: theme.spacing.md,
+    alignItems: 'center',
+  },
+  twoFaResendCooldownText: {
+    fontSize: 14,
+    color: theme.colors.textLight,
+  },
+  twoFaResendBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.accent,
+  },
+  twoFaCancelLink: {
+    marginTop: theme.spacing.md,
+    paddingVertical: 8,
+  },
+  twoFaCancelLinkText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   // Address cards
   addressCard: {

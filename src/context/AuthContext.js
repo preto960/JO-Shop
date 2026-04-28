@@ -371,6 +371,69 @@ export const AuthProvider = ({children}) => {
     return unsubscribe;
   }, [state.isAuthenticated, state.user?.id, doRegisterFcmToken]);
 
+  // ─── 2FA: Enviar codigo para activar/desactivar ─────────────────────
+  const send2FACode = useCallback(async (action) => {
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) throw new Error('No hay conexion con el servidor');
+
+      const response = await api.post('/auth/2fa/send-code', { action });
+      return { success: true, message: response.message };
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'No se pudo enviar el codigo';
+      return { success: false, error: message };
+    }
+  }, []);
+
+  // ─── 2FA: Verificar codigo y completar activacion/desactivacion ─────────
+  const verify2FASetup = useCallback(async (code, action) => {
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) throw new Error('No hay conexion con el servidor');
+
+      const response = await api.post('/auth/2fa/verify-setup', { code, action });
+
+      // Actualizar el usuario en estado y storage
+      if (response.user) {
+        const updatedUser = response.user;
+        dispatch({ type: ACTIONS.UPDATE_PROFILE, payload: { twoFactorEnabled: updatedUser.twoFactorEnabled } });
+
+        // Actualizar session en AsyncStorage
+        const stored = await AsyncStorage.getItem(AUTH_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          await saveSession({
+            user: { ...parsed.user, twoFactorEnabled: updatedUser.twoFactorEnabled },
+            token: parsed.token,
+            refreshToken: parsed.refreshToken,
+          });
+        }
+
+        // Refrescar perfil completo
+        fetchProfile();
+      }
+
+      return { success: true, twoFactorEnabled: response.twoFactorEnabled };
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'No se pudo verificar el codigo';
+      return { success: false, error: message };
+    }
+  }, [saveSession, fetchProfile]);
+
+  // ─── 2FA: Reenviar codigo OTP durante login ────────────────────────────
+  const resendOtpCode = useCallback(async (email) => {
+    try {
+      const api = await apiService.createApiClient();
+      if (!api) throw new Error('No hay conexion con el servidor');
+
+      await api.post('/auth/2fa/resend-code', { email });
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || 'No se pudo reenviar el codigo';
+      return { success: false, error: message };
+    }
+  }, []);
+
   // ─── Helpers de permisos ───────────────────────────────────────────────────
 
   const permissionCodes = state.user?.permissions?.map(p => p.code) || [];
@@ -408,6 +471,9 @@ export const AuthProvider = ({children}) => {
     logout,
     refreshAccessToken,
     fetchProfile,
+    send2FACode,
+    verify2FASetup,
+    resendOtpCode,
     isAdmin,
     hasPermission,
     hasAnyPermission,
