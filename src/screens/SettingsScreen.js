@@ -21,7 +21,7 @@ import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import ENV from '@config/env';
 import {normalizeUrl, isValidUrl} from '@utils/helpers';
-import * as ImagePicker from 'expo-image-picker';
+import {launchImageLibrary} from 'react-native-image-picker';
 import ConfirmModal from '@components/ConfirmModal';
 import theme from '@theme/styles';
 
