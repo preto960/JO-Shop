@@ -122,9 +122,11 @@ export const AuthProvider = ({children}) => {
       }
 
       const response = await api.post('/auth/login', {email, password});
+      console.log('[AuthContext] login response:', JSON.stringify(response));
 
       // Verificar si se requiere 2FA (OTP)
       if (response.requiresOtp) {
+        console.log('[AuthContext] 2FA requerido, email:', response.email);
         dispatch({type: ACTIONS.SET_LOADING, payload: false});
         return {
           success: false,
@@ -145,6 +147,7 @@ export const AuthProvider = ({children}) => {
 
       return {success: true};
     } catch (err) {
+      console.log('[AuthContext] login error:', err.message, err.response?.data);
       let message = 'Error al iniciar sesión';
       if (err.response?.data) {
         const data = err.response.data;

@@ -241,7 +241,6 @@ const AppNavigator = () => {
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Verification" component={VerificationScreen} />
         </>
       ) : isDelivery ? (
         // Delivery: solo gestión de entregas
@@ -262,6 +261,7 @@ const AppNavigator = () => {
           <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
         </>
       )}
+      <Stack.Screen name="Verification" component={VerificationScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );

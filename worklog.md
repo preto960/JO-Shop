@@ -185,3 +185,25 @@ Stage Summary:
 - ConfigContext now supports write operations via updateConfig()
 - Settings page matches mobile app functionality
 - Only admin users see the Configuracion menu item
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix 2FA login flow in mobile app - VerificationScreen not showing after login
+
+Work Log:
+- Read AuthContext.js - login() function correctly checks response.requiresOtp and returns {success: false, requiresOtp: true, email, otpCode}
+- Read LoginScreen.js - handleLogin correctly checks result.requiresOtp and navigates to Verification
+- Read AppNavigator.js - Found VerificationScreen was INSIDE the !isAuthenticated conditional block (line 244)
+- Read VerificationScreen.js - Screen correctly receives route.params (email, type, otpCode)
+- Read api.js interceptor - response => response.data correctly unwraps axios response
+- Read backend auth.js - login endpoint correctly returns {requiresOtp: true} with status 200 when 2FA is enabled
+- Added console.log debugging in AuthContext.login and LoginScreen.handleLogin
+- Fixed AppNavigator.js: Moved VerificationScreen OUT of the conditional block so it is ALWAYS available in the Stack
+- Fixed LoginScreen.js: Changed navigation.navigate to navigation.replace for 2FA flow, added try/catch fallback
+- Fixed VerificationScreen.js: Back button now navigates to Login with replace() when type is login
+
+Stage Summary:
+- Root cause: VerificationScreen was only registered in the Stack.Navigator when !isAuthenticated. When login() dispatched SET_LOADING:false, the navigator could re-render and potentially lose the navigation target.
+- Fix: Moved VerificationScreen declaration outside the conditional blocks (alongside Settings) so it is always available
+- Files changed: src/navigation/AppNavigator.js, src/screens/LoginScreen.js, src/screens/VerificationScreen.js, src/context/AuthContext.js
+

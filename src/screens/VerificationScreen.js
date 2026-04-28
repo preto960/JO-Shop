@@ -228,7 +228,13 @@ const VerificationScreen = ({route, navigation}) => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (type === 'login') {
+                navigation.replace('Login');
+              } else {
+                navigation.goBack();
+              }
+            }}
             activeOpacity={0.7}
           >
             <Icon name="arrow-back" size={24} color={theme.colors.text} />

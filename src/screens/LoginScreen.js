@@ -34,16 +34,27 @@ const LoginScreen = ({navigation}) => {
     }
 
     const result = await login(email.trim().toLowerCase(), password);
+    console.log('[LoginScreen] login result:', JSON.stringify(result));
     if (!result.success) {
       if (result.requiresOtp) {
         // Redirigir a verificación 2FA
-        navigation.navigate('Verification', {
-          email: result.email,
-          type: 'login',
-          otpCode: result.otpCode,
-        });
+        console.log('[LoginScreen] Navegando a Verification con email:', result.email);
+        try {
+          navigation.replace('Verification', {
+            email: result.email,
+            type: 'login',
+            otpCode: result.otpCode,
+          });
+        } catch (navError) {
+          console.log('[LoginScreen] replace fallo, intentando navigate:', navError);
+          navigation.navigate('Verification', {
+            email: result.email,
+            type: 'login',
+            otpCode: result.otpCode,
+          });
+        }
       } else {
-        setLocalError(result.error);
+        setLocalError(result.error || 'Error al iniciar sesión');
       }
     }
   };
