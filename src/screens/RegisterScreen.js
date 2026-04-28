@@ -43,6 +43,15 @@ const RegisterScreen = ({navigation}) => {
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
 
+  // Password rules
+  const passwordRules = [
+    {label: 'Al menos 6 caracteres', met: password.length >= 6},
+    {label: 'Una letra mayúscula', met: /[A-Z]/.test(password)},
+    {label: 'Un número', met: /[0-9]/.test(password)},
+  ];
+  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
+  const allRulesMet = passwordRules.every(r => r.met) && passwordsMatch;
+
   const handleRegister = async () => {
     setLocalError('');
 
@@ -206,8 +215,32 @@ const RegisterScreen = ({navigation}) => {
               </TouchableOpacity>
             </View>
 
+            {/* Password Rules Indicator */}
+            {password.length > 0 && (
+              <View style={styles.passwordRulesContainer}>
+                <Text style={styles.passwordRulesTitle}>
+                  {allRulesMet ? 'Contraseña valida' : 'Requisitos de contraseña:'}
+                </Text>
+                {passwordRules.map((rule, i) => (
+                  <View key={i} style={styles.passwordRuleRow}>
+                    <View style={[styles.passwordRuleDot, rule.met && styles.passwordRuleDotMet]}>
+                      {rule.met && <Icon name="checkmark" size={10} color={theme.colors.white} />}
+                    </View>
+                    <Text style={[styles.passwordRuleText, rule.met && styles.passwordRuleTextMet]}>
+                      {rule.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <Text style={styles.label}>Confirmar contraseña</Text>
-            <View style={styles.inputContainer}>
+            <View style={[
+              styles.inputContainer,
+              confirmPassword.length > 0 && (passwordsMatch
+                ? {borderColor: theme.colors.success}
+                : {borderColor: '#EF4444'}),
+            ]}>
               <Icon name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />
               <TextInput
                 value={confirmPassword}
@@ -218,6 +251,13 @@ const RegisterScreen = ({navigation}) => {
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
+              {confirmPassword.length > 0 && (
+                <Icon
+                  name={passwordsMatch ? 'checkmark-circle' : 'close-circle'}
+                  size={20}
+                  color={passwordsMatch ? theme.colors.success : '#EF4444'}
+                />
+              )}
             </View>
 
             <TouchableOpacity
@@ -350,6 +390,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
     paddingHorizontal: theme.spacing.md,
     height: 52,
     gap: theme.spacing.sm,
@@ -389,6 +431,45 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.accent,
+  },
+  passwordRulesContainer: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    padding: 12,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  passwordRulesTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
+  },
+  passwordRuleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  passwordRuleDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passwordRuleDotMet: {
+    backgroundColor: theme.colors.success,
+  },
+  passwordRuleText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  passwordRuleTextMet: {
+    color: theme.colors.success,
+    fontWeight: '600',
   },
 });
 
