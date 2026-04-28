@@ -143,6 +143,7 @@ const VerificationScreen = ({route, navigation}) => {
 
   const handleVerify = async () => {
     const code = otp.join('');
+    console.log('[VerificationScreen] handleVerify - code length:', code.length, 'type:', type, 'email:', displayEmail);
     if (code.length !== OTP_LENGTH) {
       Alert.alert('Codigo incompleto', 'Ingresa los 6 digitos del codigo de verificacion.');
       return;
@@ -154,13 +155,16 @@ const VerificationScreen = ({route, navigation}) => {
     try {
       if (type === 'login') {
         // Flujo de login: verificar OTP via loginWithOtp
+        console.log('[VerificationScreen] Llamando loginWithOtp con email:', displayEmail, 'code:', code);
         const result = await loginWithOtp(displayEmail, code);
+        console.log('[VerificationScreen] loginWithOtp result:', JSON.stringify(result));
         if (!result.success) {
           Alert.alert('Error', result.error || 'Error al verificar el código');
           if (mountedRef.current) setLoading(false);
           return;
         }
         // Login exitoso: el estado de autenticación cambia y AppNavigator redirige automáticamente
+        console.log('[VerificationScreen] Login exitoso con OTP, redirigiendo...');
       } else {
         // Flujo de registro / reset: verificar OTP via endpoint general
         const api = await apiService.createApiClient();
@@ -178,6 +182,7 @@ const VerificationScreen = ({route, navigation}) => {
         }
       }
     } catch (err) {
+      console.log('[VerificationScreen] handleVerify error:', err.message, err.response?.data);
       const errorMessage = err.response?.data?.error || err.message || 'Error al verificar el codigo';
       Alert.alert('Error', errorMessage);
     } finally {

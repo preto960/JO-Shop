@@ -178,10 +178,12 @@ export const AuthProvider = ({children}) => {
         throw new Error('Configura la URL del servidor en Ajustes');
       }
 
+      console.log('[AuthContext] loginWithOtp - llamando /auth/login-verify con email:', email, 'code:', otpCode);
       const response = await api.post('/auth/login-verify', {
         email,
         code: otpCode,
       });
+      console.log('[AuthContext] loginWithOtp - response:', JSON.stringify(response));
       const {user, token, refreshToken} = response;
 
       await saveSession({user, token, refreshToken});
@@ -193,6 +195,7 @@ export const AuthProvider = ({children}) => {
 
       return {success: true};
     } catch (err) {
+      console.log('[AuthContext] loginWithOtp - error:', err.message, err.response?.data);
       let message = 'Error al verificar el código';
       if (err.response?.data) {
         const data = err.response.data;
