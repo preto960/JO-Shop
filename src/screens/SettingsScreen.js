@@ -779,7 +779,6 @@ const SettingsScreen = () => {
                           activeOpacity={0.7}>
                           <Icon name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
-                        </View>
                         {bannerMenuId === banner.id && (
                           <View style={styles.bannerDropdown}>
                             <TouchableOpacity
