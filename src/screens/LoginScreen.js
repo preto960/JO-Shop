@@ -17,8 +17,8 @@ import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
-const LoginScreen = ({navigation}) => {
-  const {login, isLoading, error, clearError} = useAuth();
+const LoginScreen = ({navigation, route}) => {
+  const {login, isLoading, error, clearError, isAuthenticated} = useAuth();
   const {config} = useConfig();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
@@ -28,6 +28,8 @@ const LoginScreen = ({navigation}) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
+
+  const canGoBack = route.params?.fromGuest;
 
   const handleLogin = async () => {
     setLocalError('');
@@ -80,6 +82,16 @@ const LoginScreen = ({navigation}) => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
+          {/* Back button (from guest mode) */}
+          {canGoBack && (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              activeOpacity={0.7}>
+              <Icon name="arrow-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+          )}
           {/* Logo */}
           <View style={styles.logoContainer}>
             {shopLogoUrl ? (
@@ -185,6 +197,10 @@ const createStyles = (primary) => StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.xl,
     paddingBottom: theme.spacing.xxl,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: theme.spacing.sm,
   },
   logoContainer: {
     alignItems: 'center',

@@ -17,6 +17,8 @@ import {EmptyState, ErrorState, LoadingState} from '@components/StateViews';
 import apiService from '@services/api';
 import {useConfig} from '@context/ConfigContext';
 import {useAuth} from '@context/AuthContext';
+import {useCart} from '@context/CartContext';
+import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
@@ -28,8 +30,12 @@ const HomeScreen = () => {
   const shopName = config.shop_name || 'JO-Shop';
   const shopLogoUrl = config.shop_logo_url || '';
   const primaryColor = config.primary_color || primary;
-  const {user, logout} = useAuth();
+  const accentColor = config.accent_color || theme.colors.accent;
+  const {user, isAuthenticated, logout} = useAuth();
+  const {totalItems} = useCart();
+
   const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // Sin filtros para carousels
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +53,10 @@ const HomeScreen = () => {
   const [catCanScrollLeft, setCatCanScrollLeft] = useState(false);
   const [catCanScrollRight, setCatCanScrollRight] = useState(false);
 
+  // Carousel refs
+  const bestSellersRef = useRef(null);
+  const offersRef = useRef(null);
+
   // Scroll arrow states for store chips
   const storeListRef = useRef(null);
   const storeWrapperLayout = useRef(null);
@@ -58,13 +68,13 @@ const HomeScreen = () => {
   // Verificar si hay configuración de API
   useEffect(() => {
     const checkConfig = async () => {
-      const config = await apiService.getApiConfig();
-      setHasApiConfig(!!config.baseUrl);
+      const cfg = await apiService.getApiConfig();
+      setHasApiConfig(!!cfg.baseUrl);
     };
     checkConfig();
   }, [navigation]);
 
-  // Cargar productos
+  // Cargar productos (filtrados)
   const loadProducts = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -98,6 +108,19 @@ const HomeScreen = () => {
     }
   }, [searchQuery, selectedCategory, selectedStore]);
 
+  // Cargar TODOS los productos (sin filtros) para carousels
+  const loadAllProducts = useCallback(async () => {
+    try {
+      const data = await apiService.fetchProducts({});
+      const list = Array.isArray(data)
+        ? data
+        : data?.data || data?.products || data?.results || [];
+      setAllProducts(list);
+    } catch {
+      // non-critical
+    }
+  }, []);
+
   // Cargar categorías
   const loadCategories = useCallback(async () => {
     try {
@@ -123,12 +146,13 @@ const HomeScreen = () => {
   useEffect(() => {
     if (hasApiConfig) {
       loadProducts();
+      loadAllProducts();
       loadCategories();
       loadStores();
     } else {
       setLoading(false);
     }
-  }, [hasApiConfig, loadProducts, loadCategories, loadStores]);
+  }, [hasApiConfig, loadProducts, loadAllProducts, loadCategories, loadStores]);
 
   // Debounce de búsqueda
   useEffect(() => {
@@ -138,6 +162,24 @@ const HomeScreen = () => {
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Calcular datos derivados para carousels
+  const bestSellers = useMemo(() => {
+    return allProducts.slice(0, 6);
+  }, [allProducts]);
+
+  const offers = useMemo(() => {
+    return allProducts
+      .filter(p => {
+        const hasDiscount = p.oldPrice || p.originalPrice || p.compareAtPrice;
+        const isCheap = p.price && p.price < 15;
+        return hasDiscount || isCheap;
+      })
+      .sort((a, b) => (a.price || 0) - (b.price || 0))
+      .slice(0, 6);
+  }, [allProducts]);
+
+  const hasActiveFilters = selectedCategory || selectedStore || searchQuery;
 
   const handleProductPress = product => {
     navigation.navigate('ProductDetail', {product});
@@ -205,28 +247,17 @@ const HomeScreen = () => {
     setSearchQuery('');
   };
 
-  const hasActiveFilters = selectedCategory || selectedStore || searchQuery;
-
-  const handleLogout = () => {
-    logout();
-  };
-
-  // Renderizar sin configuración
+  // ─── Render sin configuración ────────────────────────────────────────────
   if (!hasApiConfig && !loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
+        <View style={[styles.header, {justifyContent: 'center'}]}>
           <View style={styles.headerCenter}>
             {shopLogoUrl ? (
-              <Image source={{uri: shopLogoUrl}} style={[styles.logoImage, {tintColor: primaryColor}]} resizeMode="contain" />
+              <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
             ) : (
               <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
             )}
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={26} color={primary} />
-            </TouchableOpacity>
           </View>
         </View>
         <EmptyState
@@ -240,252 +271,371 @@ const HomeScreen = () => {
     );
   }
 
+  // ─── Carousel de productos ──────────────────────────────────────────────
+  const renderProductCarousel = (title, data, listRef) => {
+    if (!data || data.length === 0) return null;
+
+    return (
+      <View style={styles.carouselSection}>
+        <Text style={styles.carouselTitle}>{title}</Text>
+        <FlatList
+          ref={listRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={data}
+          keyExtractor={item => `carousel-${item.id || item._id || ''}`}
+          contentContainerStyle={styles.carouselList}
+          renderItem={({item}) => (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => handleProductPress(item)}
+              style={styles.carouselCard}>
+              <View style={styles.carouselImageContainer}>
+                <Image
+                  source={{uri: item.image || item.imageUrl || item.images?.[0]}}
+                  style={styles.carouselImage}
+                  resizeMode="cover"
+                />
+                {item.stock !== undefined && item.stock <= 0 && (
+                  <View style={styles.outOfStockBadge}>
+                    <Text style={styles.outOfStockText}>Agotado</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.carouselInfo}>
+                <Text style={styles.carouselName} numberOfLines={1}>
+                  {item.name || item.title}
+                </Text>
+                <View style={styles.carouselPriceRow}>
+                  <Text style={styles.carouselPrice}>
+                    {formatPrice(item.price || item.precio)}
+                  </Text>
+                  {(item.oldPrice || item.originalPrice || item.compareAtPrice) && (
+                    <Text style={styles.carouselOldPrice}>
+                      {formatPrice(item.oldPrice || item.originalPrice || item.compareAtPrice)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    );
+  };
+
+  // ─── Feature strip ──────────────────────────────────────────────────────
+  const renderFeatureStrip = () => {
+    if (hasActiveFilters) return null;
+    return (
+      <View style={styles.featureStrip}>
+        <View style={styles.featureItem}>
+          <View style={[styles.featureIcon, {backgroundColor: primaryColor + '15'}]}>
+            <Icon name="rocket-outline" size={20} color={primaryColor} />
+          </View>
+          <Text style={styles.featureLabel}>Envío rápido</Text>
+        </View>
+        <View style={styles.featureItem}>
+          <View style={[styles.featureIcon, {backgroundColor: primaryColor + '15'}]}>
+            <Icon name="shield-checkmark-outline" size={20} color={primaryColor} />
+          </View>
+          <Text style={styles.featureLabel}>Pago seguro</Text>
+        </View>
+        <View style={styles.featureItem}>
+          <View style={[styles.featureIcon, {backgroundColor: primaryColor + '15'}]}>
+            <Icon name="headset-outline" size={20} color={primaryColor} />
+          </View>
+          <Text style={styles.featureLabel}>Soporte 24/7</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // ─── Login prompt (para guests con items en carrito) ────────────────────
+  const renderLoginPrompt = () => {
+    if (isAuthenticated || totalItems === 0) return null;
+    return (
+      <View style={styles.loginPrompt}>
+        <View style={styles.loginPromptContent}>
+          <Icon name="log-in-outline" size={22} color={primaryColor} />
+          <Text style={styles.loginPromptText}>
+            Inicia sesión para completar tu compra
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.loginPromptBtn, {backgroundColor: primaryColor}]}
+          onPress={() => navigation.navigate('Login', {fromGuest: true})}
+          activeOpacity={0.8}>
+          <Text style={styles.loginPromptBtnText}>Iniciar sesión</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // ─── Main Render ────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* ═══ Header ═══ */}
+      <View style={[styles.header, !isAuthenticated ? styles.headerGuest : null]}>
         <View style={styles.headerCenter}>
           {shopLogoUrl ? (
             <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
           ) : (
             <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
           )}
-          <Text style={styles.subtitle}>Descubre productos increíbles</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={26} color={primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Search bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Icon
-            name="search"
-            size={18}
-            color={theme.colors.textSecondary}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Buscar productos..."
-            placeholderTextColor={theme.colors.textLight}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery ? (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon
-                name="close-circle"
-                size={18}
-                color={theme.colors.textSecondary}
-              />
+          {isAuthenticated ? (
+            <TouchableOpacity onPress={logout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="log-out-outline" size={24} color={primary} />
             </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
-
-      {/* Category filters */}
-      {categories.length > 0 && (
-        <View style={styles.filterRow}>
-          <View style={styles.chipScrollWrapper} onLayout={handleCategoryLayout}>
-            {catCanScrollLeft && (
-              <TouchableOpacity
-                style={styles.scrollArrowLeft}
-                onPress={() => scrollCategoryBy('left')}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
-              >
-                <Icon name="chevron-back" size={20} color={primary} />
-              </TouchableOpacity>
-            )}
-            <FlatList
-              ref={categoryListRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              onScroll={handleCategoryScroll}
-              scrollEventThrottle={16}
-              data={[{id: null, name: 'Todos'}, ...categories]}
-              keyExtractor={item => `cat-${item.id?.toString() || 'all'}`}
-              renderItem={({item}) => (
-                <TouchableOpacity
-                  onPress={() => handleCategorySelect(item.id)}
-                  style={[
-                    styles.filterChip,
-                    selectedCategory === item.id && styles.filterChipActive,
-                  ]}
-                  activeOpacity={0.7}>
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedCategory === item.id && styles.filterChipTextActive,
-                    ]}>
-                    {item.name || 'Todos'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              style={styles.filterList}
-              onContentSizeChange={(w) => handleCategoryContentResize(w)}
-            />
-            {catCanScrollRight && (
-              <TouchableOpacity
-                style={styles.scrollArrowRight}
-                onPress={() => scrollCategoryBy('right')}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
-              >
-                <Icon name="chevron-forward" size={20} color={primary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* Store filter toggle */}
-      {isMultiStore && stores.length > 0 && (
-        <View style={styles.storeFilterRow}>
-          <TouchableOpacity
-            style={styles.storeFilterToggle}
-            onPress={() => setShowStoreFilter(prev => !prev)}>
-            <Icon
-              name="storefront-outline"
-              size={16}
-              color={selectedStore ? primary : theme.colors.textSecondary}
-            />
-            <Text style={[
-              styles.storeFilterLabel,
-              selectedStore && styles.storeFilterLabelActive,
-            ]}>
-              {selectedStore
-                ? stores.find(s => s.id === selectedStore)?.name || 'Tienda'
-                : 'Filtrar por tienda'}
-            </Text>
-            <Icon
-              name={showStoreFilter ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={theme.colors.textSecondary}
-            />
-          </TouchableOpacity>
-          {hasActiveFilters && (
+          ) : (
             <TouchableOpacity
-              style={styles.clearFiltersBtn}
-              onPress={clearFilters}>
-              <Icon name="close-circle" size={16} color={primary} />
-              <Text style={styles.clearFiltersText}>Limpiar</Text>
+              onPress={() => navigation.navigate('Login', {fromGuest: true})}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+              style={[styles.loginBtn, {backgroundColor: primaryColor}]}>
+              <Text style={styles.loginBtnText}>Ingresar</Text>
             </TouchableOpacity>
           )}
         </View>
-      )}
+      </View>
 
-      {/* Store filter chips dropdown */}
-      {isMultiStore && showStoreFilter && stores.length > 0 && (
-        <View style={styles.storeFilterContainer}>
-          <View style={styles.chipScrollWrapper} onLayout={handleStoreLayout}>
-            {storeCanScrollLeft && (
-              <TouchableOpacity
-                style={styles.scrollArrowLeft}
-                onPress={() => scrollStoreBy('left')}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
-              >
-                <Icon name="chevron-back" size={20} color={primary} />
-              </TouchableOpacity>
+      {/* ═══ Main Scrollable Content ═══ */}
+      <FlatList
+        data={products}
+        keyExtractor={item => (item.id || item._id || '').toString()}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.mainScroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { loadProducts(true); loadAllProducts(); }}
+            colors={[primary]}
+            tintColor={primary}
+          />
+        }
+        ListHeaderComponent={
+          <>
+            {/* ═══ Hero Banner ═══ */}
+            {!hasActiveFilters && (
+              <View style={[styles.heroBanner, {backgroundColor: primaryColor}]}>
+                {/* Decorative circles */}
+                <View style={[styles.heroCircle1, {borderColor: 'rgba(255,255,255,0.15)'}]} />
+                <View style={[styles.heroCircle2, {borderColor: 'rgba(255,255,255,0.1)'}]} />
+                <View style={styles.heroCircle3} />
+
+                <Text style={styles.heroGreeting}>
+                  {isAuthenticated && user?.name
+                    ? `Hola, ${user.name.split(' ')[0]} 👋`
+                    : `Bienvenido a ${shopName}`}
+                </Text>
+                <Text style={styles.heroSubtext}>Descubre productos increíbles</Text>
+
+                {/* Search bar */}
+                <View style={styles.heroSearchContainer}>
+                  <Icon name="search" size={18} color={theme.colors.textSecondary} style={styles.heroSearchIcon} />
+                  <TextInput
+                    style={styles.heroSearchInput}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Buscar productos..."
+                    placeholderTextColor={theme.colors.textLight}
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {searchQuery ? (
+                    <TouchableOpacity
+                      onPress={() => setSearchQuery('')}
+                      hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                      <Icon name="close-circle" size={18} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
             )}
-            <FlatList
-              ref={storeListRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              onScroll={handleStoreScroll}
-              scrollEventThrottle={16}
-              data={[{id: null, name: 'Todas las tiendas'}, ...stores]}
-              keyExtractor={item => `store-${item.id?.toString() || 'all'}`}
-              renderItem={({item}) => {
-                const storeCount = item._count?.products || 0;
-                return (
-                  <TouchableOpacity
-                    onPress={() => handleStoreSelect(item.id)}
-                    style={[
-                      styles.storeChip,
-                      selectedStore === item.id && styles.storeChipActive,
-                    ]}
-                    activeOpacity={0.7}>
-                    <Icon
-                      name="storefront"
-                      size={14}
-                      color={selectedStore === item.id ? theme.colors.white : theme.colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.storeChipText,
-                        selectedStore === item.id && styles.storeChipTextActive,
-                      ]}>
-                      {item.name || 'Todas'}
-                    </Text>
-                    {storeCount > 0 && (
-                      <Text style={[
-                        styles.storeChipCount,
-                        selectedStore === item.id && styles.storeChipCountActive,
-                      ]}>
-                        {storeCount}
-                      </Text>
+
+            {/* ═══ Search bar (when filters active, outside hero) ═══ */}
+            {hasActiveFilters && (
+              <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                  <Icon name="search" size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Buscar productos..."
+                    placeholderTextColor={theme.colors.textLight}
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {searchQuery ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                      <Icon name="close-circle" size={18} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            )}
+
+            {/* ═══ Category filters ═══ */}
+            {categories.length > 0 && (
+              <View style={styles.filterRow}>
+                <View style={styles.chipScrollWrapper} onLayout={handleCategoryLayout}>
+                  {catCanScrollLeft && (
+                    <TouchableOpacity
+                      style={styles.scrollArrowLeft}
+                      onPress={() => scrollCategoryBy('left')}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
+                      <Icon name="chevron-back" size={20} color={primary} />
+                    </TouchableOpacity>
+                  )}
+                  <FlatList
+                    ref={categoryListRef}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={handleCategoryScroll}
+                    scrollEventThrottle={16}
+                    data={[{id: null, name: 'Todos'}, ...categories]}
+                    keyExtractor={item => `cat-${item.id?.toString() || 'all'}`}
+                    renderItem={({item}) => (
+                      <TouchableOpacity
+                        onPress={() => handleCategorySelect(item.id)}
+                        style={[styles.filterChip, selectedCategory === item.id && styles.filterChipActive]}
+                        activeOpacity={0.7}>
+                        <Text style={[styles.filterChipText, selectedCategory === item.id && styles.filterChipTextActive]}>
+                          {item.name || 'Todos'}
+                        </Text>
+                      </TouchableOpacity>
                     )}
-                  </TouchableOpacity>
-                );
-              }}
-              style={styles.filterList}
-              onContentSizeChange={(w) => handleStoreContentResize(w)}
-            />
-            {storeCanScrollRight && (
-              <TouchableOpacity
-                style={styles.scrollArrowRight}
-                onPress={() => scrollStoreBy('right')}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
-              >
-                <Icon name="chevron-forward" size={20} color={primary} />
-              </TouchableOpacity>
+                    style={styles.filterList}
+                    onContentSizeChange={(w) => handleCategoryContentResize(w)}
+                  />
+                  {catCanScrollRight && (
+                    <TouchableOpacity
+                      style={styles.scrollArrowRight}
+                      onPress={() => scrollCategoryBy('right')}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
+                      <Icon name="chevron-forward" size={20} color={primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
             )}
-          </View>
-        </View>
-      )}
 
-      {/* Contenido */}
-      {loading ? (
-        <LoadingState />
-      ) : error ? (
-        <ErrorState message={error} onRetry={() => loadProducts()} />
-      ) : (
-        <FlatList
-          data={products}
-          keyExtractor={item => (item.id || item._id || '').toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.productList}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => loadProducts(true)}
-              colors={[primary]}
-              tintColor={primary}
-            />
-          }
-          ListEmptyComponent={
+            {/* ═══ Store filter ═══ */}
+            {isMultiStore && stores.length > 0 && (
+              <View style={styles.storeFilterRow}>
+                <TouchableOpacity
+                  style={styles.storeFilterToggle}
+                  onPress={() => setShowStoreFilter(prev => !prev)}>
+                  <Icon name="storefront-outline" size={16} color={selectedStore ? primary : theme.colors.textSecondary} />
+                  <Text style={[styles.storeFilterLabel, selectedStore && styles.storeFilterLabelActive]}>
+                    {selectedStore
+                      ? stores.find(s => s.id === selectedStore)?.name || 'Tienda'
+                      : 'Filtrar por tienda'}
+                  </Text>
+                  <Icon name={showStoreFilter ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+                {hasActiveFilters && (
+                  <TouchableOpacity style={styles.clearFiltersBtn} onPress={clearFilters}>
+                    <Icon name="close-circle" size={16} color={primary} />
+                    <Text style={styles.clearFiltersText}>Limpiar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* ═══ Store filter chips dropdown ═══ */}
+            {isMultiStore && showStoreFilter && stores.length > 0 && (
+              <View style={styles.storeFilterContainer}>
+                <View style={styles.chipScrollWrapper} onLayout={handleStoreLayout}>
+                  {storeCanScrollLeft && (
+                    <TouchableOpacity
+                      style={styles.scrollArrowLeft}
+                      onPress={() => scrollStoreBy('left')}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
+                      <Icon name="chevron-back" size={20} color={primary} />
+                    </TouchableOpacity>
+                  )}
+                  <FlatList
+                    ref={storeListRef}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={handleStoreScroll}
+                    scrollEventThrottle={16}
+                    data={[{id: null, name: 'Todas las tiendas'}, ...stores]}
+                    keyExtractor={item => `store-${item.id?.toString() || 'all'}`}
+                    renderItem={({item}) => {
+                      const storeCount = item._count?.products || 0;
+                      return (
+                        <TouchableOpacity
+                          onPress={() => handleStoreSelect(item.id)}
+                          style={[styles.storeChip, selectedStore === item.id && styles.storeChipActive]}
+                          activeOpacity={0.7}>
+                          <Icon name="storefront" size={14} color={selectedStore === item.id ? theme.colors.white : theme.colors.textSecondary} />
+                          <Text style={[styles.storeChipText, selectedStore === item.id && styles.storeChipTextActive]}>
+                            {item.name || 'Todas'}
+                          </Text>
+                          {storeCount > 0 && (
+                            <Text style={[styles.storeChipCount, selectedStore === item.id && styles.storeChipCountActive]}>
+                              {storeCount}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    }}
+                    style={styles.filterList}
+                    onContentSizeChange={(w) => handleStoreContentResize(w)}
+                  />
+                  {storeCanScrollRight && (
+                    <TouchableOpacity
+                      style={styles.scrollArrowRight}
+                      onPress={() => scrollStoreBy('right')}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
+                      <Icon name="chevron-forward" size={20} color={primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* ═══ Feature Strip ═══ */}
+            {renderFeatureStrip()}
+
+            {/* ═══ Best Sellers Carousel ═══ */}
+            {renderProductCarousel('Más vendidos', bestSellers, bestSellersRef)}
+
+            {/* ═══ Offers Carousel ═══ */}
+            {renderProductCarousel('Ofertas', offers, offersRef)}
+
+            {/* ═══ All Products Title ═══ */}
+            <Text style={styles.sectionTitle}>
+              {hasActiveFilters ? 'Resultados' : 'Todos los productos'}
+            </Text>
+
+            {/* ═══ Login Prompt (guests with cart items) ═══ */}
+            {renderLoginPrompt()}
+          </>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <LoadingState />
+          ) : error ? (
+            <ErrorState message={error} onRetry={() => loadProducts()} />
+          ) : (
             <EmptyState
               icon="search-outline"
-              title={
-                searchQuery
-                  ? 'Sin resultados'
-                  : 'No hay productos'
-              }
+              title={searchQuery ? 'Sin resultados' : 'No hay productos'}
               message={
                 searchQuery
                   ? `No encontramos resultados para "${searchQuery}". Intenta con otra búsqueda.`
@@ -494,16 +644,16 @@ const HomeScreen = () => {
                     : 'Aún no hay productos disponibles. ¡Vuelve pronto!'
               }
             />
-          }
-          renderItem={({item}) => (
-            <ProductCard
-              product={item}
-              onPress={handleProductPress}
-              containerStyle={styles.productCard}
-            />
-          )}
-        />
-      )}
+          )
+        }
+        renderItem={({item}) => (
+          <ProductCard
+            product={item}
+            onPress={handleProductPress}
+            containerStyle={styles.productCard}
+          />
+        )}
+      />
     </SafeAreaView>
   );
 };
@@ -513,28 +663,47 @@ const createStyles = (primary) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  mainScroll: {
+    paddingBottom: theme.spacing.xxl,
+  },
+  // ─── Header ──────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.white,
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
     ...theme.shadows.sm,
+  },
+  headerGuest: {
+    backgroundColor: 'transparent',
+    elevation: 0,
+    shadowColor: 'transparent',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0,
+    shadowRadius: 0,
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
   },
-  headerLeft: {
-    width: 68,
-  },
   headerRight: {
-    width: 80,
+    width: 100,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 6,
+  },
+  loginBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.full,
+  },
+  loginBtnText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
   },
   logo: {
     fontSize: theme.fontSize.title,
@@ -546,15 +715,79 @@ const createStyles = (primary) => StyleSheet.create({
     width: 160,
     height: 50,
   },
-  subtitle: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
+  // ─── Hero Banner ─────────────────────────────────────────────────────
+  heroBanner: {
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    paddingTop: theme.spacing.xxl,
+    paddingBottom: theme.spacing.lg,
+    overflow: 'hidden',
+    position: 'relative',
   },
+  heroCircle1: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 2,
+    top: -40,
+    right: -30,
+  },
+  heroCircle2: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    bottom: -20,
+    left: -20,
+  },
+  heroCircle3: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    top: 20,
+    right: 80,
+  },
+  heroGreeting: {
+    fontSize: theme.fontSize.xl + 2,
+    fontWeight: '800',
+    color: theme.colors.white,
+    marginBottom: 4,
+  },
+  heroSubtext: {
+    fontSize: theme.fontSize.md,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: theme.spacing.lg,
+    fontWeight: '500',
+  },
+  heroSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.md,
+    height: 46,
+  },
+  heroSearchIcon: {
+    marginRight: theme.spacing.sm,
+  },
+  heroSearchInput: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    height: 46,
+    padding: 0,
+  },
+  // ─── Search (outside hero) ──────────────────────────────────────────
   searchContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
   },
   searchInputContainer: {
     flexDirection: 'row',
@@ -574,10 +807,150 @@ const createStyles = (primary) => StyleSheet.create({
     height: 42,
     padding: 0,
   },
+  // ─── Feature Strip ───────────────────────────────────────────────────
+  featureStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  featureItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  featureIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  // ─── Carousel ───────────────────────────────────────────────────────
+  carouselSection: {
+    marginBottom: theme.spacing.md,
+  },
+  carouselTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  },
+  carouselList: {
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  carouselCard: {
+    width: 150,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    ...theme.shadows.sm,
+  },
+  carouselImageContainer: {
+    width: 150,
+    height: 120,
+    position: 'relative',
+    backgroundColor: theme.colors.inputBg,
+  },
+  carouselImage: {
+    width: '100%',
+    height: '100%',
+  },
+  outOfStockBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.sm,
+  },
+  outOfStockText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  carouselInfo: {
+    padding: theme.spacing.sm,
+  },
+  carouselName: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  carouselPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  carouselPrice: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: primary,
+  },
+  carouselOldPrice: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    textDecorationLine: 'line-through',
+  },
+  // ─── Section title ──────────────────────────────────────────────────
+  sectionTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '700',
+    color: theme.colors.text,
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  // ─── Login Prompt ───────────────────────────────────────────────────
+  loginPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: theme.spacing.md,
+    marginVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    ...theme.shadows.sm,
+  },
+  loginPromptContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    flex: 1,
+  },
+  loginPromptText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  loginPromptBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+  },
+  loginPromptBtnText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '700',
+  },
+  // ─── Filters ────────────────────────────────────────────────────────
   filterRow: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.xs,
-    backgroundColor: theme.colors.background,
   },
   chipScrollWrapper: {
     position: 'relative',
@@ -639,14 +1012,13 @@ const createStyles = (primary) => StyleSheet.create({
   filterChipTextActive: {
     color: theme.colors.white,
   },
-  // Store filter toggle
+  // Store filter
   storeFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.xs,
-    backgroundColor: theme.colors.background,
   },
   storeFilterToggle: {
     flexDirection: 'row',
@@ -677,7 +1049,6 @@ const createStyles = (primary) => StyleSheet.create({
   storeFilterContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.xs,
-    backgroundColor: theme.colors.background,
   },
   storeChip: {
     flexDirection: 'row',
@@ -715,6 +1086,7 @@ const createStyles = (primary) => StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
     color: theme.colors.white,
   },
+  // ─── Product Grid ──────────────────────────────────────────────────
   productList: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,

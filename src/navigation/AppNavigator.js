@@ -44,7 +44,46 @@ const CartBadge = () => {
   );
 };
 
-// Tabs del cliente
+// ─── Guest Tabs (sin login) ─────────────────────────────────────────────────
+const GuestTabs = () => {
+  const {config} = useConfig();
+  const activeColor = config.primary_color || theme.colors.accent;
+  return (
+    <Tab.Navigator
+      screenOptions={({route}) => ({
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: activeColor,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarIcon: ({color, size}) => {
+          const icons = {
+            Home: 'storefront-outline',
+            Cart: 'cart-outline',
+          };
+          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
+        },
+      })}>
+      <Tab.Screen name="Home" component={HomeScreen} options={{tabBarLabel: 'Inicio'}} />
+      <Tab.Screen
+        name="Cart"
+        component={CartScreen}
+        options={{
+          tabBarLabel: 'Carrito',
+          tabBarIcon: ({color, size}) => (
+            <View>
+              <Icon name="cart-outline" size={size} color={color} />
+              <CartBadge />
+            </View>
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+// ─── Customer Tabs (logueado) ───────────────────────────────────────────────
 const CustomerTabs = () => {
   const {config} = useConfig();
   const activeColor = config.primary_color || theme.colors.accent;
@@ -87,91 +126,39 @@ const CustomerTabs = () => {
   );
 };
 
-// Tabs del admin - dinámicos según permisos
+// ─── Admin Tabs (dinámicos según permisos) ──────────────────────────────────
 const AdminTabs = () => {
   const {canViewModule, hasPermission, hasRole} = useAuth();
+  const {isMultiStore} = useConfig();
+  const {config} = useConfig();
+  const activeColor = config.primary_color || theme.colors.accent;
 
-  // Determinar qué tabs mostrar según permisos
   const tabs = [];
 
   if (canViewModule('dashboard')) {
-    tabs.push({
-      name: 'AdminDashboard',
-      component: AdminDashboardScreen,
-      label: 'Panel',
-      icon: 'grid-outline',
-    });
+    tabs.push({name: 'AdminDashboard', component: AdminDashboardScreen, label: 'Panel', icon: 'grid-outline'});
   }
-
   if (canViewModule('products')) {
-    tabs.push({
-      name: 'AdminProducts',
-      component: AdminProductsScreen,
-      label: 'Productos',
-      icon: 'pricetag-outline',
-    });
+    tabs.push({name: 'AdminProducts', component: AdminProductsScreen, label: 'Productos', icon: 'pricetag-outline'});
   }
-
   if (canViewModule('categories')) {
-    tabs.push({
-      name: 'AdminCategories',
-      component: AdminCategoriesScreen,
-      label: 'Categorías',
-      icon: 'folder-outline',
-    });
+    tabs.push({name: 'AdminCategories', component: AdminCategoriesScreen, label: 'Categorías', icon: 'folder-outline'});
   }
-
-  // Stores tab: only show in multi-store mode for admin or users with stores permission
-  const {isMultiStore} = useConfig();
   if (isMultiStore && (hasRole('admin') || canViewModule('stores'))) {
-    tabs.push({
-      name: 'AdminStores',
-      component: AdminStoresScreen,
-      label: 'Tiendas',
-      icon: 'storefront-outline',
-    });
+    tabs.push({name: 'AdminStores', component: AdminStoresScreen, label: 'Tiendas', icon: 'storefront-outline'});
   }
-
   if (canViewModule('orders')) {
-    tabs.push({
-      name: 'AdminOrders',
-      component: AdminOrdersScreen,
-      label: 'Pedidos',
-      icon: 'receipt-outline',
-    });
+    tabs.push({name: 'AdminOrders', component: AdminOrdersScreen, label: 'Pedidos', icon: 'receipt-outline'});
   }
-
   if (hasRole('admin') || canViewModule('users')) {
-    tabs.push({
-      name: 'AdminRoles',
-      component: AdminRolesScreen,
-      label: 'Roles',
-      icon: 'shield-outline',
-    });
+    tabs.push({name: 'AdminRoles', component: AdminRolesScreen, label: 'Roles', icon: 'shield-outline'});
   }
-
-  // Users tab only for admin
   if (hasRole('admin')) {
-    tabs.push({
-      name: 'AdminUsers',
-      component: AdminUsersScreen,
-      label: 'Usuarios',
-      icon: 'people-outline',
-    });
+    tabs.push({name: 'AdminUsers', component: AdminUsersScreen, label: 'Usuarios', icon: 'people-outline'});
   }
-
-  // Si no hay tabs visibles, al menos mostrar dashboard
   if (tabs.length === 0) {
-    tabs.push({
-      name: 'AdminDashboard',
-      component: AdminDashboardScreen,
-      label: 'Panel',
-      icon: 'grid-outline',
-    });
+    tabs.push({name: 'AdminDashboard', component: AdminDashboardScreen, label: 'Panel', icon: 'grid-outline'});
   }
-
-  const {config} = useConfig();
-  const activeColor = config.primary_color || theme.colors.accent;
 
   return (
     <Tab.Navigator
@@ -193,7 +180,7 @@ const AdminTabs = () => {
   );
 };
 
-// Tabs del delivery - solo entregas
+// ─── Delivery Tabs ──────────────────────────────────────────────────────────
 const DeliveryTabs = () => {
   const {config} = useConfig();
   const activeColor = config.primary_color || theme.colors.accent;
@@ -226,11 +213,10 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Navegación principal
+// ─── Navegación principal ───────────────────────────────────────────────────
 const AppNavigator = () => {
-  const {isLoading, isRestoring, isAuthenticated, isAdmin, hasRole} = useAuth();
+  const {isRestoring, isAuthenticated, hasRole} = useAuth();
 
-  // Verificar si el usuario tiene algún permiso de admin (o rol admin)
   const isStaff = hasRole('admin') || hasRole('editor');
   const isDelivery = hasRole('delivery');
 
@@ -247,24 +233,26 @@ const AppNavigator = () => {
         contentStyle: {backgroundColor: theme.colors.background},
       }}>
       {!isAuthenticated ? (
-        // No autenticado: Login / Register
+        // ─── MODO INVITADO: ver productos sin login ────────────────
         <>
+          <Stack.Screen name="GuestTabs" component={GuestTabs} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
         </>
       ) : isDelivery ? (
-        // Delivery: solo gestión de entregas
+        // ─── DELIVERY ─────────────────────────────────────────────
         <>
           <Stack.Screen name="DeliveryMainTabs" component={DeliveryTabs} />
         </>
       ) : isStaff ? (
-        // Staff (admin/editor): Panel + CRUDs con permisos
+        // ─── STAFF (admin/editor) ─────────────────────────────────
         <>
           <Stack.Screen name="AdminMainTabs" component={AdminTabs} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
         </>
       ) : (
-        // Cliente: Home + Carrito + Perfil
+        // ─── CLIENTE (logueado) ────────────────────────────────────
         <>
           <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />

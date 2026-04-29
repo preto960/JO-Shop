@@ -172,6 +172,21 @@ const CartScreen = () => {
 
   const handleOpenCheckout = () => {
     if (items.length === 0) return;
+    if (!user) {
+      // Gate: si no está logueado, enviar a Login
+      showCustomModal({
+        type: 'confirm',
+        icon: 'log-in',
+        title: 'Inicia sesión',
+        message: 'Necesitas iniciar sesión para realizar tu pedido.',
+        confirmText: 'Iniciar sesión',
+        cancelText: 'Cancelar',
+        onConfirm: () => {
+          navigation.navigate('Login', {fromGuest: true});
+        },
+      });
+      return;
+    }
     setShowCheckoutModal(true);
   };
 
@@ -764,9 +779,17 @@ const CartScreen = () => {
             <Text style={styles.headerTitle}>Mi Carrito</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-              <Icon name="log-out-outline" size={22} color={primary} />
-            </TouchableOpacity>
+            {user ? (
+              <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+                <Icon name="log-out-outline" size={22} color={primary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Login', {fromGuest: true})}
+                hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+                <Icon name="log-in-outline" size={22} color={primary} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         <EmptyState
@@ -792,9 +815,17 @@ const CartScreen = () => {
           <TouchableOpacity onPress={clearCart} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
             <Icon name="trash-outline" size={22} color={theme.colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="log-out-outline" size={22} color={primary} />
-          </TouchableOpacity>
+          {user ? (
+            <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+              <Icon name="log-out-outline" size={22} color={primary} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Login')}
+              hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+              <Icon name="log-in-outline" size={22} color={primary} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

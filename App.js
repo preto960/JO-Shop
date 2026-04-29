@@ -16,6 +16,8 @@ export const navigationRef = createRef();
 
 // ─── Mapeo de pantallas: nombre logico → ruta de navegacion real ──────────
 const SCREEN_ROUTES = {
+  GuestHome:       { parent: 'GuestTabs',       screen: 'Home' },
+  GuestCart:       { parent: 'GuestTabs',       screen: 'Cart' },
   DeliveryOrders: { parent: 'DeliveryMainTabs', screen: 'DeliveryOrders' },
   DeliveryProfile: { parent: 'DeliveryMainTabs', screen: 'DeliveryProfile' },
   MyOrders:        { parent: 'CustomerTabs',    screen: 'MyOrders' },
