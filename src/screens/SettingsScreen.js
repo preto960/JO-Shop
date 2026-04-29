@@ -242,6 +242,7 @@ const SettingsScreen = () => {
   const [banners, setBanners] = useState([]);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [bannerLoading, setBannerLoading] = useState(false);
+  const [bannerMenuId, setBannerMenuId] = useState(null);
 
   useEffect(() => {
     setBannersEnabled(config.banners_enabled === 'true' || config.banners_enabled === true);
@@ -342,7 +343,47 @@ const SettingsScreen = () => {
     }
   }, [bannersEnabled, updateConfig]);
 
+  const handleEditBannerDuration = useCallback((banner) => {
+    setBannerMenuId(null);
+    Alert.prompt(
+      'Editar duración',
+      `Banner ${banner.sortOrder} — Duración actual: ${banner.duration}s\nIngrese nueva duración (4-30 segundos):`,
+      [
+        {text: 'Cancelar', style: 'cancel', onPress: () => {}},
+        {
+          text: 'Guardar',
+          onPress: async (durationText) => {
+            const duration = parseInt(durationText);
+            if (!duration || duration < 4 || duration > 30) {
+              Alert.alert('Error', 'La duración debe ser entre 4 y 30 segundos.');
+              return;
+            }
+            try {
+              const api = await apiService.createApiClient();
+              const formData = new FormData();
+              formData.append('duration', String(duration));
+              const res = await api.put(`/banners/${banner.id}`, formData, {
+                headers: {'Content-Type': 'multipart/form-data'},
+                transformRequest: (data) => data,
+              });
+              const updated = res?.banner || res?.data?.banner;
+              if (updated) {
+                setBanners(prev => prev.map(b => b.id === banner.id ? updated : b));
+              }
+            } catch {
+              Alert.alert('Error', 'No se pudo actualizar la duración.');
+            }
+          },
+        },
+      ],
+      'plain-text',
+      String(banner.duration || 4),
+      'number-pad',
+    );
+  }, []);
+
   const handleRemoveBanner = useCallback(async (bannerId) => {
+    setBannerMenuId(null);
     setBanners(prev => prev.filter(b => b.id !== bannerId));
     try {
       const api = await apiService.createApiClient();
@@ -710,6 +751,7 @@ const SettingsScreen = () => {
                   <View style={styles.bannerList}>
                     {banners.map((banner) => (
                       <View key={`banner-${banner.id}`} style={[styles.bannerItem, !banner.active && styles.bannerItemInactive]}>
+                        <View style={styles.bannerItemRow}>
                         <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
                         <View style={styles.bannerItemInfo}>
                           <Text style={styles.bannerItemLabel}>
@@ -728,22 +770,43 @@ const SettingsScreen = () => {
                             {banner.active ? 'Visible' : 'Inactivo'}
                           </Text>
                         </View>
-                        <View style={styles.bannerActions}>
-                          <TouchableOpacity
-                            onPress={() => handleToggleBannerActive(banner)}
-                            style={[styles.bannerActionBtn, {backgroundColor: banner.active ? '#E8F8F5' : '#FFF3E0'}]}
-                            hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
-                            activeOpacity={0.7}>
-                            <Icon name={banner.active ? 'eye-outline' : 'eye-off-outline'} size={18} color={banner.active ? '#00B894' : '#F39C12'} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleRemoveBanner(banner.id)}
-                            style={styles.bannerActionBtn}
-                            hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
-                            activeOpacity={0.7}>
-                            <Icon name="close-circle" size={18} color="#EF4444" />
-                          </TouchableOpacity>
                         </View>
+                        {/* Three-dot menu */}
+                        <TouchableOpacity
+                          onPress={() => setBannerMenuId(bannerMenuId === banner.id ? null : banner.id)}
+                          style={styles.bannerMoreBtn}
+                          hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+                          activeOpacity={0.7}>
+                          <Icon name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
+                        </View>
+                        {bannerMenuId === banner.id && (
+                          <View style={styles.bannerDropdown}>
+                            <TouchableOpacity
+                              onPress={() => handleEditBannerDuration(banner)}
+                              style={styles.bannerDropdownItem}
+                              activeOpacity={0.6}>
+                              <Icon name="timer-outline" size={16} color="#F39C12" />
+                              <Text style={styles.bannerDropdownText}>Editar duración</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => { handleToggleBannerActive(banner); setBannerMenuId(null); }}
+                              style={styles.bannerDropdownItem}
+                              activeOpacity={0.6}>
+                              <Icon name={banner.active ? 'eye-off-outline' : 'eye-outline'} size={16} color={banner.active ? '#F39C12' : '#00B894'} />
+                              <Text style={[styles.bannerDropdownText, {color: banner.active ? '#F39C12' : '#00B894'}]}>
+                                {banner.active ? 'Desactivar' : 'Activar'}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleRemoveBanner(banner.id)}
+                              style={styles.bannerDropdownItem}
+                              activeOpacity={0.6}>
+                              <Icon name="trash-outline" size={16} color="#EF4444" />
+                              <Text style={[styles.bannerDropdownText, {color: '#EF4444'}]}>Eliminar</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>
@@ -1232,12 +1295,13 @@ const createStyles = (primary) => StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   bannerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.sm,
     gap: theme.spacing.sm,
+    position: 'relative',
   },
   bannerThumb: {
     width: 64,
@@ -1261,18 +1325,43 @@ const createStyles = (primary) => StyleSheet.create({
   bannerItemInactive: {
     opacity: 0.5,
   },
-  bannerActions: {
-    flexDirection: 'column',
-    gap: 6,
-    flexShrink: 0,
+  bannerItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
-  bannerActionBtn: {
+  bannerMoreBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDE8EC',
+    backgroundColor: theme.colors.inputBg,
+  },
+  bannerDropdown: {
+    position: 'absolute',
+    top: 36,
+    right: 0,
+    backgroundColor: theme.colors.white,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    zIndex: 10,
+    minWidth: 170,
+    overflow: 'hidden',
+    ...theme.shadows.md,
+  },
+  bannerDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  bannerDropdownText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.text,
   },
   addBannerBtn: {
     flexDirection: 'row',
