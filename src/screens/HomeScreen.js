@@ -225,7 +225,7 @@ const HomeScreen = () => {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={primary} />
+              <Icon name="log-out-outline" size={26} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -254,7 +254,7 @@ const HomeScreen = () => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={primary} />
+            <Icon name="log-out-outline" size={26} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -518,8 +518,8 @@ const createStyles = (primary) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.white,
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
     ...theme.shadows.sm,
   },
   headerCenter: {
@@ -530,11 +530,11 @@ const createStyles = (primary) => StyleSheet.create({
     width: 68,
   },
   headerRight: {
-    width: 68,
+    width: 80,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 4,
+    gap: 6,
   },
   logo: {
     fontSize: theme.fontSize.title,
@@ -543,13 +543,13 @@ const createStyles = (primary) => StyleSheet.create({
     letterSpacing: -0.5,
   },
   logoImage: {
-    width: 120,
-    height: 36,
+    width: 160,
+    height: 50,
   },
   subtitle: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   searchContainer: {
     paddingHorizontal: theme.spacing.lg,
