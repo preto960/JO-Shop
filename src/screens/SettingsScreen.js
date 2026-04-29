@@ -754,33 +754,33 @@ const SettingsScreen = () => {
                     {banners.map((banner) => (
                       <View key={`banner-${banner.id}`} style={[styles.bannerItem, !banner.active && styles.bannerItemInactive]}>
                         <View style={styles.bannerItemRow}>
-                        <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
-                        <View style={styles.bannerItemInfo}>
-                          <Text style={styles.bannerItemLabel}>
-                            Banner {banner.sortOrder}
-                            <Text style={{fontSize: 11, color: theme.colors.textLight, fontWeight: '400', marginLeft: 6}}>
-                              {banner.mediaType === 'video' ? 'Video' : 'Imagen'}
+                          <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
+                          <View style={styles.bannerItemInfo}>
+                            <Text style={styles.bannerItemLabel}>
+                              Banner {banner.sortOrder}
+                              <Text style={{fontSize: 11, color: theme.colors.textLight, fontWeight: '400', marginLeft: 6}}>
+                                {banner.mediaType === 'video' ? 'Video' : 'Imagen'}
+                              </Text>
+                              <Text style={{fontSize: 11, color: '#F39C12', fontWeight: '600', marginLeft: 6}}>
+                                {banner.duration}s
+                              </Text>
                             </Text>
-                            <Text style={{fontSize: 11, color: '#F39C12', fontWeight: '600', marginLeft: 6}}>
-                              {banner.duration}s
+                            {banner.link ? (
+                              <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.link}</Text>
+                            ) : null}
+                            <Text style={{fontSize: 10, color: banner.active ? theme.colors.textLight : '#EF4444', marginTop: 2}}>
+                              {banner.active ? 'Visible' : 'Inactivo'}
                             </Text>
-                          </Text>
-                          {banner.link ? (
-                            <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.link}</Text>
-                          ) : null}
-                          <Text style={{fontSize: 10, color: banner.active ? theme.colors.textLight : '#EF4444', marginTop: 2}}>
-                            {banner.active ? 'Visible' : 'Inactivo'}
-                          </Text>
+                          </View>
+                          {/* Three-dot menu */}
+                          <TouchableOpacity
+                            onPress={() => setBannerMenuId(bannerMenuId === banner.id ? null : banner.id)}
+                            style={styles.bannerMoreBtn}
+                            hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+                            activeOpacity={0.7}>
+                            <Icon name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
+                          </TouchableOpacity>
                         </View>
-                        </View>
-                        {/* Three-dot menu */}
-                        <TouchableOpacity
-                          onPress={() => setBannerMenuId(bannerMenuId === banner.id ? null : banner.id)}
-                          style={styles.bannerMoreBtn}
-                          hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
-                          activeOpacity={0.7}>
-                          <Icon name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
-                        </TouchableOpacity>
                         {bannerMenuId === banner.id && (
                           <View style={styles.bannerDropdown}>
                             <TouchableOpacity
@@ -1397,7 +1397,7 @@ const createStyles = (primary) => StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.inputBg,
+    marginLeft: 'auto',
   },
   bannerDropdown: {
     position: 'absolute',
