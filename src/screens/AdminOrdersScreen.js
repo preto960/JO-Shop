@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo} from 'react';
 import {
   View,
   Text,
@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
   preparing: { label: 'Preparando', color: '#9B59B6', icon: 'restaurant-outline' },
   shipped: { label: 'Enviado', color: '#1ABC9C', icon: 'bicycle-outline' },
   delivered: { label: 'Entregado', color: theme.colors.success, icon: 'checkmark-done-outline' },
-  cancelled: { label: 'Cancelado', color: theme.colors.accent, icon: 'close-circle-outline' },
+  cancelled: { label: 'Cancelado', color: primary, icon: 'close-circle-outline' },
 };
 
 const formatDate = (dateStr) => {
@@ -56,6 +56,7 @@ const AdminOrdersScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   const handleLogout = async () => {
     try {
@@ -877,7 +878,7 @@ const AdminOrdersScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -984,7 +985,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   filterTabActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   filterTabLabel: {
     fontSize: 13,
@@ -1090,7 +1091,7 @@ const styles = StyleSheet.create({
   orderTotalText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
   loadMoreContainer: {
     flexDirection: 'row',
@@ -1130,12 +1131,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: theme.colors.accent + '12',
+    backgroundColor: primary + '12',
   },
   emptyRetryBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   errorContainer: {
     flex: 1,
@@ -1164,7 +1165,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   errorRetryBtnText: {
     fontSize: 14,
@@ -1202,7 +1203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   detailEditButtonText: {
     fontSize: 13,
@@ -1331,7 +1332,7 @@ const styles = StyleSheet.create({
   detailTotalValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
   detailFooter: {
     position: 'absolute',
@@ -1355,14 +1356,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: theme.colors.accent + '12',
+    backgroundColor: primary + '12',
     flex: 1,
     justifyContent: 'center',
   },
   detailCancelBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   detailNextStatusBtn: {
     flexDirection: 'row',
@@ -1371,7 +1372,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     flex: 1,
     justifyContent: 'center',
   },
@@ -1503,7 +1504,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     marginTop: 4,
   },
   detailAssignBtnText: {
@@ -1519,13 +1520,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: theme.colors.accent + '12',
+    backgroundColor: primary + '12',
     marginTop: 12,
   },
   detailReassignBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   // Assign modal
   assignModalOverlay: {
@@ -1560,21 +1561,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   assignUserCardActive: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent + '08',
+    borderColor: primary,
+    backgroundColor: primary + '08',
   },
   assignUserAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.accent + '18',
+    backgroundColor: primary + '18',
     alignItems: 'center',
     justifyContent: 'center',
   },
   assignUserAvatarText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
   assignUserInfo: {
     flex: 1,

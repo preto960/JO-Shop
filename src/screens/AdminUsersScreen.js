@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,7 @@ const AdminUsersScreen = () => {
   const navigation = useNavigation();
   const {user: currentUser, logout, fetchProfile} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const {isMultiStore} = useConfig();
 
   // ─── Data state ──────────────────────────────────────────────────────────
@@ -1945,7 +1946,7 @@ const AdminUsersScreen = () => {
 };
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   // ── Screen ──────────────────────────────────────────────────────────────
   safeArea: {
     flex: 1,
@@ -2075,7 +2076,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: theme.spacing.lg,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
@@ -2102,7 +2103,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2142,7 +2143,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.success,
   },
   statusDotInactive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   cardEmail: {
     fontSize: theme.fontSize.sm,
@@ -2162,7 +2163,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   roleBadgeAdmin: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   roleBadgeText: {
     fontSize: theme.fontSize.xs,
@@ -2182,7 +2183,7 @@ const styles = StyleSheet.create({
   inactiveTagText: {
     fontSize: theme.fontSize.xs,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   cardChevron: {
     marginLeft: theme.spacing.sm,
@@ -2241,7 +2242,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2288,7 +2289,7 @@ const styles = StyleSheet.create({
     color: theme.colors.success,
   },
   detailStatusTextInactive: {
-    color: theme.colors.accent,
+    color: primary,
   },
 
   detailSection: {
@@ -2356,12 +2357,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   detailRoleBadgeAdmin: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   detailRoleBadgeText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   detailRoleBadgeTextAdmin: {
     color: theme.colors.white,
@@ -2377,7 +2378,7 @@ const styles = StyleSheet.create({
   detailModuleTitle: {
     fontSize: theme.fontSize.xs,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
     textTransform: 'uppercase',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
@@ -2418,7 +2419,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing.sm,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     ...theme.shadows.sm,
@@ -2581,12 +2582,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   editRoleBadgeAdmin: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   editRoleBadgeText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   editRoleBadgeTextAdmin: {
     color: theme.colors.white,
@@ -2609,7 +2610,7 @@ const styles = StyleSheet.create({
   editRoleAddBadgeText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '500',
-    color: theme.colors.accent,
+    color: primary,
   },
   editEmptyRoles: {
     fontSize: theme.fontSize.sm,
@@ -2629,7 +2630,7 @@ const styles = StyleSheet.create({
   editModuleTitle: {
     fontSize: theme.fontSize.xs,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
     textTransform: 'uppercase',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
@@ -2668,7 +2669,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   editPermChipGranted: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   editPermChipText: {
     fontSize: theme.fontSize.xs,
@@ -2681,7 +2682,7 @@ const styles = StyleSheet.create({
 
   // Submit button
   editSubmitBtn: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',
@@ -2705,11 +2706,11 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
-    shadowColor: theme.colors.accent,
+    shadowColor: primary,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -2726,7 +2727,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2745,7 +2746,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   createRequired: {
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '700',
   },
 
@@ -2767,7 +2768,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   createRoleCheckSelected: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   createRoleCheckText: {
     fontSize: theme.fontSize.md,
@@ -2816,7 +2817,7 @@ const styles = StyleSheet.create({
   createStoreOptionSelected: {
     backgroundColor: 'rgba(233, 69, 96, 0.08)',
     borderWidth: 1.5,
-    borderColor: theme.colors.accent,
+    borderColor: primary,
   },
   createStoreOptionText: {
     fontSize: theme.fontSize.md,
@@ -2824,7 +2825,7 @@ const styles = StyleSheet.create({
   },
   createStoreOptionTextSelected: {
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
 });
 

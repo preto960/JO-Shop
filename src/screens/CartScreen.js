@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ const CartScreen = () => {
   const {items, isLoading, totalItems, totalPrice, clearCart} = useCart();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   // Customer data — pre-fill from user profile
   const [customerName, setCustomerName] = useState('');
@@ -846,7 +847,7 @@ const CartScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -909,10 +910,10 @@ const styles = StyleSheet.create({
   footerTotal: {
     fontSize: theme.fontSize.xl,
     fontWeight: '800',
-    color: theme.colors.accent,
+    color: primary,
   },
   checkoutButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md + 4,
     alignItems: 'center',
@@ -973,7 +974,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
   required: {
-    color: theme.colors.accent,
+    color: primary,
   },
   input: {
     backgroundColor: theme.colors.inputBg,
@@ -1024,7 +1025,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   modeButtonTextActive: {
-    color: theme.colors.accent,
+    color: primary,
   },
   // Saved addresses
   addressesSection: {
@@ -1041,8 +1042,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   addressCardSelected: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent + '08',
+    borderColor: primary,
+    backgroundColor: primary + '08',
   },
   addressRadio: {
     width: 20,
@@ -1058,7 +1059,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   addressInfo: {
     flex: 1,
@@ -1074,7 +1075,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   defaultBadge: {
-    backgroundColor: theme.colors.accent + '18',
+    backgroundColor: primary + '18',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: theme.borderRadius.sm,
@@ -1082,7 +1083,7 @@ const styles = StyleSheet.create({
   defaultBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   addressText: {
     fontSize: theme.fontSize.sm,
@@ -1105,7 +1106,7 @@ const styles = StyleSheet.create({
   },
   addNewLink: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
     marginTop: theme.spacing.sm,
   },
@@ -1180,7 +1181,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing.sm,
-    backgroundColor: theme.colors.accent + '15',
+    backgroundColor: primary + '15',
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     marginTop: theme.spacing.sm,
@@ -1188,7 +1189,7 @@ const styles = StyleSheet.create({
   saveAddressBtnText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   // Order summary
   orderSummary: {
@@ -1230,10 +1231,10 @@ const styles = StyleSheet.create({
   summaryTotalValue: {
     fontSize: theme.fontSize.xl,
     fontWeight: '800',
-    color: theme.colors.accent,
+    color: primary,
   },
   confirmButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md + 4,
     alignItems: 'center',

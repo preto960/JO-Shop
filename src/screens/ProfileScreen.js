@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile, send2FACode, verify2FASetup, setupTOTP, enableTOTP, generateBackupCodes} = useAuth();
   const {isMultiStore} = useConfig();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const [loggingOut, setLoggingOut] = useState(false);
 
   // 2FA state machine: idle → confirming → verifying → idle
@@ -1748,7 +1749,7 @@ const ProfileScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1804,7 +1805,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.md,
@@ -1835,7 +1836,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
   },
   roleBadgeAdmin: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   roleText: {
     fontSize: theme.fontSize.sm,
@@ -1888,7 +1889,7 @@ const styles = StyleSheet.create({
   editButtonText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   // Section
   section: {
@@ -1993,7 +1994,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: theme.fontSize.sm,
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '500',
   },
   twoFaBtnRow: {
@@ -2065,8 +2066,8 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   twoFaOtpInputFilled: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent + '08',
+    borderColor: primary,
+    backgroundColor: primary + '08',
   },
   twoFaVerifyBtn: {
     width: '100%',
@@ -2091,7 +2092,7 @@ const styles = StyleSheet.create({
   twoFaResendBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   twoFaCancelLink: {
     marginTop: theme.spacing.md,
@@ -2189,7 +2190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
@@ -2249,8 +2250,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backupCodesCheckboxChecked: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
+    backgroundColor: primary,
+    borderColor: primary,
   },
   backupCodesCheckboxLabel: {
     flex: 1,
@@ -2284,7 +2285,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addressIconDefault: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   addressCardInfo: {
     flex: 1,
@@ -2300,7 +2301,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   defaultTag: {
-    backgroundColor: theme.colors.accent + '18',
+    backgroundColor: primary + '18',
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: theme.borderRadius.sm,
@@ -2308,7 +2309,7 @@ const styles = StyleSheet.create({
   defaultTagText: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   addressCardText: {
     fontSize: theme.fontSize.sm,
@@ -2355,7 +2356,7 @@ const styles = StyleSheet.create({
   permModuleLabel: {
     fontSize: theme.fontSize.sm,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
     marginBottom: theme.spacing.xs,
     textTransform: 'uppercase',
   },
@@ -2386,7 +2387,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
     paddingVertical: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.accent,
+    borderColor: primary,
     borderRadius: theme.borderRadius.md,
   },
   buttonDisabled: {
@@ -2395,7 +2396,7 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   // Modals
   modalOverlay: {
@@ -2453,7 +2454,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   saveBtn: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',

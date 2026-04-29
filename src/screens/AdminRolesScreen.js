@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ const AdminRolesScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const nameInputRef = useRef(null);
 
   const handleLogout = async () => {
@@ -558,7 +559,7 @@ const AdminRolesScreen = () => {
 };
 
 // ─── Styles ──────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -665,7 +666,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   userCountActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   userCountText: {
     fontSize: 11,
@@ -674,7 +675,7 @@ const styles = StyleSheet.create({
   },
   permCount: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '500',
   },
   deleteAction: {
@@ -717,11 +718,11 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
-    shadowColor: theme.colors.accent,
+    shadowColor: primary,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -765,7 +766,7 @@ const styles = StyleSheet.create({
   moduleTitle: {
     fontSize: theme.fontSize.sm,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
     textTransform: 'uppercase',
     padding: theme.spacing.md,
     backgroundColor: theme.colors.inputBg || '#F0F2F5',
@@ -844,7 +845,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   submitBtn: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',

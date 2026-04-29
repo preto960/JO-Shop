@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useRef, useEffect} from 'react';
+import React, {useState, useCallback, useRef, useEffect, useMemo} from 'react';
 import {
   View,
   Text,
@@ -60,8 +60,8 @@ const STATUS_CONFIG = {
   },
   cancelled: {
     label: 'Cancelado',
-    color: theme.colors.accent,
-    bgColor: theme.colors.accent + '15',
+    color: primary,
+    bgColor: primary + '15',
     icon: 'close-circle-outline',
     description: 'Este pedido fue cancelado.',
   },
@@ -101,6 +101,7 @@ const MyOrdersScreen = () => {
   const isFocused = useIsFocused();
   const {logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   // Data state
   const [orders, setOrders] = useState([]);
@@ -703,7 +704,7 @@ const MyOrdersScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -759,7 +760,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBg,
   },
   tabActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   tabLabel: {
     fontSize: theme.fontSize.sm,
@@ -804,7 +805,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: theme.spacing.lg,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
@@ -1026,7 +1027,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: theme.fontSize.lg,
     fontWeight: '800',
-    color: theme.colors.accent,
+    color: primary,
   },
 
   // Cancel Button
@@ -1041,7 +1042,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
 });
 

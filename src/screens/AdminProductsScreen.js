@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ const AdminProductsScreen = () => {
   const {user, logout} = useAuth();
   const {isMultiStore} = useConfig();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   // Data state
   const [products, setProducts] = useState([]);
@@ -1297,7 +1298,7 @@ function isValidUrl(string) {
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1413,7 +1414,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: theme.spacing.lg,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
@@ -1481,13 +1482,13 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   cardStockDanger: {
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
   },
   cardPrice: {
     fontSize: theme.fontSize.sm,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
     marginTop: 2,
   },
   cardActions: {
@@ -1516,7 +1517,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.lg,
@@ -1586,7 +1587,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
   required: {
-    color: theme.colors.accent,
+    color: primary,
   },
   input: {
     backgroundColor: theme.colors.inputBg,
@@ -1604,12 +1605,12 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputError: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent + '08',
+    borderColor: primary,
+    backgroundColor: primary + '08',
   },
   errorText: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.accent,
+    color: primary,
     marginTop: 2,
   },
   row: {
@@ -1682,14 +1683,14 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   pickerOptionSelected: {
-    backgroundColor: theme.colors.accent + '10',
+    backgroundColor: primary + '10',
   },
   pickerOptionText: {
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
   },
   pickerOptionTextSelected: {
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
   },
 
@@ -1721,7 +1722,7 @@ const styles = StyleSheet.create({
 
   // Submit button
   submitButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',
@@ -1795,7 +1796,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.sm,
   },
   filterChipActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   filterChipText: {
     fontSize: theme.fontSize.sm,
@@ -1824,7 +1825,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   storeFilterLabelActive: {
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
   },
   clearFiltersBtn: {
@@ -1836,7 +1837,7 @@ const styles = StyleSheet.create({
   },
   clearFiltersText: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
   },
   storeFilterContainer: {
@@ -1854,7 +1855,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.sm,
   },
   storeChipActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   storeChipText: {
     fontSize: theme.fontSize.sm,
@@ -1899,8 +1900,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   roleCheckSelected: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
+    backgroundColor: primary,
+    borderColor: primary,
   },
   roleCheckText: {
     fontSize: theme.fontSize.sm,

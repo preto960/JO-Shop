@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useRef, useEffect} from 'react';
+import React, {useState, useCallback, useRef, useEffect, useMemo} from 'react';
 import {
   View,
   Text,
@@ -207,6 +207,7 @@ const DeliveryOrdersScreen = () => {
   const isFocused = useIsFocused();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   // Data state
   const [orders, setOrders] = useState([]);
@@ -1162,7 +1163,7 @@ const DeliveryOrdersScreen = () => {
 };
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1233,7 +1234,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.inputBg,
   },
   tabActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   tabLabel: {
     fontSize: theme.fontSize.sm,
@@ -1277,7 +1278,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: theme.spacing.lg,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
@@ -1409,7 +1410,7 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: theme.fontSize.md,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
 
   // Action Buttons
@@ -1486,7 +1487,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1525,7 +1526,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   mapErrorBtn: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.md,
@@ -1587,7 +1588,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.md,
@@ -1673,7 +1674,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     margin: theme.spacing.md,
     paddingVertical: theme.spacing.md,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     ...theme.shadows.sm,
   },

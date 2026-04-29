@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ const EmptyState = ({
   loading = false,
 }) => {
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   return (
     <View style={styles.container}>
       {loading ? (
@@ -46,6 +47,7 @@ const EmptyState = ({
 
 const ErrorState = ({message = 'Ocurrió un error inesperado', onRetry}) => {
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
@@ -68,6 +70,7 @@ const ErrorState = ({message = 'Ocurrió un error inesperado', onRetry}) => {
 
 const LoadingState = () => {
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color={primary} />
@@ -76,7 +79,7 @@ const LoadingState = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -106,7 +109,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: theme.spacing.lg,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.sm + 4,
     paddingHorizontal: theme.spacing.xl,

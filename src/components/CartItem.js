@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import useThemeColors from '@hooks/useThemeColors';
 const CartItem = ({item}) => {
   const {updateQuantity, removeItem} = useCart();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   const imageUrl = item.image || item.thumbnail || null;
 
@@ -67,7 +68,7 @@ const CartItem = ({item}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: theme.fontSize.md,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
   controls: {
     flexDirection: 'row',

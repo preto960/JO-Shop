@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import useThemeColors from '@hooks/useThemeColors';
 const LoginScreen = ({navigation}) => {
   const {login, isLoading, error, clearError} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -161,7 +162,7 @@ const LoginScreen = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: theme.borderRadius.xl,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.md,
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: theme.fontSize.sm,
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '500',
   },
   form: {
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   loginButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md + 4,
     alignItems: 'center',
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
 
 });

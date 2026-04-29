@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,15 @@ import {useNavigation} from '@react-navigation/native';
 import {useCart} from '@context/CartContext';
 import {formatPrice, truncateText} from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const {width: screenWidth} = Dimensions.get('window');
 
 const ProductDetailScreen = ({route}) => {
   const navigation = useNavigation();
   const {addItem} = useCart();
+  const { primary } = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const product = route.params?.product;
   const [addedToCart, setAddedToCart] = useState(false);
 
@@ -108,7 +111,7 @@ const ProductDetailScreen = ({route}) => {
                 color={
                   (product.stock > 0 || product.available)
                     ? theme.colors.success
-                    : theme.colors.accent
+                    : primary
                 }
               />
               <Text
@@ -118,7 +121,7 @@ const ProductDetailScreen = ({route}) => {
                     color:
                       (product.stock > 0 || product.available)
                         ? theme.colors.success
-                        : theme.colors.accent,
+                        : primary,
                   },
                 ]}>
                 {(product.stock > 0 || product.available)
@@ -155,7 +158,7 @@ const ProductDetailScreen = ({route}) => {
             style={styles.goToCartButton}
             activeOpacity={0.7}>
             <Text style={styles.goToCartText}>Ver mi carrito</Text>
-            <Icon name="arrow-forward" size={16} color={theme.colors.accent} />
+            <Icon name="arrow-forward" size={16} color={primary} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -163,7 +166,7 @@ const ProductDetailScreen = ({route}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -212,7 +215,7 @@ const styles = StyleSheet.create({
   category: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: theme.spacing.xs,
@@ -227,7 +230,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: theme.fontSize.hero,
     fontWeight: '800',
-    color: theme.colors.accent,
+    color: primary,
     marginBottom: theme.spacing.lg,
   },
   descriptionContainer: {
@@ -258,7 +261,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md + 4,
     ...theme.shadows.md,
@@ -280,7 +283,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
   },
   goToCartText: {
-    color: theme.colors.accent,
+    color: primary,
     fontSize: theme.fontSize.md,
     fontWeight: '500',
     marginRight: theme.spacing.xs,

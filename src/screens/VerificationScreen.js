@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect, useCallback} from 'react';
+import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ const VerificationScreen = ({route, navigation}) => {
   const {email, type = 'login', user, token, refreshToken, otpCode, twoFactorType = 'email', onComplete} = route.params || {};
   const {loginWithOtp, resendOtpCode, isAuthenticated, isAdmin, hasRole} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const isDelivery = hasRole('delivery');
 
   // Cuando el login con OTP exita, isAuthenticated cambia a true
@@ -364,7 +365,7 @@ const VerificationScreen = ({route, navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: theme.colors.accent + '12',
+    backgroundColor: primary + '12',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
   emailText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -446,11 +447,11 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   otpInputFilled: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accent + '08',
+    borderColor: primary,
+    backgroundColor: primary + '08',
   },
   verifyButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
   resendButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   helpContainer: {
     flexDirection: 'row',

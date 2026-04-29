@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,7 @@ const AdminStoresScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   // Data state
   const [stores, setStores] = useState([]);
@@ -677,7 +678,7 @@ function isValidUrl(string) {
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -775,7 +776,7 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: theme.spacing.lg,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
@@ -813,7 +814,7 @@ const styles = StyleSheet.create({
   cardAvatarText: {
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
   cardAvatarTextInactive: {
     color: theme.colors.textLight,
@@ -869,7 +870,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.md,
@@ -912,7 +913,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   required: {
-    color: theme.colors.accent,
+    color: primary,
   },
   input: {
     backgroundColor: theme.colors.inputBg,
@@ -929,11 +930,11 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputError: {
-    borderColor: theme.colors.accent,
+    borderColor: primary,
   },
   errorText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.accent,
+    color: primary,
     marginTop: theme.spacing.xs,
   },
   row: {
@@ -968,7 +969,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   submitButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -18,13 +18,16 @@ import apiService from '@services/api';
 import {useConfig} from '@context/ConfigContext';
 import {useAuth} from '@context/AuthContext';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const {config, isMultiStore} = useConfig();
+  const { primary } = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const shopName = config.shop_name || 'JO-Shop';
   const shopLogoUrl = config.shop_logo_url || '';
-  const primaryColor = config.primary_color || theme.colors.accent;
+  const primaryColor = config.primary_color || primary;
   const {user, logout} = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -222,7 +225,7 @@ const HomeScreen = () => {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -251,7 +254,7 @@ const HomeScreen = () => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -301,7 +304,7 @@ const HomeScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-back" size={20} color={primary} />
               </TouchableOpacity>
             )}
             <FlatList
@@ -339,7 +342,7 @@ const HomeScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-forward" size={20} color={primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -355,7 +358,7 @@ const HomeScreen = () => {
             <Icon
               name="storefront-outline"
               size={16}
-              color={selectedStore ? theme.colors.accent : theme.colors.textSecondary}
+              color={selectedStore ? primary : theme.colors.textSecondary}
             />
             <Text style={[
               styles.storeFilterLabel,
@@ -375,7 +378,7 @@ const HomeScreen = () => {
             <TouchableOpacity
               style={styles.clearFiltersBtn}
               onPress={clearFilters}>
-              <Icon name="close-circle" size={16} color={theme.colors.accent} />
+              <Icon name="close-circle" size={16} color={primary} />
               <Text style={styles.clearFiltersText}>Limpiar</Text>
             </TouchableOpacity>
           )}
@@ -393,7 +396,7 @@ const HomeScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-back" size={20} color={primary} />
               </TouchableOpacity>
             )}
             <FlatList
@@ -447,7 +450,7 @@ const HomeScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-forward" size={20} color={primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -471,8 +474,8 @@ const HomeScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadProducts(true)}
-              colors={[theme.colors.accent]}
-              tintColor={theme.colors.accent}
+              colors={[primary]}
+              tintColor={primary}
             />
           }
           ListEmptyComponent={
@@ -505,7 +508,7 @@ const HomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -626,7 +629,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.sm,
   },
   filterChipActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   filterChipText: {
     fontSize: theme.fontSize.sm,
@@ -656,7 +659,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   storeFilterLabelActive: {
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
   },
   clearFiltersBtn: {
@@ -668,7 +671,7 @@ const styles = StyleSheet.create({
   },
   clearFiltersText: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '600',
   },
   storeFilterContainer: {
@@ -687,7 +690,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.sm,
   },
   storeChipActive: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   storeChipText: {
     fontSize: theme.fontSize.sm,

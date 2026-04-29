@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ const AdminCategoriesScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const nameInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
@@ -428,7 +429,7 @@ const AdminCategoriesScreen = () => {
 };
 
 // ── Styles ────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -555,7 +556,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
   },
   retryBtnText: {
@@ -572,11 +573,11 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
-    shadowColor: theme.colors.accent,
+    shadowColor: primary,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -607,7 +608,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   submitButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md,
     alignItems: 'center',
@@ -635,7 +636,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   fieldError: {
-    color: theme.colors.accent,
+    color: primary,
     fontWeight: '400',
   },
   textInput: {
@@ -649,7 +650,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   inputError: {
-    borderColor: theme.colors.accent,
+    borderColor: primary,
   },
 });
 

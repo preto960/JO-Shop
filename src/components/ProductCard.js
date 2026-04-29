@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import useThemeColors from '@hooks/useThemeColors';
 const ProductCard = ({product, onPress, containerStyle}) => {
   const {addItem} = useCart();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
 
   const handleAddToCart = () => {
     addItem(product);
@@ -76,7 +77,7 @@ const ProductCard = ({product, onPress, containerStyle}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.md,
@@ -139,13 +140,13 @@ const styles = StyleSheet.create({
   price: {
     fontSize: theme.fontSize.md,
     fontWeight: '700',
-    color: theme.colors.accent,
+    color: primary,
   },
   addButton: {
     width: 30,
     height: 30,
     borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

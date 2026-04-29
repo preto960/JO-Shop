@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import useThemeColors from '@hooks/useThemeColors';
 const OrderConfirmationScreen = ({route}) => {
   const navigation = useNavigation();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const order = route.params?.order;
 
   return (
@@ -116,7 +117,7 @@ const OrderConfirmationScreen = ({route}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   detailTotal: {
     fontSize: theme.fontSize.xl,
     fontWeight: '800',
-    color: theme.colors.accent,
+    color: primary,
   },
   detailDivider: {
     height: 1,
@@ -220,13 +221,13 @@ const styles = StyleSheet.create({
   itemSubtotal: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   actions: {
     width: '100%',
   },
   primaryButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.md + 4,
     alignItems: 'center',

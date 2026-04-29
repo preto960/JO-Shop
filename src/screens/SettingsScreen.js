@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -24,10 +24,13 @@ import {normalizeUrl, isValidUrl} from '@utils/helpers';
 import {launchImageLibrary} from 'react-native-image-picker';
 import ConfirmModal from '@components/ConfirmModal';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const {isAdmin} = useAuth();
+  const { primary } = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const {config, isMultiStore, updateConfig} = useConfig();
   const [baseUrl, setBaseUrl] = useState('');
   const [testing, setTesting] = useState(false);
@@ -263,7 +266,7 @@ const SettingsScreen = () => {
           {/* Tarjeta con la URL embebida */}
           <View style={styles.envCard}>
             <View style={styles.envCardHeader}>
-              <Icon name="hardware-chip-outline" size={18} color={theme.colors.accent} />
+              <Icon name="hardware-chip-outline" size={18} color={primary} />
               <Text style={styles.envCardTitle}>URL embebida (compilación)</Text>
             </View>
             <Text style={styles.envUrlText} numberOfLines={1}>
@@ -314,7 +317,7 @@ const SettingsScreen = () => {
                   color={
                     connectionStatus.success
                       ? theme.colors.success
-                      : theme.colors.accent
+                      : primary
                   }
                 />
                 <Text
@@ -360,7 +363,7 @@ const SettingsScreen = () => {
               onPress={handleResetToEnv}
               style={styles.resetButton}
               activeOpacity={0.8}>
-              <Icon name="refresh-outline" size={18} color={theme.colors.accent} />
+              <Icon name="refresh-outline" size={18} color={primary} />
               <Text style={styles.resetButtonText}>
                 Restaurar URL embebida
               </Text>
@@ -377,7 +380,7 @@ const SettingsScreen = () => {
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
                 <View style={styles.toggleIconRow}>
-                  <Icon name="storefront-outline" size={22} color={theme.colors.accent} />
+                  <Icon name="storefront-outline" size={22} color={primary} />
                   <Text style={styles.toggleLabel}>Multi-Tienda</Text>
                 </View>
                 <Text style={styles.toggleDescription}>
@@ -388,14 +391,14 @@ const SettingsScreen = () => {
               </View>
               <View style={styles.switchWrapper}>
                 {switchLoading ? (
-                  <ActivityIndicator size="small" color={theme.colors.accent} />
+                  <ActivityIndicator size="small" color={primary} />
                 ) : (
                   <Switch
                     value={multiStoreSwitch}
                     onValueChange={handleMultiStoreToggle}
                     trackColor={{
                       false: theme.colors.border,
-                      true: theme.colors.accent,
+                      true: primary,
                     }}
                     thumbColor={theme.colors.white}
                   />
@@ -487,7 +490,7 @@ const SettingsScreen = () => {
               <TouchableOpacity onPress={handlePickLogo} disabled={logoUploading} activeOpacity={0.7}>
                 <View style={styles.logoPreview}>
                   {logoUploading ? (
-                    <ActivityIndicator size="small" color={theme.colors.accent} />
+                    <ActivityIndicator size="small" color={primary} />
                   ) : config.shop_logo_url ? (
                     <Image source={{uri: config.shop_logo_url}} style={styles.logoImage} resizeMode="cover" />
                   ) : (
@@ -497,7 +500,7 @@ const SettingsScreen = () => {
               </TouchableOpacity>
               <View style={styles.logoActions}>
                 <TouchableOpacity onPress={handlePickLogo} disabled={logoUploading} style={styles.logoBtn} activeOpacity={0.7}>
-                  <Icon name="cloud-upload-outline" size={16} color={theme.colors.accent} />
+                  <Icon name="cloud-upload-outline" size={16} color={primary} />
                   <Text style={styles.logoBtnText}>{logoUploading ? 'Subiendo...' : 'Subir logo'}</Text>
                 </TouchableOpacity>
                 {config.shop_logo_url ? (
@@ -552,7 +555,7 @@ const SettingsScreen = () => {
             </View>
             <View style={styles.aboutDivider} />
             <View style={styles.aboutRow}>
-              <Icon name="heart-outline" size={20} color={theme.colors.accent} />
+              <Icon name="heart-outline" size={20} color={primary} />
               <View style={styles.aboutInfo}>
                 <Text style={styles.aboutLabel}>JO-Shop</Text>
                 <Text style={styles.aboutValue}>Tu tienda favorita</Text>
@@ -579,7 +582,7 @@ const SettingsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -687,7 +690,7 @@ const styles = StyleSheet.create({
     color: '#27AE60',
   },
   statusTextError: {
-    color: theme.colors.accent,
+    color: primary,
   },
   actions: {
     flexDirection: 'row',
@@ -708,7 +711,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   saveButton: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   actionButtonText: {
     fontSize: theme.fontSize.sm,
@@ -752,7 +755,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.accent,
+    borderColor: primary,
     borderRadius: theme.borderRadius.md,
     gap: theme.spacing.xs,
     backgroundColor: '#FDE8EC',
@@ -760,7 +763,7 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '500',
-    color: theme.colors.accent,
+    color: primary,
   },
   // ─── Toggle styles ──────────────────────────────────────────────────────────
   toggleRow: {
@@ -813,7 +816,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3498DB',
   },
   modeDotMulti: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   modeText: {
     fontSize: theme.fontSize.sm,
@@ -979,7 +982,7 @@ const styles = StyleSheet.create({
   logoBtnText: {
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
-    color: theme.colors.accent,
+    color: primary,
   },
   logoHint: {
     fontSize: theme.fontSize.xs,
@@ -1017,7 +1020,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: primary,
   },
   appearanceSaveBtnText: {
     fontSize: theme.fontSize.sm,

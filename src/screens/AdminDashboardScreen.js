@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ const AdminDashboardScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
   const {primary} = useThemeColors();
+  const styles = useMemo(() => createStyles(primary), [primary]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -241,7 +242,7 @@ const AdminDashboardScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (primary) => StyleSheet.create({
   safeArea: {flex: 1, backgroundColor: theme.colors.background},
   header: {flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.white, paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.md, ...theme.shadows.sm},
   headerLeft: {width: 68},
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
   orderCustomer: {fontSize: theme.fontSize.md, color: theme.colors.text},
   orderFooter: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4},
   orderItems: {fontSize: theme.fontSize.sm, color: theme.colors.textSecondary},
-  orderTotal: {fontSize: theme.fontSize.md, fontWeight: '700', color: theme.colors.accent},
+  orderTotal: {fontSize: theme.fontSize.md, fontWeight: '700', color: primary},
 });
 
 export default AdminDashboardScreen;
