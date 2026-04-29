@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import React, {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,10 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -243,6 +247,10 @@ const SettingsScreen = () => {
   const [bannerUploading, setBannerUploading] = useState(false);
   const [bannerLoading, setBannerLoading] = useState(false);
   const [bannerMenuId, setBannerMenuId] = useState(null);
+  const [durationModalVisible, setDurationModalVisible] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(null);
+  const [durationInput, setDurationInput] = useState('');
+  const durationInputRef = useRef(null);
 
   useEffect(() => {
     setBannersEnabled(config.banners_enabled === 'true' || config.banners_enabled === true);
@@ -345,42 +353,36 @@ const SettingsScreen = () => {
 
   const handleEditBannerDuration = useCallback((banner) => {
     setBannerMenuId(null);
-    Alert.prompt(
-      'Editar duración',
-      `Banner ${banner.sortOrder} — Duración actual: ${banner.duration}s\nIngrese nueva duración (4-30 segundos):`,
-      [
-        {text: 'Cancelar', style: 'cancel', onPress: () => {}},
-        {
-          text: 'Guardar',
-          onPress: async (durationText) => {
-            const duration = parseInt(durationText);
-            if (!duration || duration < 4 || duration > 30) {
-              Alert.alert('Error', 'La duración debe ser entre 4 y 30 segundos.');
-              return;
-            }
-            try {
-              const api = await apiService.createApiClient();
-              const formData = new FormData();
-              formData.append('duration', String(duration));
-              const res = await api.put(`/banners/${banner.id}`, formData, {
-                headers: {'Content-Type': 'multipart/form-data'},
-                transformRequest: (data) => data,
-              });
-              const updated = res?.banner || res?.data?.banner;
-              if (updated) {
-                setBanners(prev => prev.map(b => b.id === banner.id ? updated : b));
-              }
-            } catch {
-              Alert.alert('Error', 'No se pudo actualizar la duración.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-      String(banner.duration || 4),
-      'number-pad',
-    );
+    setEditingBanner(banner);
+    setDurationInput(String(banner.duration || 4));
+    setDurationModalVisible(true);
+    setTimeout(() => durationInputRef.current?.focus(), 300);
   }, []);
+
+  const handleSaveDuration = useCallback(async () => {
+    const duration = parseInt(durationInput);
+    if (!duration || duration < 4 || duration > 30) {
+      Alert.alert('Error', 'La duración debe ser entre 4 y 30 segundos.');
+      return;
+    }
+    try {
+      const api = await apiService.createApiClient();
+      const formData = new FormData();
+      formData.append('duration', String(duration));
+      const res = await api.put(`/banners/${editingBanner.id}`, formData, {
+        headers: {'Content-Type': 'multipart/form-data'},
+        transformRequest: (data) => data,
+      });
+      const updated = res?.banner || res?.data?.banner;
+      if (updated) {
+        setBanners(prev => prev.map(b => b.id === editingBanner.id ? updated : b));
+      }
+      setDurationModalVisible(false);
+      setEditingBanner(null);
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar la duración.');
+    }
+  }, [durationInput, editingBanner]);
 
   const handleRemoveBanner = useCallback(async (bannerId) => {
     setBannerMenuId(null);
@@ -785,23 +787,25 @@ const SettingsScreen = () => {
                               onPress={() => handleEditBannerDuration(banner)}
                               style={styles.bannerDropdownItem}
                               activeOpacity={0.6}>
-                              <Icon name="timer-outline" size={16} color="#F39C12" />
+                              <Icon name="timer-outline" size={18} color="#F39C12" />
                               <Text style={styles.bannerDropdownText}>Editar duración</Text>
                             </TouchableOpacity>
+                            <View style={styles.bannerDropdownSep} />
                             <TouchableOpacity
                               onPress={() => { handleToggleBannerActive(banner); setBannerMenuId(null); }}
                               style={styles.bannerDropdownItem}
                               activeOpacity={0.6}>
-                              <Icon name={banner.active ? 'eye-off-outline' : 'eye-outline'} size={16} color={banner.active ? '#F39C12' : '#00B894'} />
+                              <Icon name={banner.active ? 'eye-off-outline' : 'eye-outline'} size={18} color={banner.active ? '#F39C12' : '#00B894'} />
                               <Text style={[styles.bannerDropdownText, {color: banner.active ? '#F39C12' : '#00B894'}]}>
                                 {banner.active ? 'Desactivar' : 'Activar'}
                               </Text>
                             </TouchableOpacity>
+                            <View style={styles.bannerDropdownSep} />
                             <TouchableOpacity
                               onPress={() => handleRemoveBanner(banner.id)}
-                              style={styles.bannerDropdownItem}
+                              style={[styles.bannerDropdownItem, {borderBottomWidth: 0}]}
                               activeOpacity={0.6}>
-                              <Icon name="trash-outline" size={16} color="#EF4444" />
+                              <Icon name="trash-outline" size={18} color="#EF4444" />
                               <Text style={[styles.bannerDropdownText, {color: '#EF4444'}]}>Eliminar</Text>
                             </TouchableOpacity>
                           </View>
@@ -877,6 +881,64 @@ const SettingsScreen = () => {
           else setModal(prev => ({...prev, visible: false}));
         }}
       />
+      {/* Modal editar duración */}
+      <Modal
+        visible={durationModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDurationModalVisible(false)}>
+        <TouchableWithoutFeedback onPress={() => setDurationModalVisible(false)}>
+          <View style={styles.durationModalOverlay}>
+            <TouchableWithoutFeedback>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.durationModalContent}>
+                <Text style={styles.durationModalTitle}>
+                  Editar duración
+                </Text>
+                <Text style={styles.durationModalSubtitle}>
+                  Banner {editingBanner?.sortOrder} — Duración actual: {editingBanner?.duration}s
+                </Text>
+                <View style={styles.durationInputWrapper}>
+                  <TextInput
+                    ref={durationInputRef}
+                    style={styles.durationInput}
+                    value={durationInput}
+                    onChangeText={(text) => {
+                      const cleaned = text.replace(/[^0-9]/g, '');
+                      if (cleaned === '' || (parseInt(cleaned) >= 0 && parseInt(cleaned) <= 30)) {
+                        setDurationInput(cleaned);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    maxLength={2}
+                    autoFocus
+                    selectTextOnFocus
+                    placeholder="4"
+                    placeholderTextColor="#999"
+                  />
+                  <Text style={styles.durationInputSuffix}>segundos</Text>
+                </View>
+                <Text style={styles.durationModalHint}>Mínimo 4s — Máximo 30s</Text>
+                <View style={styles.durationModalActions}>
+                  <TouchableOpacity
+                    style={styles.durationCancelBtn}
+                    onPress={() => setDurationModalVisible(false)}
+                    activeOpacity={0.7}>
+                    <Text style={styles.durationCancelText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.durationSaveBtn}
+                    onPress={handleSaveDuration}
+                    activeOpacity={0.7}>
+                    <Text style={styles.durationSaveText}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1339,28 +1401,122 @@ const createStyles = (primary) => StyleSheet.create({
   },
   bannerDropdown: {
     position: 'absolute',
-    top: 36,
+    top: 32,
     right: 0,
     backgroundColor: theme.colors.white,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     zIndex: 10,
-    minWidth: 170,
+    minWidth: 180,
     overflow: 'hidden',
-    ...theme.shadows.md,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
   },
   bannerDropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 14,
   },
+  bannerDropdownSep: {
+    height: 0.5,
+    backgroundColor: '#E5E7EB',
+    marginLeft: 42,
+  },
   bannerDropdownText: {
-    fontSize: theme.fontSize.sm,
+    fontSize: 14,
     fontWeight: '500',
     color: theme.colors.text,
+  },
+  durationModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  durationModalContent: {
+    backgroundColor: theme.colors.white,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  durationModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  durationModalSubtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 18,
+  },
+  durationInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#DDD',
+    borderRadius: 10,
+    backgroundColor: '#F9F9F9',
+    paddingHorizontal: 14,
+    height: 50,
+  },
+  durationInput: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '600',
+    color: theme.colors.text,
+    padding: 0,
+    height: '100%',
+  },
+  durationInputSuffix: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '500',
+  },
+  durationModalHint: {
+    fontSize: 11,
+    color: '#AAA',
+    marginTop: 8,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  durationModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  durationCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  durationCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  durationSaveBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  durationSaveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
   },
   addBannerBtn: {
     flexDirection: 'row',
