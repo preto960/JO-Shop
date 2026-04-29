@@ -5,7 +5,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import AppNavigator from '@navigation/AppNavigator';
 import {AuthProvider, useAuth} from '@context/AuthContext';
 import {CartProvider} from '@context/CartContext';
-import {ConfigProvider} from '@context/ConfigContext';
+import {ConfigProvider, useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
