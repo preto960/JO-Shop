@@ -57,6 +57,8 @@ function navigateToScreen(screenName, params = {}) {
 // Componente que maneja notificaciones push
 const NotificationHandler = () => {
   const {isAuthenticated} = useAuth();
+  const {config} = useConfig();
+  const shopName = config.shop_name || 'JO-Shop';
   const [initialNotification, setInitialNotification] = useState(null);
 
   const [notifModal, setNotifModal] = useState({
@@ -124,7 +126,7 @@ const NotificationHandler = () => {
 
     const unsubscribe = pushNotifications.onForegroundMessage(async (remoteMessage) => {
       const data = remoteMessage?.data || {};
-      const title = data.title || remoteMessage?.notification?.title || 'JO-Shop';
+      const title = data.title || remoteMessage?.notification?.title || shopName;
       const body = data.body || remoteMessage?.notification?.body || '';
 
       if (title || body) {

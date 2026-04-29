@@ -17,6 +17,7 @@
 import {Platform} from 'react-native';
 import apiService from '@services/api';
 import OneSignal from 'react-native-onesignal';
+import ENV from '@config/env';
 
 // ─── CALLBACK PARA NOTIFICACIONES FOREGROUND ──────────────────────
 // App.js registra un callback aqui para mostrar el modal de notificacion
@@ -181,7 +182,7 @@ export function onForegroundMessage(callback) {
     // Convertir al formato que App.js espera (simula un remoteMessage de Firebase)
     const remoteMessage = {
       data: {
-        title: notification?.title || 'JO-Shop',
+        title: notification?.title || ENV.APP_NAME,
         body: notification?.body || '',
         ...data,
       },

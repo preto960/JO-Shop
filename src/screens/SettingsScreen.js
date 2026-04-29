@@ -557,7 +557,7 @@ const SettingsScreen = () => {
             <View style={styles.aboutRow}>
               <Icon name="heart-outline" size={20} color={primary} />
               <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>JO-Shop</Text>
+                <Text style={styles.aboutLabel}>{config.shop_name || 'JO-Shop'}</Text>
                 <Text style={styles.aboutValue}>Tu tienda favorita</Text>
               </View>
             </View>

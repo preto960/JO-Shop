@@ -8,17 +8,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
+import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
 const LoginScreen = ({navigation}) => {
   const {login, isLoading, error, clearError} = useAuth();
+  const {config} = useConfig();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
+  const shopName = config.shop_name || 'JO-Shop';
+  const shopLogoUrl = config.shop_logo_url || '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -77,10 +82,16 @@ const LoginScreen = ({navigation}) => {
           keyboardShouldPersistTaps="handled">
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Icon name="storefront" size={40} color={theme.colors.white} />
-            </View>
-            <Text style={styles.logoText}>JO-Shop</Text>
+            {shopLogoUrl ? (
+              <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
+            ) : (
+              <>
+                <View style={styles.logoCircle}>
+                  <Icon name="storefront" size={40} color={theme.colors.white} />
+                </View>
+                <Text style={styles.logoText}>{shopName}</Text>
+              </>
+            )}
             <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
           </View>
 
@@ -187,6 +198,12 @@ const createStyles = (primary) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.md,
+    marginBottom: theme.spacing.md,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.md,
   },
   logoText: {

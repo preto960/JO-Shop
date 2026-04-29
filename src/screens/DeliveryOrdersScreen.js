@@ -19,6 +19,7 @@ import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MapView, {Marker, Polyline, PROVIDER_GOOGLE} from 'react-native-maps';
 import {useAuth} from '@context/AuthContext';
+import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import ENV from '@config/env';
@@ -165,14 +166,14 @@ const fitTwoPoints = (pointA, pointB) => {
 };
 
 /** Request Android location permission */
-const requestLocationPermission = async () => {
+const requestLocationPermission = async (shopName = 'JO-Shop') => {
   if (Platform.OS !== 'android') return true;
   try {
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       {
         title: 'Permiso de ubicacion',
-        message: 'JO-Shop necesita acceso a tu ubicacion para mostrar la ruta de entrega.',
+        message: `${shopName} necesita acceso a tu ubicacion para mostrar la ruta de entrega.`,
         buttonNeutral: 'Preguntar despues',
         buttonNegative: 'Cancelar',
         buttonPositive: 'Permitir',
@@ -477,7 +478,7 @@ const DeliveryOrdersScreen = () => {
       // Step 2: Try to get user location and route
       setRouteLoading(true);
       try {
-        const hasPermission = await requestLocationPermission();
+        const hasPermission = await requestLocationPermission(config.shop_name || 'JO-Shop');
         if (hasPermission) {
           const userCoords = await getCurrentPosition();
           const userPos = {

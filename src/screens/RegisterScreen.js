@@ -12,6 +12,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
+import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
@@ -36,8 +37,10 @@ const ROLE_OPTIONS = [
 
 const RegisterScreen = ({navigation}) => {
   const {register, isLoading, error, clearError} = useAuth();
+  const {config} = useConfig();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
+  const shopName = config.shop_name || 'JO-Shop';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -114,7 +117,7 @@ const RegisterScreen = ({navigation}) => {
 
           <View style={styles.header}>
             <Text style={styles.title}>Crear cuenta</Text>
-            <Text style={styles.subtitle}>Regístrate para empezar a usar JO-Shop</Text>
+            <Text style={styles.subtitle}>Regístrate para empezar a usar {shopName}</Text>
           </View>
 
           {/* Error */}
