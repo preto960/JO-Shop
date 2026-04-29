@@ -251,7 +251,7 @@ const HomeScreen = () => {
   if (!hasApiConfig && !loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={[styles.header, {justifyContent: 'center'}]}>
+        <View style={styles.header}>
           <View style={styles.headerCenter}>
             {shopLogoUrl ? (
               <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
@@ -686,7 +686,8 @@ const createStyles = (primary) => StyleSheet.create({
   },
   headerCenter: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   headerRight: {
     width: 100,
