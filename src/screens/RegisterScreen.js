@@ -21,8 +21,8 @@ const ROLE_OPTIONS = [
     label: 'Cliente',
     description: 'Comprar productos y hacer pedidos',
     icon: 'bag-outline',
-    color: primary,
-    bgColor: primary + '15',
+    color: theme.colors.accent,
+    bgColor: theme.colors.accent + '15',
   },
   {
     key: 'delivery',

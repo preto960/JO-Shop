@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
   preparing: { label: 'Preparando', color: '#9B59B6', icon: 'restaurant-outline' },
   shipped: { label: 'Enviado', color: '#1ABC9C', icon: 'bicycle-outline' },
   delivered: { label: 'Entregado', color: theme.colors.success, icon: 'checkmark-done-outline' },
-  cancelled: { label: 'Cancelado', color: primary, icon: 'close-circle-outline' },
+  cancelled: { label: 'Cancelado', color: theme.colors.accent, icon: 'close-circle-outline' },
 };
 
 const formatDate = (dateStr) => {

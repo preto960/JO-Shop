@@ -60,8 +60,8 @@ const STATUS_CONFIG = {
   },
   cancelled: {
     label: 'Cancelado',
-    color: primary,
-    bgColor: primary + '15',
+    color: theme.colors.accent,
+    bgColor: theme.colors.accent + '15',
     icon: 'close-circle-outline',
     description: 'Este pedido fue cancelado.',
   },
