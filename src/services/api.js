@@ -354,6 +354,22 @@ const updateSystemConfig = async (settings) => {
   return api.put('/config', {settings});
 };
 
+// ==================== BANNERS ====================
+
+const uploadBanner = async (formData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/config/upload-banner', formData, {
+    headers: {'Content-Type': 'multipart/form-data'},
+  });
+};
+
+const deleteBanner = async (imageUrl) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete('/config/upload-banner', {data: {url: imageUrl}});
+};
+
 // Aliases for backward compatibility
 const fetchConfig = fetchSystemConfig;
 const updateConfig = updateSystemConfig;
@@ -434,6 +450,9 @@ const apiService = {
   updateSystemConfig,
   fetchConfig,
   updateConfig,
+  // Banners
+  uploadBanner,
+  deleteBanner,
   // Stores CRUD
   fetchAdminStores,
   fetchStoresAdmin,

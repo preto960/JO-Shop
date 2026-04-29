@@ -163,6 +163,33 @@ const HomeScreen = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // ─── Banners de publicidad ────────────────────────────────────────────
+  const bannersEnabled = config.banners_enabled === 'true' || config.banners_enabled === true;
+  const banners = useMemo(() => {
+    if (!bannersEnabled) return [];
+    try {
+      const data = config.banners_data;
+      if (!data) return [];
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [config.banners_data, bannersEnabled]);
+
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const bannerTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    bannerTimerRef.current = setInterval(() => {
+      setCurrentBanner(prev => (prev + 1) % banners.length);
+    }, 4000);
+    return () => {
+      if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
+    };
+  }, [banners.length]);
+
   // Calcular datos derivados para carousels
   const bestSellers = useMemo(() => {
     return allProducts.slice(0, 6);
@@ -351,6 +378,83 @@ const HomeScreen = () => {
     );
   };
 
+  // ─── Banner Carousel (publicidad) ─────────────────────────────────────
+  const renderBannerCarousel = () => {
+    if (!bannersEnabled || banners.length === 0) return null;
+    if (hasActiveFilters) return null;
+
+    return (
+      <View style={styles.bannerCarousel}>
+        {banners.length > 1 && (
+          <>
+            <TouchableOpacity
+              style={styles.bannerArrowLeft}
+              onPress={() => setCurrentBanner(prev => (prev - 1 + banners.length) % banners.length)}
+              activeOpacity={0.7}
+              hitSlop={{top: 20, bottom: 20, left: 5, right: 5}}>
+              <Icon name="chevron-back" size={22} color={theme.colors.white} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bannerArrowRight}
+              onPress={() => setCurrentBanner(prev => (prev + 1) % banners.length)}
+              activeOpacity={0.7}
+              hitSlop={{top: 20, bottom: 20, left: 5, right: 5}}>
+              <Icon name="chevron-forward" size={22} color={theme.colors.white} />
+            </TouchableOpacity>
+          </>
+        )}
+        {banners.map((banner, index) => {
+          if (!banner.image && !banner.url) return null;
+          return (
+            <View
+              key={`banner-${index}`}
+              style={[
+                styles.bannerSlide,
+                index === currentBanner ? styles.bannerSlideActive : styles.bannerSlideInactive,
+              ]}>
+              {banner.link ? (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    try {
+                      const url = banner.link.startsWith('http') ? banner.link : `https://${banner.link}`;
+                      // Could open in browser with Linking.openURL
+                    } catch {}
+                  }}>
+                  <Image
+                    source={{uri: banner.image || banner.url}}
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ) : (
+                <Image
+                  source={{uri: banner.image || banner.url}}
+                  style={styles.bannerImage}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
+          );
+        })}
+        {/* Dots indicator */}
+        {banners.length > 1 && (
+          <View style={styles.bannerDots}>
+            {banners.map((_, index) => (
+              <View
+                key={`dot-${index}`}
+                style={[
+                  styles.bannerDot,
+                  index === currentBanner && styles.bannerDotActive,
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   // ─── Login prompt (para guests con items en carrito) ────────────────────
   const renderLoginPrompt = () => {
     if (isAuthenticated || totalItems === 0) return null;
@@ -479,6 +583,9 @@ const HomeScreen = () => {
                 </View>
               </View>
             )}
+
+            {/* ═══ Banner Carousel (publicidad) ═══ */}
+            {renderBannerCarousel()}
 
             {/* ═══ Category filters ═══ */}
             {categories.length > 0 && (
@@ -823,6 +930,77 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: theme.colors.text,
+  },
+  // ─── Banner Carousel ─────────────────────────────────────────────────
+  bannerCarousel: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    height: 160,
+    position: 'relative',
+    backgroundColor: theme.colors.inputBg,
+  },
+  bannerSlide: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  bannerSlideActive: {
+    opacity: 1,
+  },
+  bannerSlideInactive: {
+    opacity: 0,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.borderRadius.lg,
+  },
+  bannerArrowLeft: {
+    position: 'absolute',
+    left: 8,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: theme.borderRadius.full,
+  },
+  bannerArrowRight: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: theme.borderRadius.full,
+  },
+  bannerDots: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  bannerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  bannerDotActive: {
+    backgroundColor: theme.colors.white,
+    width: 18,
   },
   // ─── Carousel ───────────────────────────────────────────────────────
   carouselSection: {

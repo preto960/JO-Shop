@@ -235,6 +235,98 @@ const SettingsScreen = () => {
     setAccentColor('#E94560');
   };
 
+  // ─── Banners State ─────────────────────────────────────────────────────
+  const [bannersEnabled, setBannersEnabled] = useState(
+    config.banners_enabled === 'true' || config.banners_enabled === true
+  );
+  const [banners, setBanners] = useState([]);
+  const [bannerUploading, setBannerUploading] = useState(false);
+
+  useEffect(() => {
+    setBannersEnabled(config.banners_enabled === 'true' || config.banners_enabled === true);
+    try {
+      const data = config.banners_data;
+      if (!data) { setBanners([]); return; }
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      setBanners(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setBanners([]);
+    }
+  }, [config.banners_enabled, config.banners_data]);
+
+  const handleBannersToggle = async (value) => {
+    setBannersEnabled(value);
+    try {
+      await updateConfig({banners_enabled: String(value), banners_data: value ? JSON.stringify(banners) : ''});
+    } catch {
+      setBannersEnabled(!value);
+      setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo actualizar la configuración.', confirmText: 'Aceptar', onConfirm: null});
+    }
+  };
+
+  const handleAddBanner = useCallback(async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+      if (result.didCancel || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+        Alert.alert('Error', 'La imagen no debe superar 2MB');
+        return;
+      }
+      setBannerUploading(true);
+      try {
+        const api = await apiService.createApiClient();
+        const formData = new FormData();
+        formData.append('file', {
+          uri: asset.uri,
+          name: asset.fileName || 'banner.jpg',
+          type: asset.type || 'image/jpeg',
+        });
+        const res = await api.post('/config/upload-banner', formData, {
+          headers: {'Content-Type': 'multipart/form-data'},
+          transformRequest: (data) => data,
+        });
+        const url = res?.url || res?.data?.url;
+        if (url) {
+          const newBanners = [...banners, {image: url, link: ''}];
+          setBanners(newBanners);
+          await updateConfig({banners_data: JSON.stringify(newBanners)});
+          if (!bannersEnabled) {
+            setBannersEnabled(true);
+            await updateConfig({banners_enabled: 'true'});
+          }
+        }
+      } catch (err) {
+        Alert.alert('Error', 'No se pudo subir el banner.');
+      } finally {
+        setBannerUploading(false);
+      }
+    } catch {
+      // Picker error
+    }
+  }, [banners, bannersEnabled, updateConfig]);
+
+  const handleRemoveBanner = useCallback(async (index) => {
+    const newBanners = banners.filter((_, i) => i !== index);
+    setBanners(newBanners);
+    try {
+      await updateConfig({banners_data: JSON.stringify(newBanners)});
+      // Try to delete the file from server
+      try {
+        await apiService.deleteBanner(banners[index].image);
+      } catch {
+        // Non-critical
+      }
+    } catch {
+      setBanners(banners);
+      Alert.alert('Error', 'No se pudo eliminar el banner.');
+    }
+  }, [banners, updateConfig]);
+
   const openPrivacyPolicy = () => {
     Linking.openURL('https://example.com/privacy').catch(() => {});
   };
@@ -530,6 +622,80 @@ const SettingsScreen = () => {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+        )}
+
+        {/* ─── Banners de Publicidad (solo admin) ───────────────────────── */}
+        {isAdmin && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Banners de Publicidad</Text>
+          <View style={styles.card}>
+            {/* Toggle */}
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <View style={styles.toggleIconRow}>
+                  <Icon name="images-outline" size={22} color={primary} />
+                  <Text style={styles.toggleLabel}>Banners activos</Text>
+                </View>
+                <Text style={styles.toggleDescription}>
+                  {bannersEnabled
+                    ? 'Los banners se muestran en la página principal de la tienda.'
+                    : 'Los banners están ocultos. Activa para mostrarlos.'}
+                </Text>
+              </View>
+              <View style={styles.switchWrapper}>
+                <Switch
+                  value={bannersEnabled}
+                  onValueChange={handleBannersToggle}
+                  trackColor={{false: theme.colors.border, true: primary}}
+                  thumbColor={theme.colors.white}
+                />
+              </View>
+            </View>
+
+            {bannersEnabled && (
+              <>
+                {/* Lista de banners */}
+                {banners.length > 0 && (
+                  <View style={styles.bannerList}>
+                    {banners.map((banner, index) => (
+                      <View key={`banner-${index}`} style={styles.bannerItem}>
+                        <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                        <View style={styles.bannerItemInfo}>
+                          <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
+                          <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveBanner(index)}
+                          style={styles.bannerRemoveBtn}
+                          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                          activeOpacity={0.7}>
+                          <Icon name="close-circle" size={22} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Botón agregar */}
+                <TouchableOpacity
+                  onPress={handleAddBanner}
+                  disabled={bannerUploading}
+                  style={[styles.addBannerBtn, bannerUploading && {opacity: 0.6}]}
+                  activeOpacity={0.7}>
+                  {bannerUploading ? (
+                    <ActivityIndicator size="small" color={primary} />
+                  ) : (
+                    <Icon name="add-circle-outline" size={20} color={primary} />
+                  )}
+                  <Text style={styles.addBannerBtnText}>
+                    {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
+              </>
+            )}
           </View>
         </View>
         )}
@@ -988,6 +1154,58 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.textLight,
     marginBottom: 16,
+  },
+  // ─── Banners ────────────────────────────────────────────────────────
+  bannerList: {
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  bannerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  bannerThumb: {
+    width: 64,
+    height: 36,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.border,
+  },
+  bannerItemInfo: {
+    flex: 1,
+  },
+  bannerItemLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  bannerItemUrl: {
+    fontSize: 10,
+    color: theme.colors.textLight,
+    marginTop: 2,
+  },
+  bannerRemoveBtn: {
+    padding: 4,
+  },
+  addBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    borderWidth: 2,
+    borderColor: primary,
+    borderStyle: 'dashed',
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: primary + '08',
+  },
+  addBannerBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: primary,
   },
   appearanceButtons: {
     flexDirection: 'row',
