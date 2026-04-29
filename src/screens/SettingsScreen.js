@@ -752,7 +752,7 @@ const SettingsScreen = () => {
                 ) : banners.length > 0 ? (
                   <View style={styles.bannerList}>
                     {banners.map((banner) => (
-                      <View key={`banner-${banner.id}`} style={[styles.bannerItem, !banner.active && styles.bannerItemInactive]}>
+                      <View key={`banner-${banner.id}`} style={[styles.bannerItem, !banner.active && styles.bannerItemInactive, bannerMenuId === banner.id && styles.bannerItemElevated]}>
                         <View style={styles.bannerItemRow}>
                           <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
                           <View style={styles.bannerItemInfo}>
@@ -1385,6 +1385,10 @@ const createStyles = (primary) => StyleSheet.create({
   },
   bannerItemInactive: {
     opacity: 0.5,
+  },
+  bannerItemElevated: {
+    zIndex: 20,
+    elevation: 20,
   },
   bannerItemRow: {
     flexDirection: 'row',
