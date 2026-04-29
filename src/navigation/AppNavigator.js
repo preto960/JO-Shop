@@ -24,6 +24,7 @@ import AdminOrdersScreen from '@screens/AdminOrdersScreen';
 import AdminRolesScreen from '@screens/AdminRolesScreen';
 import AdminUsersScreen from '@screens/AdminUsersScreen';
 import AdminStoresScreen from '@screens/AdminStoresScreen';
+import AdminBatchesScreen from '@screens/AdminBatchesScreen';
 import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
@@ -140,6 +141,9 @@ const AdminTabs = () => {
   }
   if (canViewModule('products')) {
     tabs.push({name: 'AdminProducts', component: AdminProductsScreen, label: 'Productos', icon: 'pricetag-outline'});
+  }
+  if (canViewModule('batches')) {
+    tabs.push({name: 'AdminBatches', component: AdminBatchesScreen, label: 'Lotes', icon: 'layers-outline'});
   }
   if (canViewModule('categories')) {
     tabs.push({name: 'AdminCategories', component: AdminCategoriesScreen, label: 'Categorías', icon: 'folder-outline'});

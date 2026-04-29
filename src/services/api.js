@@ -406,6 +406,32 @@ const deleteStore = async (storeId) => {
   return api.delete(`/stores/${storeId}`);
 };
 
+// ==================== PRODUCT BATCHES CRUD ====================
+
+const fetchBatches = async (params = {}) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/product-batches', {params});
+};
+
+const createBatch = async (batchData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/product-batches', batchData);
+};
+
+const updateBatch = async (batchId, batchData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/product-batches/${batchId}`, batchData);
+};
+
+const deleteBatch = async (batchId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/product-batches/${batchId}`);
+};
+
 // Alias for backward compatibility
 const fetchStoresAdmin = fetchAdminStores;
 
@@ -471,6 +497,11 @@ const apiService = {
   fetchDeliveryUsers,
   fetchAvailableOrders,
   acceptOrder,
+  // Product Batches
+  fetchBatches,
+  createBatch,
+  updateBatch,
+  deleteBatch,
 };
 
 export default apiService;
