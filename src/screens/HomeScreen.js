@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Dimensions,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -164,31 +165,46 @@ const HomeScreen = () => {
   }, [searchQuery]);
 
   // ─── Banners de publicidad ────────────────────────────────────────────
-  const bannersEnabled = config.banners_enabled === 'true' || config.banners_enabled === true;
-  const banners = useMemo(() => {
-    if (!bannersEnabled) return [];
-    try {
-      const data = config.banners_data;
-      if (!data) return [];
-      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }, [config.banners_data, bannersEnabled]);
-
+  const bannersEnabled = config.banners_enabled === 'true';
+  const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const bannerTimerRef = useRef(null);
+  const bannerScrollRef = useRef(null);
 
   useEffect(() => {
+    if (!bannersEnabled || !hasApiConfig) { setBanners([]); return; }
+    const loadBanners = async () => {
+      try {
+        const data = await apiService.fetchBanners();
+        const list = Array.isArray(data) ? data : data?.data || [];
+        setBanners(list);
+      } catch {
+        setBanners([]);
+      }
+    };
+    loadBanners();
+  }, [bannersEnabled, hasApiConfig]);
+
+  // Auto-rotate banners with dynamic duration
+  useEffect(() => {
     if (banners.length <= 1) return;
+    const duration = (banners[0]?.duration || 4) * 1000;
     bannerTimerRef.current = setInterval(() => {
       setCurrentBanner(prev => (prev + 1) % banners.length);
-    }, 4000);
+    }, duration);
     return () => {
       if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
     };
-  }, [banners.length]);
+  }, [banners.length, banners]);
+
+  // Scroll to current banner on auto-rotate
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    bannerScrollRef.current?.scrollToIndex({
+      index: currentBanner,
+      animated: true,
+    });
+  }, [currentBanner, banners.length]);
 
   // Calcular datos derivados para carousels
   const bestSellers = useMemo(() => {
@@ -385,40 +401,60 @@ const HomeScreen = () => {
 
     return (
       <View style={styles.bannerCarousel}>
-        {banners.map((banner, index) => {
-          if (!banner.image && !banner.url) return null;
-          return (
-            <View
-              key={`banner-${index}`}
-              style={[
-                styles.bannerSlide,
-                index === currentBanner ? styles.bannerSlideActive : styles.bannerSlideInactive,
-              ]}>
-              {banner.link ? (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => {
-                    try {
-                      const url = banner.link.startsWith('http') ? banner.link : `https://${banner.link}`;
-                      // Could open in browser with Linking.openURL
-                    } catch {}
-                  }}>
+        <FlatList
+          ref={bannerScrollRef}
+          data={banners}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => `banner-${item.id}`}
+          onMomentumScrollEnd={(event) => {
+            const offset = event.nativeEvent.contentOffset.x;
+            const width = event.nativeEvent.layoutMeasurement.width;
+            const index = Math.round(offset / width);
+            if (index >= 0 && index < banners.length) {
+              setCurrentBanner(index);
+            }
+          }}
+          getItemLayout={(_data, index) => {
+            const slideWidth = Dimensions.get('window').width - theme.spacing.md * 2;
+            return {
+              length: slideWidth,
+              offset: slideWidth * index,
+              index,
+            };
+          }}
+          renderItem={({item}) => (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                if (item.link) {
+                  try {
+                    const url = item.link.startsWith('http') ? item.link : `https://${item.link}`;
+                    // Linking.openURL would go here
+                  } catch {}
+                }
+              }}
+              style={styles.bannerSlide}>
+              {item.mediaType === 'video' ? (
+                <View style={styles.bannerImage}>
+                  {/* Videos require react-native-video - fallback to image */}
                   <Image
-                    source={{uri: banner.image || banner.url}}
+                    source={{uri: item.imageUrl}}
                     style={styles.bannerImage}
                     resizeMode="cover"
                   />
-                </TouchableOpacity>
+                </View>
               ) : (
                 <Image
-                  source={{uri: banner.image || banner.url}}
+                  source={{uri: item.imageUrl}}
                   style={styles.bannerImage}
                   resizeMode="cover"
                 />
               )}
-            </View>
-          );
-        })}
+            </TouchableOpacity>
+          )}
+        />
         {/* Dots indicator */}
         {banners.length > 1 && (
           <View style={styles.bannerDots}>
@@ -924,17 +960,8 @@ const createStyles = (primary) => StyleSheet.create({
     backgroundColor: theme.colors.inputBg,
   },
   bannerSlide: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  bannerSlideActive: {
-    opacity: 1,
-  },
-  bannerSlideInactive: {
-    opacity: 0,
+    width: Dimensions.get('window').width - theme.spacing.md * 2,
+    height: 160,
   },
   bannerImage: {
     width: '100%',

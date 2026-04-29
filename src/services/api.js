@@ -370,6 +370,12 @@ const deleteBanner = async (imageUrl) => {
   return api.delete('/config/upload-banner', {data: {url: imageUrl}});
 };
 
+const fetchBanners = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/banners');
+};
+
 // Aliases for backward compatibility
 const fetchConfig = fetchSystemConfig;
 const updateConfig = updateSystemConfig;
@@ -453,6 +459,7 @@ const apiService = {
   // Banners
   uploadBanner,
   deleteBanner,
+  fetchBanners,
   // Stores CRUD
   fetchAdminStores,
   fetchStoresAdmin,
