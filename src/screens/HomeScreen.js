@@ -377,27 +377,24 @@ const HomeScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       {/* ═══ Header ═══ */}
       <View style={[styles.header, !isAuthenticated ? styles.headerGuest : null]}>
-        <View style={styles.headerCenter}>
-          {shopLogoUrl ? (
-            <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
-          ) : (
-            <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
-          )}
-        </View>
-        <View style={styles.headerRight}>
-          {isAuthenticated ? (
-            <TouchableOpacity onPress={logout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={24} color={primary} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Login', {fromGuest: true})}
-              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-              style={[styles.loginBtn, {backgroundColor: primaryColor}]}>
-              <Text style={styles.loginBtnText}>Ingresar</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {shopLogoUrl ? (
+          <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
+        ) : (
+          <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
+        )}
+        <View style={styles.headerSpacer} />
+        {isAuthenticated ? (
+          <TouchableOpacity onPress={logout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Icon name="log-out-outline" size={24} color={primary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Login', {fromGuest: true})}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+            style={[styles.loginBtn, {backgroundColor: primaryColor}]}>
+            <Text style={styles.loginBtnText}>Ingresar</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ═══ Main Scrollable Content ═══ */}
@@ -684,17 +681,8 @@ const createStyles = (primary) => StyleSheet.create({
     shadowOpacity: 0,
     shadowRadius: 0,
   },
-  headerCenter: {
+  headerSpacer: {
     flex: 1,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  headerRight: {
-    width: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
   },
   loginBtn: {
     paddingHorizontal: 14,
