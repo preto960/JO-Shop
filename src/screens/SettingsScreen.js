@@ -164,47 +164,48 @@ const SettingsScreen = () => {
 
   const handlePickLogo = useCallback(async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
         quality: 0.8,
-        base64: false,
+        selectionLimit: 1,
       });
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0];
-        if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
-          Alert.alert('Error', 'La imagen no debe superar 2MB');
-          return;
+
+      if (result.didCancel || !result.assets?.[0]) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+        Alert.alert('Error', 'La imagen no debe superar 2MB');
+        return;
+      }
+
+      setLogoUploading(true);
+      try {
+        const api = await apiService.createApiClient();
+        const formData = new FormData();
+        const fileUri = asset.uri;
+        const filename = asset.fileName || fileUri.split('/').pop() || 'logo.png';
+        formData.append('file', {
+          uri: fileUri,
+          name: filename,
+          type: asset.type || 'image/jpeg',
+        });
+        const res = await api.post('/config/upload-logo', formData, {
+          headers: {'Content-Type': 'multipart/form-data'},
+          transformRequest: (data) => data,
+        });
+        const logoUrl = res?.url || res?.data?.url;
+        if (logoUrl) {
+          await updateConfig({shop_logo_url: logoUrl});
         }
-        setLogoUploading(true);
-        try {
-          const api = await apiService.createApiClient();
-          const formData = new FormData();
-          const fileUri = asset.uri;
-          const filename = fileUri.split('/').pop() || 'logo.png';
-          const match = /^data:(.+);base64,(.+)$/.exec(fileUri);
-          const uri = match ? fileUri : fileUri;
-          formData.append('file', {
-            uri,
-            name: filename,
-            type: asset.mimeType || 'image/jpeg',
-          });
-          const res = await api.post('/config/upload-logo', formData, {
-            headers: {'Content-Type': 'multipart/form-data'},
-            transformRequest: (data) => data,
-          });
-          const logoUrl = res?.url || res?.data?.url;
-          if (logoUrl) {
-            await updateConfig({shop_logo_url: logoUrl});
-          }
-        } catch (err) {
-          Alert.alert('Error', 'No se pudo subir el logo.');
-        } finally {
-          setLogoUploading(false);
-        }
+      } catch (err) {
+        Alert.alert('Error', 'No se pudo subir el logo.');
+      } finally {
+        setLogoUploading(false);
       }
     } catch (err) {
-      // User cancelled picker
+      // Picker error
     }
   }, [updateConfig]);
 
