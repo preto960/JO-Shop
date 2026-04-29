@@ -235,29 +235,44 @@ const SettingsScreen = () => {
     setAccentColor('#E94560');
   };
 
-  // ─── Banners State ─────────────────────────────────────────────────────
+  // ─── Banners State (nueva API CRUD con tabla dedicada) ───────────────
   const [bannersEnabled, setBannersEnabled] = useState(
     config.banners_enabled === 'true' || config.banners_enabled === true
   );
   const [banners, setBanners] = useState([]);
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerLoading, setBannerLoading] = useState(false);
 
   useEffect(() => {
     setBannersEnabled(config.banners_enabled === 'true' || config.banners_enabled === true);
+  }, [config.banners_enabled]);
+
+  const loadBanners = useCallback(async () => {
+    if (config.banners_enabled !== 'true' && config.banners_enabled !== true) {
+      setBanners([]);
+      return;
+    }
+    setBannerLoading(true);
     try {
-      const data = config.banners_data;
-      if (!data) { setBanners([]); return; }
-      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-      setBanners(Array.isArray(parsed) ? parsed : []);
+      const api = await apiService.createApiClient();
+      const res = await api.get('/banners/all');
+      const list = Array.isArray(res) ? res : res?.data || [];
+      setBanners(list);
     } catch {
       setBanners([]);
+    } finally {
+      setBannerLoading(false);
     }
-  }, [config.banners_enabled, config.banners_data]);
+  }, [config.banners_enabled]);
+
+  useEffect(() => {
+    loadBanners();
+  }, [loadBanners]);
 
   const handleBannersToggle = async (value) => {
     setBannersEnabled(value);
     try {
-      await updateConfig({banners_enabled: String(value), banners_data: value ? JSON.stringify(banners) : ''});
+      await updateConfig({banners_enabled: String(value)});
     } catch {
       setBannersEnabled(!value);
       setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo actualizar la configuración.', confirmText: 'Aceptar', onConfirm: null});
@@ -267,65 +282,97 @@ const SettingsScreen = () => {
   const handleAddBanner = useCallback(async () => {
     try {
       const result = await launchImageLibrary({
-        mediaType: 'photo',
+        mediaType: 'mixed',
         quality: 0.8,
         selectionLimit: 1,
       });
       if (result.didCancel || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
-        Alert.alert('Error', 'La imagen no debe superar 2MB');
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Error', 'El archivo no debe superar 5MB');
         return;
       }
-      setBannerUploading(true);
-      try {
-        const api = await apiService.createApiClient();
-        const formData = new FormData();
-        formData.append('file', {
-          uri: asset.uri,
-          name: asset.fileName || 'banner.jpg',
-          type: asset.type || 'image/jpeg',
-        });
-        const res = await api.post('/config/upload-banner', formData, {
-          headers: {'Content-Type': 'multipart/form-data'},
-          transformRequest: (data) => data,
-        });
-        const url = res?.url || res?.data?.url;
-        if (url) {
-          const newBanners = [...banners, {image: url, link: ''}];
-          setBanners(newBanners);
-          await updateConfig({banners_data: JSON.stringify(newBanners)});
-          if (!bannersEnabled) {
-            setBannersEnabled(true);
-            await updateConfig({banners_enabled: 'true'});
-          }
-        }
-      } catch (err) {
-        Alert.alert('Error', 'No se pudo subir el banner.');
-      } finally {
-        setBannerUploading(false);
-      }
+
+      // Pedir duración al usuario
+      Alert.prompt(
+        'Duración del banner',
+        '¿Cuántos segundos debe mostrarse cada banner antes de cambiar al siguiente? (1-30)',
+        [
+          { text: 'Cancelar', style: 'cancel', onPress: () => {} },
+          {
+            text: 'Subir',
+            onPress: async (durationText) => {
+              const duration = parseInt(durationText) || 4;
+              setBannerUploading(true);
+              try {
+                const api = await apiService.createApiClient();
+                const formData = new FormData();
+                formData.append('file', {
+                  uri: asset.uri,
+                  name: asset.fileName || 'banner.jpg',
+                  type: asset.type || 'image/jpeg',
+                });
+                formData.append('duration', String(Math.max(1, Math.min(30, duration))));
+                const res = await api.post('/banners', formData, {
+                  headers: {'Content-Type': 'multipart/form-data'},
+                  transformRequest: (data) => data,
+                });
+                const newBanner = res?.banner || res?.data?.banner;
+                if (newBanner) {
+                  setBanners(prev => [...prev, newBanner]);
+                  if (!bannersEnabled) {
+                    setBannersEnabled(true);
+                    await updateConfig({banners_enabled: 'true'});
+                  }
+                }
+              } catch (err) {
+                Alert.alert('Error', 'No se pudo subir el banner.');
+              } finally {
+                setBannerUploading(false);
+              }
+            },
+          },
+        ],
+        'plain-text',
+        '4',
+        'number-pad',
+      );
     } catch {
       // Picker error
     }
-  }, [banners, bannersEnabled, updateConfig]);
+  }, [bannersEnabled, updateConfig]);
 
-  const handleRemoveBanner = useCallback(async (index) => {
-    const newBanners = banners.filter((_, i) => i !== index);
-    setBanners(newBanners);
+  const handleRemoveBanner = useCallback(async (bannerId) => {
+    setBanners(prev => prev.filter(b => b.id !== bannerId));
     try {
-      await updateConfig({banners_data: JSON.stringify(newBanners)});
-      // Try to delete the file from server
-      try {
-        await apiService.deleteBanner(banners[index].image);
-      } catch {
-        // Non-critical
-      }
+      const api = await apiService.createApiClient();
+      await api.delete(`/banners/${bannerId}`);
     } catch {
-      setBanners(banners);
+      loadBanners();
       Alert.alert('Error', 'No se pudo eliminar el banner.');
     }
-  }, [banners, updateConfig]);
+  }, [loadBanners]);
+
+  const handleToggleBannerActive = useCallback(async (banner) => {
+    const newActive = !banner.active;
+    setBanners(prev => prev.map(b => b.id === banner.id ? {...b, active: newActive} : b));
+    try {
+      const api = await apiService.createApiClient();
+      const formData = new FormData();
+      formData.append('active', String(newActive));
+      const res = await api.put(`/banners/${banner.id}`, formData, {
+        headers: {'Content-Type': 'multipart/form-data'},
+        transformRequest: (data) => data,
+      });
+      const updated = res?.banner || res?.data?.banner;
+      if (updated) {
+        setBanners(prev => prev.map(b => b.id === banner.id ? updated : b));
+      }
+    } catch {
+      setBanners(prev => prev.map(b => b.id === banner.id ? {...b, active: !newActive} : b));
+      Alert.alert('Error', 'No se pudo cambiar el estado.');
+    }
+  }, []);
 
   const openPrivacyPolicy = () => {
     Linking.openURL('https://example.com/privacy').catch(() => {});
@@ -657,26 +704,50 @@ const SettingsScreen = () => {
             {bannersEnabled && (
               <>
                 {/* Lista de banners */}
-                {banners.length > 0 && (
+                {bannerLoading ? (
+                  <ActivityIndicator size="small" color={primary} style={{marginVertical: 16}} />
+                ) : banners.length > 0 ? (
                   <View style={styles.bannerList}>
-                    {banners.map((banner, index) => (
-                      <View key={`banner-${index}`} style={styles.bannerItem}>
-                        <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                    {banners.map((banner) => (
+                      <View key={`banner-${banner.id}`} style={[styles.bannerItem, !banner.active && styles.bannerItemInactive]}>
+                        <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
                         <View style={styles.bannerItemInfo}>
-                          <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
-                          <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
+                          <Text style={styles.bannerItemLabel}>
+                            Banner {banner.sortOrder}
+                            <Text style={{fontSize: 11, color: theme.colors.textLight, fontWeight: '400', marginLeft: 6}}>
+                              {banner.mediaType === 'video' ? 'Video' : 'Imagen'}
+                            </Text>
+                            <Text style={{fontSize: 11, color: '#F39C12', fontWeight: '600', marginLeft: 6}}>
+                              {banner.duration}s
+                            </Text>
+                          </Text>
+                          {banner.link ? (
+                            <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.link}</Text>
+                          ) : null}
+                          <Text style={{fontSize: 10, color: banner.active ? theme.colors.textLight : '#EF4444', marginTop: 2}}>
+                            {banner.active ? 'Visible' : 'Inactivo'}
+                          </Text>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleRemoveBanner(index)}
-                          style={styles.bannerRemoveBtn}
-                          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                          activeOpacity={0.7}>
-                          <Icon name="close-circle" size={22} color="#EF4444" />
-                        </TouchableOpacity>
+                        <View style={styles.bannerActions}>
+                          <TouchableOpacity
+                            onPress={() => handleToggleBannerActive(banner)}
+                            style={[styles.bannerActionBtn, {backgroundColor: banner.active ? '#E8F8F5' : '#FFF3E0'}]}
+                            hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+                            activeOpacity={0.7}>
+                            <Icon name={banner.active ? 'eye-outline' : 'eye-off-outline'} size={18} color={banner.active ? '#00B894' : '#F39C12'} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleRemoveBanner(banner.id)}
+                            style={styles.bannerActionBtn}
+                            hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+                            activeOpacity={0.7}>
+                            <Icon name="close-circle" size={18} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))}
                   </View>
-                )}
+                ) : null}
 
                 {/* Botón agregar */}
                 <TouchableOpacity
@@ -693,7 +764,7 @@ const SettingsScreen = () => {
                     {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
                   </Text>
                 </TouchableOpacity>
-                <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
+                <Text style={styles.logoHint}>Maximo 5MB. Imagenes o videos. Se mostrara como carrusel en el inicio.</Text>
               </>
             )}
           </View>
@@ -1187,8 +1258,21 @@ const createStyles = (primary) => StyleSheet.create({
     color: theme.colors.textLight,
     marginTop: 2,
   },
-  bannerRemoveBtn: {
-    padding: 4,
+  bannerItemInactive: {
+    opacity: 0.5,
+  },
+  bannerActions: {
+    flexDirection: 'column',
+    gap: 6,
+    flexShrink: 0,
+  },
+  bannerActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDE8EC',
   },
   addBannerBtn: {
     flexDirection: 'row',
