@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Linking,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -21,6 +22,124 @@ import {useCart} from '@context/CartContext';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
+
+const BannerCarousel = ({banners}) => {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const flatListRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (banners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % banners.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [banners.length]);
+
+  React.useEffect(() => {
+    if (banners.length <= 1) return;
+    flatListRef.current?.scrollToIndex({
+      index: currentIndex,
+      animated: true,
+    });
+  }, [currentIndex, banners.length]);
+
+  const handleBannerPress = (banner) => {
+    const link = banner.link || banner.url;
+    if (link && link.startsWith('http')) {
+      Linking.openURL(link);
+    }
+  };
+
+  if (banners.length === 0) return null;
+
+  return (
+    <View style={bannerStyles.container}>
+      <FlatList
+        ref={flatListRef}
+        data={banners}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item, idx) => `banner-${idx}`}
+        renderItem={({item}) => (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => handleBannerPress(item)}
+            style={bannerStyles.slide}>
+            <Image
+              source={{uri: item.image || item.url}}
+              style={bannerStyles.image}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+        )}
+        onMomentumScrollEnd={(event) => {
+          const offset = event.nativeEvent.contentOffset.x;
+          const index = Math.round(offset / (event.nativeEvent.layoutMeasurement.width - theme.spacing.md * 2 + theme.spacing.sm));
+          setCurrentIndex(index % banners.length);
+        }}
+        getItemLayout={(data, index) => ({
+          length: 300,
+          offset: 300 * index,
+          index,
+        })}
+      />
+      {banners.length > 1 && (
+        <View style={bannerStyles.dotsContainer}>
+          {banners.map((_, idx) => (
+            <View
+              key={`dot-${idx}`}
+              style={[
+                bannerStyles.dot,
+                idx === currentIndex && bannerStyles.dotActive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
+const bannerStyles = StyleSheet.create({
+  container: {
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    height: 180,
+    backgroundColor: theme.colors.inputBg,
+  },
+  slide: {
+    width: 300,
+    height: 180,
+    marginHorizontal: theme.spacing.sm / 2,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.borderRadius.md,
+  },
+  dotsContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  dotActive: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    width: 18,
+  },
+});
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -558,6 +677,20 @@ const HomeScreen = () => {
                 </View>
               </View>
             )}
+
+            {/* ═══ Banners de publicidad ═══ */}
+            {!hasActiveFilters && config.banners_enabled === 'true' && (() => {
+              let bannerList = [];
+              try {
+                const data = config.banners_data;
+                if (data) {
+                  const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                  bannerList = Array.isArray(parsed) ? parsed : [];
+                }
+              } catch {}
+              if (bannerList.length === 0) return null;
+              return <BannerCarousel banners={bannerList} />;
+            })()}
 
             {/* ═══ Search bar (when filters active, outside hero) ═══ */}
             {hasActiveFilters && (
