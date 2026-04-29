@@ -168,7 +168,9 @@ const HomeScreen = () => {
   const bannersEnabled = config.banners_enabled === 'true';
   const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [bannerProgress, setBannerProgress] = useState(0);
   const bannerTimerRef = useRef(null);
+  const bannerProgressRef = useRef(null);
   const bannerScrollRef = useRef(null);
 
   useEffect(() => {
@@ -185,17 +187,39 @@ const HomeScreen = () => {
     loadBanners();
   }, [bannersEnabled, hasApiConfig]);
 
-  // Auto-rotate banners with dynamic duration
+  // Auto-rotate banners with per-banner duration + progress bar
   useEffect(() => {
-    if (banners.length <= 1) return;
-    const duration = (banners[0]?.duration || 4) * 1000;
-    bannerTimerRef.current = setInterval(() => {
+    if (banners.length <= 1) {
+      setBannerProgress(100);
+      return;
+    }
+
+    // Cleanup previous timers
+    if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
+    if (bannerProgressRef.current) clearInterval(bannerProgressRef.current);
+
+    const duration = (banners[currentBanner]?.duration || 4) * 1000;
+    const stepMs = 50; // update every 50ms for smooth animation
+    setBannerProgress(0);
+    let elapsed = 0;
+
+    // Smooth progress bar animation
+    bannerProgressRef.current = setInterval(() => {
+      elapsed += stepMs;
+      const progress = Math.min((elapsed / duration) * 100, 100);
+      setBannerProgress(progress);
+    }, stepMs);
+
+    // Advance to next banner when duration expires
+    bannerTimerRef.current = setTimeout(() => {
       setCurrentBanner(prev => (prev + 1) % banners.length);
     }, duration);
+
     return () => {
-      if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      if (bannerProgressRef.current) clearInterval(bannerProgressRef.current);
     };
-  }, [banners.length, banners]);
+  }, [currentBanner, banners.length, banners]);
 
   // Scroll to current banner on auto-rotate
   useEffect(() => {
@@ -455,6 +479,12 @@ const HomeScreen = () => {
             </TouchableOpacity>
           )}
         />
+        {/* Subtle progress bar — thin line at bottom left corner */}
+        {banners.length > 1 && (
+          <View style={styles.bannerProgressBg}>
+            <View style={[styles.bannerProgressFill, {width: `${bannerProgress}%`}]} />
+          </View>
+        )}
         {/* Dots indicator */}
         {banners.length > 1 && (
           <View style={styles.bannerDots}>
@@ -986,6 +1016,23 @@ const createStyles = (primary) => StyleSheet.create({
   bannerDotActive: {
     backgroundColor: theme.colors.white,
     width: 18,
+  },
+  // ─── Banner Progress Bar (subtle) ──────────────────────────────────
+  bannerProgressBg: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 48,
+    height: 2.5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 2,
+    zIndex: 10,
+    overflow: 'hidden',
+  },
+  bannerProgressFill: {
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 2,
   },
   // ─── Carousel ───────────────────────────────────────────────────────
   carouselSection: {
