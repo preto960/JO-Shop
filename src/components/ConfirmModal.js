@@ -10,6 +10,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 /**
  * ConfirmModal - Modal de confirmación personalizado (reemplaza Alert.alert nativo)
@@ -30,6 +31,7 @@ const ConfirmModal = ({
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const {primary} = useThemeColors();
 
   useEffect(() => {
     if (visible) {
@@ -82,20 +84,20 @@ const ConfirmModal = ({
   const getIconColor = () => {
     switch (type) {
       case 'danger':
-        return theme.colors.accent;
+        return primary;
       case 'alert':
         return '#3498DB';
       default:
-        return theme.colors.accent;
+        return primary;
     }
   };
 
   const getConfirmColor = () => {
     switch (type) {
       case 'danger':
-        return theme.colors.accent;
+        return primary;
       default:
-        return theme.colors.accent;
+        return primary;
     }
   };
 

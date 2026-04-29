@@ -17,11 +17,13 @@ import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
 
 const AdminCategoriesScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
   const nameInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
@@ -197,7 +199,7 @@ const AdminCategoriesScreen = () => {
       <View style={styles.imageContainer}>
         {item.image ? (
           <View style={[styles.imagePlaceholder, {backgroundColor: '#FDE8EC'}]}>
-            <Icon name="image-outline" size={28} color={theme.colors.accent} />
+            <Icon name="image-outline" size={28} color={primary} />
           </View>
         ) : (
           <View style={styles.imagePlaceholder}>
@@ -234,7 +236,7 @@ const AdminCategoriesScreen = () => {
           style={styles.actionBtn}
           onPress={() => handleDelete(item)}
           activeOpacity={0.7}>
-          <Icon name="trash-outline" size={20} color={theme.colors.accent} />
+          <Icon name="trash-outline" size={20} color={primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -252,7 +254,7 @@ const AdminCategoriesScreen = () => {
 
   const renderError = () => (
     <View style={styles.emptyContainer}>
-      <Icon name="alert-circle-outline" size={56} color={theme.colors.accent} />
+      <Icon name="alert-circle-outline" size={56} color={primary} />
       <Text style={styles.emptyTitle}>Error de conexión</Text>
       <Text style={styles.emptySubtitle}>{error}</Text>
       <TouchableOpacity style={styles.retryBtn} onPress={() => loadCategories()} activeOpacity={0.8}>
@@ -287,12 +289,12 @@ const AdminCategoriesScreen = () => {
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loadingText}>Cargando categorías...</Text>
         </View>
       </SafeAreaView>
@@ -314,7 +316,7 @@ const AdminCategoriesScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -334,8 +336,8 @@ const AdminCategoriesScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadCategories(true)}
-              colors={[theme.colors.accent]}
-              tintColor={theme.colors.accent}
+              colors={[primary]}
+              tintColor={primary}
             />
           }
         />

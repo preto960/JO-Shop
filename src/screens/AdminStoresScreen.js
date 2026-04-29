@@ -19,6 +19,7 @@ import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ const EMPTY_FORM_ERRORS = {};
 const AdminStoresScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
 
   // Data state
   const [stores, setStores] = useState([]);
@@ -281,7 +283,7 @@ const AdminStoresScreen = () => {
     if (error && stores.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Icon name="alert-circle-outline" size={56} color={theme.colors.accent} />
+          <Icon name="alert-circle-outline" size={56} color={primary} />
           <Text style={styles.emptyTitle}>Error al cargar</Text>
           <Text style={styles.emptyText}>{error}</Text>
           <TouchableOpacity
@@ -309,7 +311,7 @@ const AdminStoresScreen = () => {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
+        <ActivityIndicator size="small" color={primary} />
         <Text style={styles.footerText}>Cargando más...</Text>
       </View>
     );
@@ -380,7 +382,7 @@ const AdminStoresScreen = () => {
               style={styles.iconActionBtn}
               onPress={() => handleDelete(item)}
               activeOpacity={0.7}>
-              <Icon name="trash-outline" size={20} color={theme.colors.accent} />
+              <Icon name="trash-outline" size={20} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -570,7 +572,7 @@ const AdminStoresScreen = () => {
           </View>
         </View>
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loaderText}>Cargando tiendas...</Text>
         </View>
       </SafeAreaView>
@@ -610,7 +612,7 @@ const AdminStoresScreen = () => {
           <TouchableOpacity
             onPress={handleLogout}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -629,8 +631,8 @@ const AdminStoresScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[theme.colors.accent]}
-            tintColor={theme.colors.accent}
+            colors={[primary]}
+            tintColor={primary}
           />
         }
         onEndReached={handleLoadMore}

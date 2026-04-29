@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const EmptyState = ({
   icon = 'basket-outline',
@@ -17,10 +18,11 @@ const EmptyState = ({
   onAction,
   loading = false,
 }) => {
+  const {primary} = useThemeColors();
   return (
     <View style={styles.container}>
       {loading ? (
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+        <ActivityIndicator size="large" color={primary} />
       ) : (
         <>
           <View style={styles.iconContainer}>
@@ -43,10 +45,11 @@ const EmptyState = ({
 };
 
 const ErrorState = ({message = 'Ocurrió un error inesperado', onRetry}) => {
+  const {primary} = useThemeColors();
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Icon name="alert-circle-outline" size={56} color={theme.colors.accent} />
+        <Icon name="alert-circle-outline" size={56} color={primary} />
       </View>
       <Text style={styles.title}>Error</Text>
       <Text style={styles.message}>{message}</Text>
@@ -64,9 +67,10 @@ const ErrorState = ({message = 'Ocurrió un error inesperado', onRetry}) => {
 };
 
 const LoadingState = () => {
+  const {primary} = useThemeColors();
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={theme.colors.accent} />
+      <ActivityIndicator size="large" color={primary} />
       <Text style={styles.loadingText}>Cargando...</Text>
     </View>
   );

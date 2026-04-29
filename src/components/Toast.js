@@ -2,6 +2,7 @@ import React, {useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, Animated, TouchableOpacity} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 /**
  * Toast - Notificación temporal (reemplaza Alert.alert para mensajes de éxito/error)
@@ -16,6 +17,7 @@ let toastTimeout = null;
 const Toast = ({visible, message, type = 'success', duration = 3000, onHide}) => {
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const {primary} = useThemeColors();
 
   useEffect(() => {
     if (visible) {
@@ -87,7 +89,7 @@ const Toast = ({visible, message, type = 'success', duration = 3000, onHide}) =>
       case 'success':
         return theme.colors.success;
       case 'error':
-        return theme.colors.accent;
+        return primary;
       case 'warning':
         return theme.colors.warning;
       case 'info':

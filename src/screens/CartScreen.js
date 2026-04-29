@@ -22,11 +22,13 @@ import apiService from '@services/api';
 import theme from '@theme/styles';
 import ENV from '@config/env';
 import ConfirmModal from '@components/ConfirmModal';
+import useThemeColors from '@hooks/useThemeColors';
 
 const CartScreen = () => {
   const navigation = useNavigation();
   const {items, isLoading, totalItems, totalPrice, clearCart} = useCart();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
 
   // Customer data — pre-fill from user profile
   const [customerName, setCustomerName] = useState('');
@@ -409,7 +411,7 @@ const CartScreen = () => {
               <Icon
                 name="location-outline"
                 size={18}
-                color={theme.colors.accent}
+                color={primary}
               />{' '}
               Dirección de entrega <Text style={styles.required}>*</Text>
             </Text>
@@ -454,7 +456,7 @@ const CartScreen = () => {
                 {addressesLoading ? (
                   <ActivityIndicator
                     size="small"
-                    color={theme.colors.accent}
+                    color={primary}
                   />
                 ) : addresses.length > 0 ? (
                   addresses.map(addr => (
@@ -501,7 +503,7 @@ const CartScreen = () => {
                         size={22}
                         color={
                           selectedAddressId === addr.id
-                            ? theme.colors.accent
+                            ? primary
                             : theme.colors.textLight
                         }
                       />
@@ -574,7 +576,7 @@ const CartScreen = () => {
                       <Icon
                         name="search"
                         size={20}
-                        color={theme.colors.accent}
+                        color={primary}
                       />
                     </TouchableOpacity>
                   )}
@@ -590,7 +592,7 @@ const CartScreen = () => {
                       {placesLoading ? (
                         <ActivityIndicator
                           size="small"
-                          color={theme.colors.accent}
+                          color={primary}
                         />
                       ) : (
                         placeResults.map(place => (
@@ -762,7 +764,7 @@ const CartScreen = () => {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -790,7 +792,7 @@ const CartScreen = () => {
             <Icon name="trash-outline" size={22} color={theme.colors.text} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>

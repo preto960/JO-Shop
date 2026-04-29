@@ -10,9 +10,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useCart} from '@context/CartContext';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const CartItem = ({item}) => {
   const {updateQuantity, removeItem} = useCart();
+  const {primary} = useThemeColors();
 
   const imageUrl = item.image || item.thumbnail || null;
 
@@ -48,7 +50,7 @@ const CartItem = ({item}) => {
           <Icon
             name={item.quantity === 1 ? 'trash-outline' : 'remove'}
             size={18}
-            color={item.quantity === 1 ? theme.colors.accent : theme.colors.text}
+            color={item.quantity === 1 ? primary : theme.colors.text}
           />
         </TouchableOpacity>
 

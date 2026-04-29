@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
 import {useAuth} from '@context/AuthContext';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
@@ -22,6 +23,7 @@ const RESEND_COOLDOWN = 60;
 const VerificationScreen = ({route, navigation}) => {
   const {email, type = 'login', user, token, refreshToken, otpCode, twoFactorType = 'email', onComplete} = route.params || {};
   const {loginWithOtp, resendOtpCode, isAuthenticated, isAdmin, hasRole} = useAuth();
+  const {primary} = useThemeColors();
   const isDelivery = hasRole('delivery');
 
   // Cuando el login con OTP exita, isAuthenticated cambia a true
@@ -278,7 +280,7 @@ const VerificationScreen = ({route, navigation}) => {
             <Icon
               name={twoFactorType === 'totp' ? 'phone-portrait-outline' : 'shield-checkmark'}
               size={60}
-              color={theme.colors.accent}
+              color={primary}
             />
           </View>
 

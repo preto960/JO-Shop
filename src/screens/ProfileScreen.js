@@ -22,6 +22,7 @@ import apiService from '@services/api';
 import theme from '@theme/styles';
 import ENV from '@config/env';
 import ConfirmModal from '@components/ConfirmModal';
+import useThemeColors from '@hooks/useThemeColors';
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
@@ -29,6 +30,7 @@ const RESEND_COOLDOWN = 60;
 const ProfileScreen = () => {
   const {user, isAdmin, hasRole, logout, fetchProfile, send2FACode, verify2FASetup, setupTOTP, enableTOTP, generateBackupCodes} = useAuth();
   const {isMultiStore} = useConfig();
+  const {primary} = useThemeColors();
   const [loggingOut, setLoggingOut] = useState(false);
 
   // 2FA state machine: idle → confirming → verifying → idle
@@ -643,7 +645,7 @@ const ProfileScreen = () => {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -706,7 +708,7 @@ const ProfileScreen = () => {
         {isMultiStore && user?.stores && user.stores.length > 0 && (
           <View style={styles.infoCard}>
             <View style={styles.sectionHeader}>
-              <Icon name="storefront-outline" size={18} color={theme.colors.accent} />
+              <Icon name="storefront-outline" size={18} color={primary} />
               <Text style={styles.sectionHeaderText}>Tiendas asignadas</Text>
             </View>
             {user.stores.map(store => (
@@ -803,7 +805,7 @@ const ProfileScreen = () => {
             <Icon
               name="create-outline"
               size={20}
-              color={theme.colors.accent}
+              color={primary}
             />
             <Text style={styles.editButtonText}>Editar perfil</Text>
           </TouchableOpacity>
@@ -813,7 +815,7 @@ const ProfileScreen = () => {
         {!isAdmin && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              <Icon name="shield-checkmark-outline" size={18} color={theme.colors.accent} />{' '}
+              <Icon name="shield-checkmark-outline" size={18} color={primary} />{' '}
               Seguridad
             </Text>
 
@@ -891,7 +893,7 @@ const ProfileScreen = () => {
                       </View>
                     </View>
                     {generatingBackupCodes ? (
-                      <ActivityIndicator size="small" color={theme.colors.accent} />
+                      <ActivityIndicator size="small" color={primary} />
                     ) : (
                       <Icon name="chevron-forward" size={20} color={theme.colors.textSecondary} />
                     )}
@@ -913,7 +915,7 @@ const ProfileScreen = () => {
 
                 {twoFaError ? (
                   <View style={styles.errorBox}>
-                    <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                    <Icon name="alert-circle" size={16} color={primary} />
                     <Text style={styles.errorText}>{twoFaError}</Text>
                   </View>
                 ) : null}
@@ -968,7 +970,7 @@ const ProfileScreen = () => {
               <View style={styles.securityCard}>
                 {twoFaLoading ? (
                   <View style={styles.twoFaVerifyContent}>
-                    <ActivityIndicator size="large" color={theme.colors.accent} />
+                    <ActivityIndicator size="large" color={primary} />
                     <Text style={styles.twoFaVerifyDesc} style={{ marginTop: 12 }}>Generando codigo QR...</Text>
                   </View>
                 ) : (
@@ -983,7 +985,7 @@ const ProfileScreen = () => {
 
                     {twoFaError ? (
                       <View style={styles.errorBox}>
-                        <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                        <Icon name="alert-circle" size={16} color={primary} />
                         <Text style={styles.errorText}>{twoFaError}</Text>
                       </View>
                     ) : null}
@@ -1013,7 +1015,7 @@ const ProfileScreen = () => {
                             <Text style={styles.totpSecretValue} selectable>
                               {totpSecret}
                             </Text>
-                            <Icon name="copy-outline" size={16} color={theme.colors.accent} />
+                            <Icon name="copy-outline" size={16} color={primary} />
                           </View>
                         </TouchableOpacity>
                       </View>
@@ -1050,7 +1052,7 @@ const ProfileScreen = () => {
                   <Icon
                     name="phone-portrait-outline"
                     size={40}
-                    color={theme.colors.accent}
+                    color={primary}
                     style={{ marginBottom: 12 }}
                   />
                   <Text style={styles.twoFaVerifyTitle}>Verifica tu App Authenticator</Text>
@@ -1060,7 +1062,7 @@ const ProfileScreen = () => {
 
                   {twoFaError ? (
                     <View style={styles.errorBox}>
-                      <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                      <Icon name="alert-circle" size={16} color={primary} />
                       <Text style={styles.errorText}>{twoFaError}</Text>
                     </View>
                   ) : null}
@@ -1199,7 +1201,7 @@ const ProfileScreen = () => {
 
                 {twoFaError ? (
                   <View style={styles.errorBox}>
-                    <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                    <Icon name="alert-circle" size={16} color={primary} />
                     <Text style={styles.errorText}>{twoFaError}</Text>
                   </View>
                 ) : null}
@@ -1247,17 +1249,17 @@ const ProfileScreen = () => {
                   <Icon
                     name="mail-open-outline"
                     size={40}
-                    color={theme.colors.accent}
+                    color={primary}
                     style={{ marginBottom: 12 }}
                   />
                   <Text style={styles.twoFaVerifyTitle}>Ingresa el codigo de 6 digitos</Text>
                   <Text style={styles.twoFaVerifyDesc}>
-                    Enviamos un codigo a <Text style={{ fontWeight: '600', color: theme.colors.accent }}>{user?.email}</Text>
+                    Enviamos un codigo a <Text style={{ fontWeight: '600', color: primary }}>{user?.email}</Text>
                   </Text>
 
                   {twoFaError ? (
                     <View style={styles.errorBox}>
-                      <Icon name="alert-circle" size={16} color={theme.colors.accent} />
+                      <Icon name="alert-circle" size={16} color={primary} />
                       <Text style={styles.errorText}>{twoFaError}</Text>
                     </View>
                   ) : null}
@@ -1333,7 +1335,7 @@ const ProfileScreen = () => {
                 <Icon
                   name="location-outline"
                   size={18}
-                  color={theme.colors.accent}
+                  color={primary}
                 />{' '}
                 Mis direcciones ({addresses.length})
               </Text>
@@ -1343,7 +1345,7 @@ const ProfileScreen = () => {
                 <Icon
                   name="add-circle-outline"
                   size={24}
-                  color={theme.colors.accent}
+                  color={primary}
                 />
               </TouchableOpacity>
             </View>
@@ -1351,7 +1353,7 @@ const ProfileScreen = () => {
             {addressesLoading ? (
               <ActivityIndicator
                 size="small"
-                color={theme.colors.accent}
+                color={primary}
               />
             ) : addresses.length > 0 ? (
               addresses.map(addr => (
@@ -1428,7 +1430,7 @@ const ProfileScreen = () => {
                           <Icon
                             name="trash-outline"
                             size={20}
-                            color={theme.colors.accent}
+                            color={primary}
                           />
                         </TouchableOpacity>
                       </>
@@ -1444,7 +1446,7 @@ const ProfileScreen = () => {
                 <Icon
                   name="add-circle-outline"
                   size={36}
-                  color={theme.colors.accent}
+                  color={primary}
                 />
                 <Text style={styles.emptyAddressText}>
                   Agrega tu primera dirección
@@ -1464,7 +1466,7 @@ const ProfileScreen = () => {
               <Icon
                 name="key-outline"
                 size={18}
-                color={theme.colors.accent}
+                color={primary}
               />{' '}
               Mis Permisos ({permCodes.length})
             </Text>
@@ -1633,7 +1635,7 @@ const ProfileScreen = () => {
                     <Icon
                       name="search"
                       size={20}
-                      color={theme.colors.accent}
+                      color={primary}
                     />
                   </TouchableOpacity>
                 )}
@@ -1648,7 +1650,7 @@ const ProfileScreen = () => {
                     {placesLoading ? (
                       <ActivityIndicator
                         size="small"
-                        color={theme.colors.accent}
+                        color={primary}
                       />
                     ) : (
                       placeResults.map(place => (

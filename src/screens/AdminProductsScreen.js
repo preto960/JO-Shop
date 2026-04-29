@@ -22,6 +22,7 @@ import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ const AdminProductsScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
   const {isMultiStore} = useConfig();
+  const {primary} = useThemeColors();
 
   // Data state
   const [products, setProducts] = useState([]);
@@ -456,7 +458,7 @@ const AdminProductsScreen = () => {
     if (error && products.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Icon name="alert-circle-outline" size={56} color={theme.colors.accent} />
+          <Icon name="alert-circle-outline" size={56} color={primary} />
           <Text style={styles.emptyTitle}>Error al cargar</Text>
           <Text style={styles.emptyText}>{error}</Text>
           <TouchableOpacity
@@ -496,7 +498,7 @@ const AdminProductsScreen = () => {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
+        <ActivityIndicator size="small" color={primary} />
         <Text style={styles.footerText}>Cargando más...</Text>
       </View>
     );
@@ -573,7 +575,7 @@ const AdminProductsScreen = () => {
               style={styles.iconActionBtn}
               onPress={() => handleDelete(item)}
               activeOpacity={0.7}>
-              <Icon name="trash-outline" size={20} color={theme.colors.accent} />
+              <Icon name="trash-outline" size={20} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -660,7 +662,7 @@ const AdminProductsScreen = () => {
                   <Icon
                     name="checkmark"
                     size={20}
-                    color={theme.colors.accent}
+                    color={primary}
                   />
                 )}
               </TouchableOpacity>
@@ -694,7 +696,7 @@ const AdminProductsScreen = () => {
                       <Icon
                         name="checkmark"
                         size={20}
-                        color={theme.colors.accent}
+                        color={primary}
                       />
                     )}
                   </TouchableOpacity>
@@ -760,7 +762,7 @@ const AdminProductsScreen = () => {
                     updateField('thumbnail', '');
                     updateField('image', '');
                   }}>
-                  <Icon name="close-circle" size={22} color={theme.colors.accent} />
+                  <Icon name="close-circle" size={22} color={primary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -1013,12 +1015,12 @@ const AdminProductsScreen = () => {
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loaderText}>Cargando productos...</Text>
         </View>
       </SafeAreaView>
@@ -1043,7 +1045,7 @@ const AdminProductsScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1093,7 +1095,7 @@ const AdminProductsScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-back" size={20} color={primary} />
               </TouchableOpacity>
             )}
             <FlatList
@@ -1131,7 +1133,7 @@ const AdminProductsScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-forward" size={20} color={primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -1147,7 +1149,7 @@ const AdminProductsScreen = () => {
             <Icon
               name="storefront-outline"
               size={16}
-              color={selectedStoreFilter ? theme.colors.accent : theme.colors.textSecondary}
+              color={selectedStoreFilter ? primary : theme.colors.textSecondary}
             />
             <Text style={[
               styles.storeFilterLabel,
@@ -1167,7 +1169,7 @@ const AdminProductsScreen = () => {
             <TouchableOpacity
               style={styles.clearFiltersBtn}
               onPress={clearFilters}>
-              <Icon name="close-circle" size={16} color={theme.colors.accent} />
+              <Icon name="close-circle" size={16} color={primary} />
               <Text style={styles.clearFiltersText}>Limpiar</Text>
             </TouchableOpacity>
           )}
@@ -1185,7 +1187,7 @@ const AdminProductsScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-back" size={20} color={primary} />
               </TouchableOpacity>
             )}
             <FlatList
@@ -1228,7 +1230,7 @@ const AdminProductsScreen = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
               >
-                <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+                <Icon name="chevron-forward" size={20} color={primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -1249,8 +1251,8 @@ const AdminProductsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[theme.colors.accent]}
-            tintColor={theme.colors.accent}
+            colors={[primary]}
+            tintColor={primary}
           />
         }
         onEndReached={handleLoadMore}

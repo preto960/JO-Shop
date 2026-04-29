@@ -10,9 +10,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useCart} from '@context/CartContext';
 import {formatPrice, truncateText} from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const ProductCard = ({product, onPress, containerStyle}) => {
   const {addItem} = useCart();
+  const {primary} = useThemeColors();
 
   const handleAddToCart = () => {
     addItem(product);

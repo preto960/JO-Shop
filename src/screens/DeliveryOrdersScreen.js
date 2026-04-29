@@ -25,6 +25,7 @@ import ENV from '@config/env';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
 import Toast from '@components/Toast';
+import useThemeColors from '@hooks/useThemeColors';
 
 // ─── Status Configuration ─────────────────────────────────────────────────────
 
@@ -205,6 +206,7 @@ const DeliveryOrdersScreen = () => {
   const route = useRoute();
   const isFocused = useIsFocused();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
 
   // Data state
   const [orders, setOrders] = useState([]);
@@ -633,7 +635,7 @@ const DeliveryOrdersScreen = () => {
           <Icon
             name="alert-circle-outline"
             size={56}
-            color={theme.colors.accent}
+            color={primary}
           />
           <Text style={styles.emptyTitle}>Error al cargar</Text>
           <Text style={styles.emptyText}>{error}</Text>
@@ -753,7 +755,7 @@ const DeliveryOrdersScreen = () => {
               <Icon
                 name="navigate-outline"
                 size={16}
-                color={theme.colors.accent}
+                color={primary}
               />
             </TouchableOpacity>
 
@@ -907,7 +909,7 @@ const DeliveryOrdersScreen = () => {
         <View style={styles.mapContainer}>
           {mapLoading && !mapCoords ? (
             <View style={styles.mapLoading}>
-              <ActivityIndicator size="large" color={theme.colors.accent} />
+              <ActivityIndicator size="large" color={primary} />
               <Text style={styles.mapLoadingText}>Buscando ubicación...</Text>
             </View>
           ) : mapCoords ? (
@@ -923,7 +925,7 @@ const DeliveryOrdersScreen = () => {
               showsBuildings
               showsTraffic
               loadingEnabled
-              loadingIndicatorColor={theme.colors.accent}>
+              loadingIndicatorColor={primary}>
               {/* Delivery destination marker */}
               <Marker
                 coordinate={mapCoords}
@@ -998,7 +1000,7 @@ const DeliveryOrdersScreen = () => {
                 onPress={handleCenterOnDestination}
                 style={styles.mapControlBtn}
                 activeOpacity={0.7}>
-                <Icon name="location" size={22} color={theme.colors.accent} />
+                <Icon name="location" size={22} color={primary} />
               </TouchableOpacity>
               {userLocation && routePoints.length > 1 && (
                 <TouchableOpacity
@@ -1031,7 +1033,7 @@ const DeliveryOrdersScreen = () => {
 
           {/* Address row */}
           <View style={styles.mapAddressRow}>
-            <Icon name="location-outline" size={18} color={theme.colors.accent} />
+            <Icon name="location-outline" size={18} color={primary} />
             <Text style={styles.mapAddressText} numberOfLines={2}>
               {mapModal.address}
             </Text>
@@ -1069,13 +1071,13 @@ const DeliveryOrdersScreen = () => {
             <TouchableOpacity
               onPress={handleLogout}
               hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loaderText}>Cargando entregas...</Text>
         </View>
       </SafeAreaView>
@@ -1104,7 +1106,7 @@ const DeliveryOrdersScreen = () => {
           <TouchableOpacity
             onPress={handleLogout}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1126,8 +1128,8 @@ const DeliveryOrdersScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[theme.colors.accent]}
-            tintColor={theme.colors.accent}
+            colors={[primary]}
+            tintColor={primary}
           />
         }
         showsVerticalScrollIndicator={false}

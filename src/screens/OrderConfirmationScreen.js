@@ -10,9 +10,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const OrderConfirmationScreen = ({route}) => {
   const navigation = useNavigation();
+  const {primary} = useThemeColors();
   const order = route.params?.order;
 
   return (

@@ -20,6 +20,7 @@ import {useAuth} from '@context/AuthContext';
 import {useConfig} from '@context/ConfigContext';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ const MODULE_LABELS = {
 const AdminUsersScreen = () => {
   const navigation = useNavigation();
   const {user: currentUser, logout, fetchProfile} = useAuth();
+  const {primary} = useThemeColors();
   const {isMultiStore} = useConfig();
 
   // ─── Data state ──────────────────────────────────────────────────────────
@@ -688,7 +690,7 @@ const AdminUsersScreen = () => {
           <Icon
             name="alert-circle-outline"
             size={56}
-            color={theme.colors.accent}
+            color={primary}
           />
           <Text style={styles.emptyTitle}>Error al cargar</Text>
           <Text style={styles.emptyText}>{error}</Text>
@@ -735,7 +737,7 @@ const AdminUsersScreen = () => {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
+        <ActivityIndicator size="small" color={primary} />
         <Text style={styles.footerText}>Cargando más...</Text>
       </View>
     );
@@ -776,7 +778,7 @@ const AdminUsersScreen = () => {
               <View style={styles.sheetLoading}>
                 <ActivityIndicator
                   size="large"
-                  color={theme.colors.accent}
+                  color={primary}
                 />
                 <Text style={styles.sheetLoadingText}>
                   Cargando detalles...
@@ -828,7 +830,7 @@ const AdminUsersScreen = () => {
                           color={
                             isActive
                               ? theme.colors.success
-                              : theme.colors.accent
+                              : primary
                           }
                         />
                         <Text
@@ -923,7 +925,7 @@ const AdminUsersScreen = () => {
                             color={
                               role.name === 'admin'
                                 ? theme.colors.white
-                                : theme.colors.accent
+                                : primary
                             }
                           />
                           <Text
@@ -1080,7 +1082,7 @@ const AdminUsersScreen = () => {
             <View style={styles.editLoaderContainer}>
               <ActivityIndicator
                 size="large"
-                color={theme.colors.accent}
+                color={primary}
               />
               <Text style={styles.editLoaderText}>
                 Cargando datos...
@@ -1315,7 +1317,7 @@ const AdminUsersScreen = () => {
                               {isSaving ? (
                                 <ActivityIndicator
                                   size="small"
-                                  color={theme.colors.accent}
+                                  color={primary}
                                 />
                               ) : (
                                 <TouchableOpacity
@@ -1563,7 +1565,7 @@ const AdminUsersScreen = () => {
             <View style={styles.editLoaderContainer}>
               <ActivityIndicator
                 size="large"
-                color={theme.colors.accent}
+                color={primary}
               />
               <Text style={styles.editLoaderText}>
                 Cargando datos...
@@ -1809,14 +1811,14 @@ const AdminUsersScreen = () => {
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.loaderContainer}>
           <ActivityIndicator
             size="large"
-            color={theme.colors.accent}
+            color={primary}
           />
           <Text style={styles.loaderText}>
             Cargando usuarios...
@@ -1846,7 +1848,7 @@ const AdminUsersScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1899,8 +1901,8 @@ const AdminUsersScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[theme.colors.accent]}
-            tintColor={theme.colors.accent}
+            colors={[primary]}
+            tintColor={primary}
           />
         }
         onEndReached={handleLoadMore}

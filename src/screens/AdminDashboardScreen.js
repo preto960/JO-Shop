@@ -14,11 +14,13 @@ import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
 
 const AdminDashboardScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,7 +59,7 @@ const AdminDashboardScreen = () => {
     preparing: '#9B59B6',
     shipped: '#2ECC71',
     delivered: '#27AE60',
-    cancelled: theme.colors.accent,
+    cancelled: primary,
   };
 
   const handleLogout = () => {
@@ -86,7 +88,7 @@ const AdminDashboardScreen = () => {
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -112,7 +114,7 @@ const AdminDashboardScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -121,12 +123,12 @@ const AdminDashboardScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => loadDashboard(true)} colors={[theme.colors.accent]} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => loadDashboard(true)} colors={[primary]} />
         }>
         {/* Stats cards */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Icon name="cart-outline" size={24} color={theme.colors.accent} />
+            <Icon name="cart-outline" size={24} color={primary} />
             <Text style={styles.statValue}>{stats?.totalOrders || 0}</Text>
             <Text style={styles.statLabel}>Pedidos</Text>
           </View>
@@ -155,7 +157,7 @@ const AdminDashboardScreen = () => {
             style={styles.actionCard}
             activeOpacity={0.8}>
             <View style={[styles.actionIcon, {backgroundColor: '#FDE8EC'}]}>
-              <Icon name="pricetag-outline" size={24} color={theme.colors.accent} />
+              <Icon name="pricetag-outline" size={24} color={primary} />
             </View>
             <Text style={styles.actionTitle}>Productos</Text>
             <Text style={styles.actionSub}>{stats?.totalProducts || 0} activos</Text>

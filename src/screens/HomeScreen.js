@@ -24,7 +24,7 @@ const HomeScreen = () => {
   const {config, isMultiStore} = useConfig();
   const shopName = config.shop_name || 'JO-Shop';
   const shopLogoUrl = config.shop_logo_url || '';
-  const primaryColor = config.primary_color || theme.colors.primary;
+  const primaryColor = config.primary_color || theme.colors.accent;
   const {user, logout} = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);

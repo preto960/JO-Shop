@@ -16,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
 import { formatPrice } from '@utils/helpers';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
 import {useAuth} from '@context/AuthContext';
 
@@ -54,6 +55,7 @@ const formatDate = (dateStr) => {
 const AdminOrdersScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
 
   const handleLogout = async () => {
     try {
@@ -285,7 +287,7 @@ const AdminOrdersScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -299,7 +301,7 @@ const AdminOrdersScreen = () => {
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
             >
-              <Icon name="chevron-back" size={20} color={theme.colors.accent} />
+              <Icon name="chevron-back" size={20} color={primary} />
             </TouchableOpacity>
           )}
           <ScrollView
@@ -348,7 +350,7 @@ const AdminOrdersScreen = () => {
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
             >
-              <Icon name="chevron-forward" size={20} color={theme.colors.accent} />
+              <Icon name="chevron-forward" size={20} color={primary} />
             </TouchableOpacity>
           )}
         </View>
@@ -522,7 +524,7 @@ const AdminOrdersScreen = () => {
               <View style={styles.detailInfoCard}>
                 {selectedOrder.delivery ? (
                   <View style={styles.detailInfoRow}>
-                    <Icon name="bicycle-outline" size={18} color={theme.colors.accent} />
+                    <Icon name="bicycle-outline" size={18} color={primary} />
                     <View style={styles.detailDeliveryInfo}>
                       <Text style={styles.detailDeliveryName}>{selectedOrder.delivery.name}</Text>
                       {selectedOrder.delivery.phone && (
@@ -554,7 +556,7 @@ const AdminOrdersScreen = () => {
                     activeOpacity={0.8}
                     disabled={selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
                   >
-                    <Icon name="swap-horizontal-outline" size={16} color={theme.colors.accent} />
+                    <Icon name="swap-horizontal-outline" size={16} color={primary} />
                     <Text style={styles.detailReassignBtnText}>Reasignar</Text>
                   </TouchableOpacity>
                 )}
@@ -569,7 +571,7 @@ const AdminOrdersScreen = () => {
               disabled={selectedOrder.status === 'cancelled' || selectedOrder.status === 'delivered'}
               activeOpacity={0.7}
             >
-              <Icon name="close-circle-outline" size={20} color={theme.colors.accent} />
+              <Icon name="close-circle-outline" size={20} color={primary} />
               <Text style={styles.detailCancelBtnText}>Cancelar Pedido</Text>
             </TouchableOpacity>
 
@@ -619,7 +621,7 @@ const AdminOrdersScreen = () => {
             </Text>
 
             {loadingDeliveryUsers ? (
-              <ActivityIndicator size="large" color={theme.colors.accent} style={{ paddingVertical: 20 }} />
+              <ActivityIndicator size="large" color={primary} style={{ paddingVertical: 20 }} />
             ) : deliveryUsers.length === 0 ? (
               <Text style={styles.assignEmptyText}>
                 No hay repartidores disponibles. Crea un usuario con el rol "delivery" desde Gestión de Usuarios.
@@ -651,10 +653,10 @@ const AdminOrdersScreen = () => {
                         )}
                       </View>
                       {isCurrentDelivery && (
-                        <Icon name="checkmark-circle" size={22} color={theme.colors.accent} />
+                        <Icon name="checkmark-circle" size={22} color={primary} />
                       )}
                       {!isCurrentDelivery && assigningDelivery && (
-                        <ActivityIndicator size="small" color={theme.colors.accent} />
+                        <ActivityIndicator size="small" color={primary} />
                       )}
                     </TouchableOpacity>
                   );
@@ -741,7 +743,7 @@ const AdminOrdersScreen = () => {
 
               {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
                 <TouchableOpacity
-                  style={[styles.modalActionBtn, { borderColor: theme.colors.accent + '40' }]}
+                  style={[styles.modalActionBtn, { borderColor: primary + '40' }]}
                   onPress={() => handleUpdateStatus('cancelled')}
                   disabled={updatingStatus}
                   activeOpacity={0.7}
@@ -749,12 +751,12 @@ const AdminOrdersScreen = () => {
                   <View
                     style={[
                       styles.modalActionIcon,
-                      { backgroundColor: theme.colors.accent + '15' },
+                      { backgroundColor: primary + '15' },
                     ]}
                   >
-                    <Icon name="close-circle-outline" size={20} color={theme.colors.accent} />
+                    <Icon name="close-circle-outline" size={20} color={primary} />
                   </View>
-                  <Text style={[styles.modalActionLabel, { color: theme.colors.accent }]}>
+                  <Text style={[styles.modalActionLabel, { color: primary }]}>
                     Cancelar
                   </Text>
                 </TouchableOpacity>
@@ -763,7 +765,7 @@ const AdminOrdersScreen = () => {
 
             {updatingStatus && (
               <View style={styles.modalLoading}>
-                <ActivityIndicator size="small" color={theme.colors.accent} />
+                <ActivityIndicator size="small" color={primary} />
                 <Text style={styles.modalLoadingText}>Actualizando estado...</Text>
               </View>
             )}
@@ -791,7 +793,7 @@ const AdminOrdersScreen = () => {
           : `No hay pedidos ${STATUS_CONFIG[activeTab]?.label?.toLowerCase() || ''} en este momento.`}
       </Text>
       <TouchableOpacity style={styles.emptyRetryBtn} onPress={onRefresh} activeOpacity={0.7}>
-        <Icon name="refresh" size={18} color={theme.colors.accent} />
+        <Icon name="refresh" size={18} color={primary} />
         <Text style={styles.emptyRetryBtnText}>Actualizar</Text>
       </TouchableOpacity>
     </View>
@@ -799,7 +801,7 @@ const AdminOrdersScreen = () => {
 
   const renderErrorState = () => (
     <View style={styles.errorContainer}>
-      <Icon name="alert-circle-outline" size={64} color={theme.colors.accent} />
+      <Icon name="alert-circle-outline" size={64} color={primary} />
       <Text style={styles.errorTitle}>Algo salió mal</Text>
       <Text style={styles.errorSubtitle}>{error}</Text>
       <TouchableOpacity style={styles.errorRetryBtn} onPress={onRefresh} activeOpacity={0.7}>
@@ -814,7 +816,7 @@ const AdminOrdersScreen = () => {
       <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         {renderHeader()}
         <View style={styles.fullLoader}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loadingText}>Cargando pedidos...</Text>
         </View>
       </SafeAreaView>
@@ -839,8 +841,8 @@ const AdminOrdersScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.colors.accent}
-            colors={[theme.colors.accent]}
+            tintColor={primary}
+            colors={[primary]}
           />
         }
         onEndReached={handleLoadMore}
@@ -848,7 +850,7 @@ const AdminOrdersScreen = () => {
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadMoreContainer}>
-              <ActivityIndicator size="small" color={theme.colors.accent} />
+              <ActivityIndicator size="small" color={primary} />
               <Text style={styles.loadMoreText}>Cargando más pedidos...</Text>
             </View>
           ) : null

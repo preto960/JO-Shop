@@ -18,6 +18,7 @@ import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
 import {useAuth} from '@context/AuthContext';
+import useThemeColors from '@hooks/useThemeColors';
 
 // ─── Status Configuration ─────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ const MyOrdersScreen = () => {
   const route = useRoute();
   const isFocused = useIsFocused();
   const {logout} = useAuth();
+  const {primary} = useThemeColors();
 
   // Data state
   const [orders, setOrders] = useState([]);
@@ -530,7 +532,7 @@ const MyOrdersScreen = () => {
                   style={styles.cancelButton}
                   onPress={() => handleCancelOrder(item)}
                   activeOpacity={0.7}>
-                  <Icon name="close-circle-outline" size={16} color={theme.colors.accent} />
+                  <Icon name="close-circle-outline" size={16} color={primary} />
                   <Text style={styles.cancelButtonText}>Cancelar pedido</Text>
                 </TouchableOpacity>
               )}
@@ -577,7 +579,7 @@ const MyOrdersScreen = () => {
           <Icon
             name="alert-circle-outline"
             size={56}
-            color={theme.colors.accent}
+            color={primary}
           />
           <Text style={styles.emptyTitle}>Error al cargar</Text>
           <Text style={styles.emptyText}>{error}</Text>
@@ -625,7 +627,7 @@ const MyOrdersScreen = () => {
           <View style={styles.headerRight} />
         </View>
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loaderText}>Cargando pedidos...</Text>
         </View>
       </SafeAreaView>
@@ -651,7 +653,7 @@ const MyOrdersScreen = () => {
           <TouchableOpacity
             onPress={handleLogout}
             hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -674,8 +676,8 @@ const MyOrdersScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[theme.colors.accent]}
-            tintColor={theme.colors.accent}
+            colors={[primary]}
+            tintColor={primary}
           />
         }
         showsVerticalScrollIndicator={false}

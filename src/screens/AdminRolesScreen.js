@@ -20,10 +20,12 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import apiService from '@services/api';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const AdminRolesScreen = () => {
   const navigation = useNavigation();
   const {user, logout} = useAuth();
+  const {primary} = useThemeColors();
   const nameInputRef = useRef(null);
 
   const handleLogout = async () => {
@@ -266,7 +268,7 @@ const AdminRolesScreen = () => {
           <View style={styles.cardInfo}>
             <View style={styles.roleHeader}>
               <View style={styles.roleIconWrap}>
-                <Icon name="shield-outline" size={20} color={theme.colors.accent} />
+                <Icon name="shield-outline" size={20} color={primary} />
               </View>
               <Text style={styles.roleName} numberOfLines={1}>
                 {item.name}
@@ -305,7 +307,7 @@ const AdminRolesScreen = () => {
           style={styles.deleteAction}
           onPress={() => handleDeleteRole(item)}
           activeOpacity={0.7}>
-          <Icon name="trash-outline" size={18} color={theme.colors.accent} />
+          <Icon name="trash-outline" size={18} color={primary} />
         </TouchableOpacity>
       </View>
     ),
@@ -346,12 +348,12 @@ const AdminRolesScreen = () => {
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-              <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+              <Icon name="log-out-outline" size={22} color={primary} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loadingText}>Cargando roles...</Text>
         </View>
       </SafeAreaView>
@@ -376,7 +378,7 @@ const AdminRolesScreen = () => {
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleLogout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.accent} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -393,8 +395,8 @@ const AdminRolesScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadData(true)}
-            colors={[theme.colors.accent]}
-            tintColor={theme.colors.accent}
+            colors={[primary]}
+            tintColor={primary}
           />
         }
       />
@@ -450,7 +452,7 @@ const AdminRolesScreen = () => {
                         onValueChange={() => togglePermission(perm.id)}
                         trackColor={{
                           false: theme.colors.border,
-                          true: theme.colors.accent,
+                          true: primary,
                         }}
                         thumbColor={theme.colors.white}
                       />

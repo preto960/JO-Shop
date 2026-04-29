@@ -13,6 +13,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import theme from '@theme/styles';
+import useThemeColors from '@hooks/useThemeColors';
 
 const ROLE_OPTIONS = [
   {
@@ -35,6 +36,7 @@ const ROLE_OPTIONS = [
 
 const RegisterScreen = ({navigation}) => {
   const {register, isLoading, error, clearError} = useAuth();
+  const {primary} = useThemeColors();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -117,7 +119,7 @@ const RegisterScreen = ({navigation}) => {
           {/* Error */}
           {errorMessage ? (
             <View style={styles.errorBox}>
-              <Icon name="alert-circle" size={18} color={theme.colors.accent} />
+              <Icon name="alert-circle" size={18} color={primary} />
               <Text style={styles.errorText}>{errorMessage}</Text>
               <TouchableOpacity onPress={() => {setLocalError(''); clearError();}}>
                 <Icon name="close" size={16} color={theme.colors.textSecondary} />
