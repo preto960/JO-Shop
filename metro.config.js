@@ -26,6 +26,7 @@ const config = {
       '@services': path.resolve(srcPath, 'services'),
       '@theme': path.resolve(srcPath, 'theme'),
       '@utils': path.resolve(srcPath, 'utils'),
+      '@hooks': path.resolve(srcPath, 'hooks'),
     },
   },
 };
