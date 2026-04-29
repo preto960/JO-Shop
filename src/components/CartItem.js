@@ -18,6 +18,10 @@ const CartItem = ({item}) => {
   const styles = useMemo(() => createStyles(primary), [primary]);
 
   const imageUrl = item.image || item.thumbnail || null;
+  const discount = item.discountPercent ?? item.discount_percent ?? 0;
+  const hasDiscount = discount > 0;
+  const price = item.price ?? item.precio ?? 0;
+  const discountedPrice = hasDiscount ? price * (1 - discount / 100) : price;
 
   return (
     <View style={styles.container}>
@@ -37,9 +41,16 @@ const CartItem = ({item}) => {
         <Text style={styles.name} numberOfLines={1}>
           {item.name || item.title || 'Sin nombre'}
         </Text>
-        <Text style={styles.price}>
-          {formatPrice(item.price || item.precio || 0)}
-        </Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>
+            {formatPrice(discountedPrice)}
+          </Text>
+          {hasDiscount && (
+            <Text style={styles.oldPrice}>
+              {formatPrice(price)}
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* Controles de cantidad */}
@@ -110,6 +121,18 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '700',
     color: primary,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  oldPrice: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
+    color: theme.colors.textLight,
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
   },
   controls: {
     flexDirection: 'row',

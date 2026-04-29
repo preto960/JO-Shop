@@ -32,6 +32,11 @@ const ProductDetailScreen = ({route}) => {
   }
 
   const imageUrl = product.image || product.thumbnail || product.image_url || null;
+  const discount = product.discountPercent ?? product.discount_percent ?? 0;
+  const hasDiscount = discount > 0;
+  const price = product.price ?? product.precio ?? 0;
+  const discountedPrice = hasDiscount ? price * (1 - discount / 100) : price;
+  const savings = hasDiscount ? price - discountedPrice : 0;
 
   const handleAddToCart = () => {
     addItem(product);
@@ -55,6 +60,12 @@ const ProductDetailScreen = ({route}) => {
           ) : (
             <View style={styles.imagePlaceholder}>
               <Icon name="image-outline" size={64} color={theme.colors.textLight} />
+            </View>
+          )}
+          {hasDiscount && (
+            <View style={styles.discountBadge}>
+              <Icon name="pricetag" size={14} color={theme.colors.white} />
+              <Text style={styles.discountBadgeText}>-{discount}%</Text>
             </View>
           )}
           <TouchableOpacity
@@ -84,9 +95,21 @@ const ProductDetailScreen = ({route}) => {
           </Text>
 
           {/* Precio */}
-          <Text style={styles.price}>
-            {formatPrice(product.price || product.precio || 0)}
-          </Text>
+          <View style={styles.priceSection}>
+            {hasDiscount && (
+              <>
+                <Text style={styles.oldPrice}>
+                  {formatPrice(price)}
+                </Text>
+                <Text style={styles.savingsText}>
+                  Ahorras {formatPrice(savings)}
+                </Text>
+              </>
+            )}
+            <Text style={[styles.price, hasDiscount && styles.discountedPrice]}>
+              {formatPrice(discountedPrice)}
+            </Text>
+          </View>
 
           {/* Descripción */}
           {product.description && (
@@ -231,7 +254,48 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.hero,
     fontWeight: '800',
     color: primary,
+  },
+  discountedPrice: {
+    color: '#FF6B6B',
+  },
+  priceSection: {
     marginBottom: theme.spacing.lg,
+  },
+  oldPrice: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '500',
+    color: theme.colors.textLight,
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
+    marginBottom: 2,
+  },
+  savingsText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: '#00B894',
+    marginBottom: 4,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: theme.spacing.lg + 8,
+    right: theme.spacing.lg,
+    backgroundColor: '#FF6B6B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.full,
+    shadowColor: '#FF6B6B',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  discountBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.white,
   },
   descriptionContainer: {
     marginBottom: theme.spacing.lg,

@@ -238,11 +238,9 @@ const HomeScreen = () => {
   const offers = useMemo(() => {
     return allProducts
       .filter(p => {
-        const hasDiscount = p.oldPrice || p.originalPrice || p.compareAtPrice;
-        const isCheap = p.price && p.price < 15;
-        return hasDiscount || isCheap;
+        const hasDiscount = p.discountPercent > 0 || p.discount_percent > 0 || p.oldPrice || p.originalPrice || p.compareAtPrice;
+        return hasDiscount;
       })
-      .sort((a, b) => (a.price || 0) - (b.price || 0))
       .slice(0, 6);
   }, [allProducts]);
 
@@ -368,19 +366,39 @@ const HomeScreen = () => {
                     <Text style={styles.outOfStockText}>Agotado</Text>
                   </View>
                 )}
+                {(item.discountPercent > 0 || item.discount_percent > 0) && (
+                  <View style={styles.carouselDiscountBadge}>
+                    <Text style={styles.carouselDiscountText}>
+                      -{item.discountPercent || item.discount_percent}%
+                    </Text>
+                  </View>
+                )}
               </View>
               <View style={styles.carouselInfo}>
                 <Text style={styles.carouselName} numberOfLines={1}>
                   {item.name || item.title}
                 </Text>
                 <View style={styles.carouselPriceRow}>
-                  <Text style={styles.carouselPrice}>
-                    {formatPrice(item.price || item.precio)}
-                  </Text>
-                  {(item.oldPrice || item.originalPrice || item.compareAtPrice) && (
-                    <Text style={styles.carouselOldPrice}>
-                      {formatPrice(item.oldPrice || item.originalPrice || item.compareAtPrice)}
-                    </Text>
+                  {(item.discountPercent > 0 || item.discount_percent > 0) ? (
+                    <>
+                      <Text style={styles.carouselOldPrice}>
+                        {formatPrice(item.price || item.precio)}
+                      </Text>
+                      <Text style={styles.carouselPrice}>
+                        {formatPrice((item.price || item.precio) * (1 - (item.discountPercent || item.discount_percent) / 100))}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.carouselPrice}>
+                        {formatPrice(item.price || item.precio)}
+                      </Text>
+                      {(item.oldPrice || item.originalPrice || item.compareAtPrice) && (
+                        <Text style={styles.carouselOldPrice}>
+                          {formatPrice(item.oldPrice || item.originalPrice || item.compareAtPrice)}
+                        </Text>
+                      )}
+                    </>
                   )}
                 </View>
               </View>
@@ -1078,6 +1096,25 @@ const createStyles = (primary) => StyleSheet.create({
   outOfStockText: {
     color: theme.colors.white,
     fontSize: 10,
+    fontWeight: '700',
+  },
+  carouselDiscountBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.full,
+    shadowColor: '#FF6B6B',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  carouselDiscountText: {
+    color: theme.colors.white,
+    fontSize: 11,
     fontWeight: '700',
   },
   carouselInfo: {
