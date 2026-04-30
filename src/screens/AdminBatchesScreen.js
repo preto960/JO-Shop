@@ -558,7 +558,7 @@ const AdminBatchesScreen = () => {
             <View style={styles.fieldGroup}>
               {renderFieldLabel('Descuento (%) *', 'discount')}
               <View style={styles.discountInputContainer}>
-                <Icon name="percent-outline" size={18} color={theme.colors.textSecondary} />
+                <Icon name="options-outline" size={18} color={theme.colors.textSecondary} />
                 <TextInput
                   ref={discountInputRef}
                   style={styles.discountInput}
