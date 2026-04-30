@@ -1,4 +1,4 @@
-import React, {useState, useMemo} from 'react';
+import React, {useState, useMemo, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -18,25 +19,117 @@ import useThemeColors from '@hooks/useThemeColors';
 
 const {width: screenWidth} = Dimensions.get('window');
 
+// ─── Helper to parse product images ────────────────────────────────────────────
+const parseProductImages = product => {
+  const images = [];
+
+  // Primary image first
+  const primaryImage =
+    product.image || product.thumbnail || product.image_url || null;
+  if (primaryImage) {
+    images.push(primaryImage);
+  }
+
+  // Parse images field (could be JSON string or array)
+  let galleryImages = [];
+  if (product.images) {
+    if (Array.isArray(product.images)) {
+      galleryImages = product.images;
+    } else if (typeof product.images === 'string') {
+      try {
+        const parsed = JSON.parse(product.images);
+        if (Array.isArray(parsed)) {
+          galleryImages = parsed;
+        }
+      } catch {
+        galleryImages = [product.images];
+      }
+    }
+  }
+
+  // Deduplicate
+  for (const url of galleryImages) {
+    if (url && typeof url === 'string' && !images.includes(url)) {
+      images.push(url);
+    }
+  }
+
+  return images;
+};
+
 const ProductDetailScreen = ({route}) => {
   const navigation = useNavigation();
   const {addItem} = useCart();
-  const { primary } = useThemeColors();
+  const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
   const product = route.params?.product;
   const [addedToCart, setAddedToCart] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const intervalRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const allImages = useMemo(() => parseProductImages(product), [product]);
+  const hasMultipleImages = allImages.length > 1;
 
   if (!product) {
     navigation.goBack();
     return null;
   }
 
-  const imageUrl = product.image || product.thumbnail || product.image_url || null;
   const discount = product.discountPercent ?? product.discount_percent ?? 0;
   const hasDiscount = discount > 0;
   const price = product.price ?? product.precio ?? 0;
   const discountedPrice = hasDiscount ? price * (1 - discount / 100) : price;
   const savings = hasDiscount ? price - discountedPrice : 0;
+
+  // Fade animation on image change
+  useEffect(() => {
+    if (!hasMultipleImages) return;
+
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [currentIndex, hasMultipleImages, fadeAnim]);
+
+  // Auto-play every 4 seconds
+  useEffect(() => {
+    if (!hasMultipleImages) return;
+
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % allImages.length);
+    }, 4000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [hasMultipleImages, allImages.length]);
+
+  const goToImage = idx => {
+    if (idx < 0) {
+      idx = allImages.length - 1;
+    } else if (idx >= allImages.length) {
+      idx = 0;
+    }
+    setCurrentIndex(idx);
+    // Reset auto-play timer
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        setCurrentIndex(prev => (prev + 1) % allImages.length);
+      }, 4000);
+    }
+  };
 
   const handleAddToCart = () => {
     addItem(product);
@@ -48,26 +141,37 @@ const ProductDetailScreen = ({route}) => {
     navigation.navigate('Cart');
   };
 
+  const imageUrl = allImages.length > 0 ? allImages[currentIndex] : null;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
-        {/* Imagen */}
+        {/* Imagen / Carousel */}
         <View style={styles.imageContainer}>
           {imageUrl ? (
-            <Image source={{uri: imageUrl}} style={styles.image} />
+            <Animated.View style={{opacity: fadeAnim, flex: 1}}>
+              <Image source={{uri: imageUrl}} style={styles.image} />
+            </Animated.View>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon name="image-outline" size={64} color={theme.colors.textLight} />
+              <Icon
+                name="image-outline"
+                size={64}
+                color={theme.colors.textLight}
+              />
             </View>
           )}
+
           {hasDiscount && (
             <View style={styles.discountBadge}>
               <Icon name="pricetag" size={14} color={theme.colors.white} />
               <Text style={styles.discountBadgeText}>-{discount}%</Text>
             </View>
           )}
+
+          {/* Back button */}
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -76,6 +180,52 @@ const ProductDetailScreen = ({route}) => {
               <Icon name="arrow-back" size={22} color={theme.colors.white} />
             </View>
           </TouchableOpacity>
+
+          {/* Left arrow */}
+          {hasMultipleImages && (
+            <TouchableOpacity
+              onPress={() => goToImage(currentIndex - 1)}
+              style={styles.arrowLeft}
+              activeOpacity={0.7}>
+              <View style={styles.arrowButtonBg}>
+                <Icon name="chevron-back" size={22} color={theme.colors.white} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Right arrow */}
+          {hasMultipleImages && (
+            <TouchableOpacity
+              onPress={() => goToImage(currentIndex + 1)}
+              style={styles.arrowRight}
+              activeOpacity={0.7}>
+              <View style={styles.arrowButtonBg}>
+                <Icon name="chevron-forward" size={22} color={theme.colors.white} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Dot indicators */}
+          {hasMultipleImages && (
+            <View style={styles.dotsContainer}>
+              {allImages.map((_, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => goToImage(idx)}
+                  activeOpacity={0.7}>
+                  <View
+                    style={[
+                      styles.dot,
+                      idx === currentIndex && styles.dotActive,
+                    ]}
+                  />
+                </TouchableOpacity>
+              ))}
+              <Text style={styles.dotCounter}>
+                {currentIndex + 1}/{allImages.length}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Detalles del producto */}
@@ -98,9 +248,7 @@ const ProductDetailScreen = ({route}) => {
           <View style={styles.priceSection}>
             {hasDiscount && (
               <>
-                <Text style={styles.oldPrice}>
-                  {formatPrice(price)}
-                </Text>
+                <Text style={styles.oldPrice}>{formatPrice(price)}</Text>
                 <Text style={styles.savingsText}>
                   Ahorras {formatPrice(savings)}
                 </Text>
@@ -226,6 +374,59 @@ const createStyles = (primary) => StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Arrow buttons
+  arrowLeft: {
+    position: 'absolute',
+    top: '50%',
+    left: theme.spacing.md,
+    marginTop: -20,
+  },
+  arrowRight: {
+    position: 'absolute',
+    top: '50%',
+    right: theme.spacing.md,
+    marginTop: -20,
+  },
+  arrowButtonBg: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Dots
+  dotsContainer: {
+    position: 'absolute',
+    bottom: theme.spacing.md,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  dotActive: {
+    backgroundColor: theme.colors.white,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotCounter: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.white,
+    marginLeft: theme.spacing.sm,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 2,
   },
   details: {
     backgroundColor: theme.colors.card,

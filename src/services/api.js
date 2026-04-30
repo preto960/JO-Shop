@@ -166,6 +166,28 @@ const deleteProduct = async productId => {
   return api.delete(`/products/${productId}`);
 };
 
+const uploadProductImage = async formData => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/products/upload-image', formData, {
+    headers: {'Content-Type': 'multipart/form-data'},
+  });
+};
+
+const uploadProductImages = async formData => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/products/upload-images', formData, {
+    headers: {'Content-Type': 'multipart/form-data'},
+  });
+};
+
+const deleteProductImage = async url => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete('/products/delete-image', {data: {url}});
+};
+
 // Categories CRUD
 const createCategory = async categoryData => {
   const api = await createApiClient();
@@ -451,6 +473,9 @@ const apiService = {
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadProductImage,
+  uploadProductImages,
+  deleteProductImage,
   createCategory,
   updateCategory,
   deleteCategory,

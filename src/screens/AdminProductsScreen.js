@@ -13,9 +13,11 @@ import {
   RefreshControl,
   Image,
   Platform,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {launchImageLibrary} from 'react-native-image-picker';
 import {useNavigation} from '@react-navigation/native';
 import {useAuth} from '@context/AuthContext';
 import {useConfig} from '@context/ConfigContext';
@@ -38,6 +40,7 @@ const INITIAL_FORM = {
   categoryId: '',
   active: true,
   selectedStoreIds: [],
+  images: [],
 };
 
 const EMPTY_FORM_ERRORS = {};
@@ -105,6 +108,9 @@ const AdminProductsScreen = () => {
   const imageInputRef = useRef(null);
   const thumbnailInputRef = useRef(null);
   const stockInputRef = useRef(null);
+  const imageUrlInputRef = useRef(null);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // ─── Data Loading ─────────────────────────────────────────────────────────
 
@@ -276,12 +282,125 @@ const AdminProductsScreen = () => {
     storeWrapperLayout.current = event.nativeEvent.layout;
   }, []);
 
-  // ─── Form Helpers ─────────────────────────────────────────────────────────
+  // ─── Image Helpers ─────────────────────────────────────────────────────
+
+  const parseProductImages = useCallback(product => {
+    const images = [];
+    if (product.image) {
+      images.push(product.image);
+    }
+    let gallery = [];
+    if (product.images) {
+      if (Array.isArray(product.images)) {
+        gallery = product.images;
+      } else if (typeof product.images === 'string') {
+        try {
+          const parsed = JSON.parse(product.images);
+          if (Array.isArray(parsed)) gallery = parsed;
+        } catch {
+          gallery = [product.images];
+        }
+      }
+    }
+    for (const url of gallery) {
+      if (url && typeof url === 'string' && !images.includes(url)) {
+        images.push(url);
+      }
+    }
+    return images;
+  }, []);
+
+  const handlePickImage = useCallback(async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 5,
+      });
+      if (result.didCancel || !result.assets?.length) return;
+
+      setUploadingImage(true);
+      const formData = new FormData();
+      result.assets.forEach(asset => {
+        formData.append('images', {
+          uri: asset.uri,
+          type: asset.type || 'image/jpeg',
+          name: asset.fileName || `image_${Date.now()}.jpg`,
+        });
+      });
+
+      const res = await apiService.uploadProductImages(formData);
+      const urls = Array.isArray(res) ? res : res.urls || res.data || [];
+
+      if (urls.length > 0) {
+        setForm(prev => {
+          const existing = prev.images || [];
+          const merged = [...existing];
+          for (const url of urls) {
+            if (!merged.includes(url)) merged.push(url);
+          }
+          const newImage = merged[0] || prev.image;
+          return {...prev, images: merged, image: newImage};
+        });
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudieron subir las imágenes');
+    } finally {
+      setUploadingImage(false);
+    }
+  }, []);
+
+  const handleAddImageUrl = useCallback(() => {
+    const url = imageUrlInput.trim();
+    if (!url) return;
+    if (!isValidUrl(url)) {
+      Alert.alert('URL inválida', 'Ingresa una URL válida (https://...)');
+      return;
+    }
+    setForm(prev => {
+      const existing = prev.images || [];
+      if (existing.includes(url)) return prev;
+      const merged = [...existing, url];
+      const newImage = merged[0] || prev.image;
+      return {...prev, images: merged, image: newImage};
+    });
+    setImageUrlInput('');
+  }, [imageUrlInput]);
+
+  const handleRemoveImage = useCallback((urlToRemove) => {
+    setForm(prev => {
+      const filtered = (prev.images || []).filter(u => u !== urlToRemove);
+      const newImage = filtered[0] || '';
+      return {...prev, images: filtered, image: newImage};
+    });
+  }, []);
+
+  const handleSetPrimary = useCallback((url) => {
+    setForm(prev => {
+      const images = [...(prev.images || [])];
+      const idx = images.indexOf(url);
+      if (idx > 0) {
+        images.splice(idx, 1);
+        images.unshift(url);
+      }
+      return {...prev, images, image: images[0] || prev.image};
+    });
+  }, []);
+
+  const handleDeleteServerImage = useCallback(async (url) => {
+    try {
+      await apiService.deleteProductImage(url);
+      handleRemoveImage(url);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo eliminar la imagen');
+    }
+  }, [handleRemoveImage]);
 
   const resetForm = useCallback(() => {
     setForm(INITIAL_FORM);
     setFormErrors(EMPTY_FORM_ERRORS);
     setEditingProduct(null);
+    setImageUrlInput('');
   }, []);
 
   const openCreateModal = useCallback(() => {
@@ -292,6 +411,7 @@ const AdminProductsScreen = () => {
 
   const openEditModal = useCallback(product => {
     setEditingProduct(product);
+    const parsedImages = parseProductImages(product);
     setForm({
       name: product.name || '',
       description: product.description || '',
@@ -302,10 +422,12 @@ const AdminProductsScreen = () => {
       categoryId: product.categoryId || product.category?.id || '',
       active: product.active !== false,
       selectedStoreIds: product.storeIds || [],
+      images: parsedImages,
     });
     setFormErrors(EMPTY_FORM_ERRORS);
+    setImageUrlInput('');
     setModalVisible(true);
-  }, []);
+  }, [parseProductImages]);
 
   const closeModal = useCallback(() => {
     setModalVisible(false);
@@ -372,12 +494,16 @@ const AdminProductsScreen = () => {
         name: form.name.trim(),
         description: form.description.trim(),
         price: parseFloat(Number(form.price)),
-        image: form.image.trim() || null,
+        image: (form.images && form.images[0]) || form.image.trim() || null,
         thumbnail: form.thumbnail.trim() || null,
         stock: parseInt(Number(form.stock), 10) || 0,
         categoryId: form.categoryId || null,
         active: form.active,
       };
+
+      if (form.images && form.images.length > 0) {
+        payload.images = JSON.stringify(form.images);
+      }
 
       if (form.selectedStoreIds && form.selectedStoreIds.length > 0) {
         payload.storeIds = form.selectedStoreIds;
@@ -749,25 +875,6 @@ const AdminProductsScreen = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             automaticallyAdjustKeyboardInsets>
-            {/* Preview thumbnail */}
-            {(form.image || form.thumbnail) && (
-              <View style={styles.imagePreview}>
-                <Image
-                  source={{uri: form.thumbnail || form.image}}
-                  style={styles.imagePreviewThumb}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
-                  style={styles.imagePreviewRemove}
-                  onPress={() => {
-                    updateField('thumbnail', '');
-                    updateField('image', '');
-                  }}>
-                  <Icon name="close-circle" size={22} color={primary} />
-                </TouchableOpacity>
-              </View>
-            )}
-
             {/* Name */}
             <Text style={styles.label}>
               Nombre <Text style={styles.required}>*</Text>
@@ -888,6 +995,109 @@ const AdminProductsScreen = () => {
               <Text style={styles.errorText}>{formErrors.thumbnail}</Text>
             )}
 
+            {/* ─── Multi-image gallery section ─── */}
+            <View style={styles.imagesSection}>
+              <Text style={styles.sectionTitle}>
+                <Icon name="images-outline" size={18} color={primary} />{' '}
+                Imágenes del producto
+              </Text>
+
+              {/* Upload from gallery button */}
+              <TouchableOpacity
+                style={[styles.uploadBtn, uploadingImage && styles.uploadBtnDisabled]}
+                onPress={handlePickImage}
+                disabled={uploadingImage}
+                activeOpacity={0.7}>
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color={theme.colors.white} />
+                ) : (
+                  <>
+                    <Icon name="camera-outline" size={18} color={theme.colors.white} />
+                    <Text style={styles.uploadBtnText}>Elegir de galería</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Add URL input */}
+              <View style={styles.addUrlRow}>
+                <TextInput
+                  ref={imageUrlInputRef}
+                  style={styles.addUrlInput}
+                  value={imageUrlInput}
+                  onChangeText={setImageUrlInput}
+                  placeholder="Agregar URL"
+                  placeholderTextColor={theme.colors.textLight}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddImageUrl}
+                />
+                <TouchableOpacity
+                  style={styles.addUrlButton}
+                  onPress={handleAddImageUrl}
+                  activeOpacity={0.7}>
+                  <Icon name="add" size={20} color={theme.colors.white} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Image gallery preview */}
+              {(form.images || []).length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.imageGalleryScroll}
+                  contentContainerStyle={styles.imageGalleryContent}>
+                  {(form.images || []).map((url, idx) => {
+                    const isPrimary = idx === 0;
+                    return (
+                      <TouchableOpacity
+                        key={url}
+                        activeOpacity={0.7}
+                        onLongPress={() => {
+                          Alert.alert(
+                            'Eliminar imagen',
+                            '¿Deseas eliminar esta imagen del servidor?',
+                            [
+                              {text: 'Cancelar', style: 'cancel'},
+                              {text: 'Eliminar', style: 'destructive', onPress: () => handleDeleteServerImage(url)},
+                            ],
+                          );
+                        }}
+                        onPress={() => handleSetPrimary(url)}>
+                        <View style={[
+                          styles.galleryThumbWrap,
+                          isPrimary && styles.galleryThumbPrimary,
+                        ]}>
+                          <Image
+                            source={{uri: url}}
+                            style={styles.galleryThumb}
+                            resizeMode="cover"
+                          />
+                          {isPrimary && (
+                            <View style={styles.primaryBadge}>
+                              <Text style={styles.primaryBadgeText}>Principal</Text>
+                            </View>
+                          )}
+                          <TouchableOpacity
+                            style={styles.galleryThumbRemove}
+                            onPress={() => handleRemoveImage(url)}>
+                            <Icon name="close" size={14} color={theme.colors.white} />
+                          </TouchableOpacity>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              <Text style={styles.imagesHint}>
+                {(form.images || []).length === 0
+                  ? 'Sin imágenes. Agrega una URL o elige de la galería.'
+                  : `${(form.images || []).length} imagen(es). La primera es la principal. Toca para cambiar, mantén presionado para eliminar del servidor.`}
+              </Text>
+            </View>
+
             {/* Category picker */}
             {renderCategoryPicker()}
 
@@ -986,6 +1196,12 @@ const AdminProductsScreen = () => {
     renderCategoryPicker,
     isMultiStore,
     stores,
+    handlePickImage,
+    handleAddImageUrl,
+    handleRemoveImage,
+    handleSetPrimary,
+    uploadingImage,
+    imageUrlInput,
   ]);
 
   const handleLogout = () => {
@@ -1911,6 +2127,117 @@ const createStyles = (primary) => StyleSheet.create({
   roleCheckTextSelected: {
     color: theme.colors.white,
     fontWeight: '600',
+  },
+
+  // Multi-image gallery
+  imagesSection: {
+    marginTop: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: primary,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm + 2,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    minHeight: 40,
+    ...theme.shadows.sm,
+  },
+  uploadBtnDisabled: {
+    opacity: 0.6,
+  },
+  uploadBtnText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    marginLeft: theme.spacing.sm,
+  },
+  addUrlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  addUrlInput: {
+    flex: 1,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? theme.spacing.sm + 2 : theme.spacing.sm,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    minHeight: 38,
+  },
+  addUrlButton: {
+    width: 38,
+    height: 38,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageGalleryScroll: {
+    marginBottom: theme.spacing.sm,
+  },
+  imageGalleryContent: {
+    gap: theme.spacing.sm,
+    paddingRight: theme.spacing.md,
+  },
+  galleryThumbWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: theme.borderRadius.sm,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: theme.colors.border,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  galleryThumbPrimary: {
+    borderColor: primary,
+  },
+  galleryThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  primaryBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: primary,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    alignItems: 'center',
+  },
+  primaryBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: theme.colors.white,
+  },
+  galleryThumbRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagesHint: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    lineHeight: 16,
   },
 });
 
