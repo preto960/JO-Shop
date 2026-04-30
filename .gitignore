@@ -54,3 +54,16 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# Workspace artifacts — NOT part of mobile app
+skills/
+download/
+upload/
+worklog.md
+.next/
+db/
+JO-Shop/
+repos/
+prisma/
+prisma.config.ts
+vercel.json
