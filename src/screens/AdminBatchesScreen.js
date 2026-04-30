@@ -626,7 +626,7 @@ const AdminBatchesScreen = () => {
                 />
               </View>
 
-              <View style={styles.productList}>
+              <ScrollView style={styles.productList} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled" nestedScrollEnabled={true}>
                 {filteredProducts.length === 0 ? (
                   <Text style={styles.noProducts}>No se encontraron productos</Text>
                 ) : (
@@ -656,7 +656,7 @@ const AdminBatchesScreen = () => {
                     );
                   })
                 )}
-              </View>
+              </ScrollView>
             </View>
 
             {/* Submit button */}
