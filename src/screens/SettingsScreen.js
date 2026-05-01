@@ -8,62 +8,62 @@ import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
-const SECTIONS = [
-  {
-    id: 'appearance',
-    title: 'Apariencia',
-    description: 'Nombre, colores, logo y tema visual de la tienda',
-    icon: 'color-palette-outline',
-    adminOnly: true,
-    gradient: ['#FF6B35', '#E94560'],
-  },
-  {
-    id: 'storeMode',
-    title: 'Modo de Tienda',
-    description: 'Multi-tienda o tienda unica',
-    icon: 'storefront-outline',
-    adminOnly: true,
-    gradient: ['#667EEA', '#764BA2'],
-  },
-  {
-    id: 'banners',
-    title: 'Banners de Publicidad',
-    description: 'Gestiona banners promocionales del inicio',
-    icon: 'images-outline',
-    adminOnly: true,
-    gradient: ['#F093FB', '#F5576C'],
-  },
-  {
-    id: 'server',
-    title: 'Servidor Backend',
-    description: 'URL del servidor y conexion a la API',
-    icon: 'server-outline',
-    adminOnly: true,
-    gradient: ['#4FACFE', '#00F2FE'],
-  },
-  {
-    id: 'about',
-    title: 'Acerca de',
-    description: 'Version y datos de la aplicacion',
-    icon: 'information-circle-outline',
-    adminOnly: false,
-    gradient: ['#A8E063', '#56AB2F'],
-  },
+// ─── Tarjetas de gestión (como el sidebar del frontend) ──────────────────────
+const MANAGEMENT_CARDS = [
+  {id: 'AdminDashboardPage', title: 'Panel', description: 'Estadisticas y resumen general', icon: 'grid-outline', permission: 'dashboard'},
+  {id: 'AdminProductsPage', title: 'Productos', description: 'Gestionar productos del catalogo', icon: 'pricetag-outline', permission: 'products'},
+  {id: 'AdminBatchesPage', title: 'Lotes', description: 'Descuentos por lotes de productos', icon: 'layers-outline', permission: 'batches'},
+  {id: 'AdminCategoriesPage', title: 'Categorias', description: 'Administrar categorias del catalogo', icon: 'folder-outline', permission: 'categories'},
+  {id: 'AdminOrdersPage', title: 'Pedidos', description: 'Gestionar pedidos de clientes', icon: 'receipt-outline', permission: 'orders'},
+  {id: 'AdminStoresPage', title: 'Tiendas', description: 'Administrar tiendas disponibles', icon: 'store-outline', permission: 'stores', multiStoreOnly: true},
+  {id: 'AdminRolesPage', title: 'Roles', description: 'Roles y permisos del sistema', icon: 'shield-outline', permission: 'roles'},
+  {id: 'AdminUsersPage', title: 'Usuarios', description: 'Gestionar usuarios del sistema', icon: 'people-outline', adminOnly: true},
+];
+
+// ─── Tarjetas de configuración (como el settings del frontend) ───────────────
+const SETTINGS_CARDS = [
+  {id: 'appearance', title: 'Apariencia', description: 'Nombre, colores, logo y tema visual', icon: 'color-palette-outline'},
+  {id: 'storeMode', title: 'Modo de Tienda', description: 'Multi-tienda o tienda unica', icon: 'business-outline'},
+  {id: 'banners', title: 'Banners de Publicidad', description: 'Banners promocionales del inicio', icon: 'images-outline'},
+  {id: 'server', title: 'Servidor Backend', description: 'URL del servidor y conexion API', icon: 'server-outline'},
+  {id: 'about', title: 'Acerca de', description: 'Version y datos de la aplicacion', icon: 'information-circle-outline', showToAll: true},
 ];
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
-  const {isAdmin} = useAuth();
+  const {isAdmin, canViewModule, hasRole} = useAuth();
+  const {isMultiStore} = useConfig();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
 
-  const visibleSections = SECTIONS.filter(s => !s.adminOnly || isAdmin);
+  // Filtrar tarjetas de gestión por permisos
+  const visibleManagement = MANAGEMENT_CARDS.filter(card => {
+    if (card.adminOnly && !hasRole('admin')) return false;
+    if (card.multiStoreOnly && !isMultiStore) return false;
+    if (card.permission === 'roles') return hasRole('admin') || canViewModule('users');
+    if (card.permission) return canViewModule(card.permission) || hasRole('admin');
+    return true;
+  });
+
+  // Filtrar tarjetas de configuración (admin only excepto "about")
+  const visibleSettings = SETTINGS_CARDS.filter(card => card.showToAll || isAdmin);
+
+  const handlePress = card => {
+    // Si tiene id de screen directo (gestión) navega al stack screen
+    if (card.id.startsWith('Admin')) {
+      navigation.navigate(card.id);
+    } else {
+      // Configuración → navega a SettingsSection
+      navigation.navigate('SettingsSection', {section: card.id});
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -78,31 +78,59 @@ const SettingsScreen = () => {
           <View style={{width: 40}} />
         </View>
 
-        <Text style={styles.subtitle}>
-          Selecciona una seccion para configurar
-        </Text>
+        {/* ── Gestión ─────────────────────────────────── */}
+        {isAdmin && visibleManagement.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Gestion</Text>
+            <View style={styles.grid}>
+              {visibleManagement.map(card => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.card}
+                  activeOpacity={0.7}
+                  onPress={() => handlePress(card)}>
+                  <View style={[styles.iconContainer, {backgroundColor: primary + '15'}]}>
+                    <Icon name={card.icon} size={24} color={primary} />
+                  </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardTitle}>{card.title}</Text>
+                    <Text style={styles.cardDescription} numberOfLines={1}>
+                      {card.description}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-forward" size={18} color={theme.colors.textLight} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
-        {/* Cards Grid */}
-        <View style={styles.grid}>
-          {visibleSections.map(section => (
-            <TouchableOpacity
-              key={section.id}
-              style={styles.card}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('SettingsSection', {section: section.id})}>
-              <View style={[styles.iconContainer, {backgroundColor: section.gradient[0] + '18'}]}>
-                <Icon name={section.icon} size={28} color={section.gradient[0]} />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardTitle}>{section.title}</Text>
-                <Text style={styles.cardDescription} numberOfLines={2}>
-                  {section.description}
-                </Text>
-              </View>
-              <Icon name="chevron-forward" size={20} color={theme.colors.textLight} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* ── Configuración del sistema ─────────────────── */}
+        {visibleSettings.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Sistema</Text>
+            <View style={styles.grid}>
+              {visibleSettings.map(card => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.card}
+                  activeOpacity={0.7}
+                  onPress={() => handlePress(card)}>
+                  <View style={[styles.iconContainer, {backgroundColor: card.showToAll ? '#56AB2F15' : primary + '15'}]}>
+                    <Icon name={card.icon} size={24} color={card.showToAll ? '#56AB2F' : primary} />
+                  </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardTitle}>{card.title}</Text>
+                    <Text style={styles.cardDescription} numberOfLines={1}>
+                      {card.description}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-forward" size={18} color={theme.colors.textLight} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -143,34 +171,37 @@ const createStyles = primary => StyleSheet.create({
     color: theme.colors.text,
     textAlign: 'center',
   },
-  subtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
+  section: {
     marginTop: theme.spacing.lg,
-    marginHorizontal: theme.spacing.xl,
-    lineHeight: 20,
+  },
+  sectionLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   grid: {
     paddingHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.lg,
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
     ...theme.shadows.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
     gap: theme.spacing.md,
   },
   iconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -181,7 +212,7 @@ const createStyles = primary => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   cardDescription: {
     fontSize: theme.fontSize.xs,

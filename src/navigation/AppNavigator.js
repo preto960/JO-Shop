@@ -128,42 +128,10 @@ const CustomerTabs = () => {
   );
 };
 
-// ─── Admin Tabs (dinámicos según permisos) ──────────────────────────────────
+// ─── Admin Tabs (Panel + Configuración) ──────────────────────────────────
 const AdminTabs = () => {
-  const {canViewModule, hasPermission, hasRole} = useAuth();
-  const {isMultiStore} = useConfig();
   const {config} = useConfig();
   const activeColor = config.primary_color || theme.colors.accent;
-
-  const tabs = [];
-
-  if (canViewModule('dashboard')) {
-    tabs.push({name: 'AdminDashboard', component: AdminDashboardScreen, label: 'Panel', icon: 'grid-outline'});
-  }
-  if (canViewModule('products')) {
-    tabs.push({name: 'AdminProducts', component: AdminProductsScreen, label: 'Productos', icon: 'pricetag-outline'});
-  }
-  if (canViewModule('batches')) {
-    tabs.push({name: 'AdminBatches', component: AdminBatchesScreen, label: 'Lotes', icon: 'layers-outline'});
-  }
-  if (canViewModule('categories')) {
-    tabs.push({name: 'AdminCategories', component: AdminCategoriesScreen, label: 'Categorías', icon: 'folder-outline'});
-  }
-  if (isMultiStore && (hasRole('admin') || canViewModule('stores'))) {
-    tabs.push({name: 'AdminStores', component: AdminStoresScreen, label: 'Tiendas', icon: 'storefront-outline'});
-  }
-  if (canViewModule('orders')) {
-    tabs.push({name: 'AdminOrders', component: AdminOrdersScreen, label: 'Pedidos', icon: 'receipt-outline'});
-  }
-  if (hasRole('admin') || canViewModule('users')) {
-    tabs.push({name: 'AdminRoles', component: AdminRolesScreen, label: 'Roles', icon: 'shield-outline'});
-  }
-  if (hasRole('admin')) {
-    tabs.push({name: 'AdminUsers', component: AdminUsersScreen, label: 'Usuarios', icon: 'people-outline'});
-  }
-  if (tabs.length === 0) {
-    tabs.push({name: 'AdminDashboard', component: AdminDashboardScreen, label: 'Panel', icon: 'grid-outline'});
-  }
 
   return (
     <Tab.Navigator
@@ -174,13 +142,15 @@ const AdminTabs = () => {
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({color, size}) => {
-          const tab = tabs.find(t => t.name === route.name);
-          return <Icon name={tab?.icon || 'circle-outline'} size={size} color={color} />;
+          const icons = {
+            AdminDashboard: 'grid-outline',
+            SettingsHub: 'settings-outline',
+          };
+          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
         },
       })}>
-      {tabs.map(tab => (
-        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={{tabBarLabel: tab.label}} />
-      ))}
+      <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{tabBarLabel: 'Panel'}} />
+      <Tab.Screen name="SettingsHub" component={SettingsScreen} options={{tabBarLabel: 'Config'}} />
     </Tab.Navigator>
   );
 };
@@ -255,6 +225,15 @@ const AppNavigator = () => {
         <>
           <Stack.Screen name="AdminMainTabs" component={AdminTabs} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+          <Stack.Screen name="AdminDashboardPage" component={AdminDashboardScreen} />
+          <Stack.Screen name="AdminProductsPage" component={AdminProductsScreen} />
+          <Stack.Screen name="AdminBatchesPage" component={AdminBatchesScreen} />
+          <Stack.Screen name="AdminCategoriesPage" component={AdminCategoriesScreen} />
+          <Stack.Screen name="AdminOrdersPage" component={AdminOrdersScreen} />
+          <Stack.Screen name="AdminStoresPage" component={AdminStoresScreen} />
+          <Stack.Screen name="AdminRolesPage" component={AdminRolesScreen} />
+          <Stack.Screen name="AdminUsersPage" component={AdminUsersScreen} />
+          <Stack.Screen name="SettingsSection" component={SettingsSectionScreen} />
         </>
       ) : (
         // ─── CLIENTE (logueado) ────────────────────────────────────
