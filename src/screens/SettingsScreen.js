@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useMemo, useRef} from 'react';
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,6 @@ import {
   ActivityIndicator,
   Image,
   Alert,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -32,7 +28,7 @@ import useThemeColors from '@hooks/useThemeColors';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
-  const {isAdmin, user} = useAuth();
+  const {isAdmin} = useAuth();
   const { primary } = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
   const {config, isMultiStore, updateConfig} = useConfig();
@@ -239,49 +235,29 @@ const SettingsScreen = () => {
     setAccentColor('#E94560');
   };
 
-  // ─── Banners State (nueva API CRUD con tabla dedicada) ───────────────
+  // ─── Banners State ─────────────────────────────────────────────────────
   const [bannersEnabled, setBannersEnabled] = useState(
     config.banners_enabled === 'true' || config.banners_enabled === true
   );
   const [banners, setBanners] = useState([]);
   const [bannerUploading, setBannerUploading] = useState(false);
-  const [bannerLoading, setBannerLoading] = useState(false);
-  const [bannerMenuId, setBannerMenuId] = useState(null);
-  const [durationModalVisible, setDurationModalVisible] = useState(false);
-  const [editingBanner, setEditingBanner] = useState(null);
-  const [durationInput, setDurationInput] = useState('');
-  const durationInputRef = useRef(null);
 
   useEffect(() => {
     setBannersEnabled(config.banners_enabled === 'true' || config.banners_enabled === true);
-  }, [config.banners_enabled]);
-
-  const loadBanners = useCallback(async () => {
-    if (config.banners_enabled !== 'true' && config.banners_enabled !== true) {
-      setBanners([]);
-      return;
-    }
-    setBannerLoading(true);
     try {
-      const api = await apiService.createApiClient();
-      const res = await api.get('/banners/all');
-      const list = Array.isArray(res) ? res : res?.data || [];
-      setBanners(list);
+      const data = config.banners_data;
+      if (!data) { setBanners([]); return; }
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      setBanners(Array.isArray(parsed) ? parsed : []);
     } catch {
       setBanners([]);
-    } finally {
-      setBannerLoading(false);
     }
-  }, [config.banners_enabled]);
-
-  useEffect(() => {
-    loadBanners();
-  }, [loadBanners]);
+  }, [config.banners_enabled, config.banners_data]);
 
   const handleBannersToggle = async (value) => {
     setBannersEnabled(value);
     try {
-      await updateConfig({banners_enabled: String(value)});
+      await updateConfig({banners_enabled: String(value), banners_data: value ? JSON.stringify(banners) : ''});
     } catch {
       setBannersEnabled(!value);
       setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo actualizar la configuración.', confirmText: 'Aceptar', onConfirm: null});
@@ -291,148 +267,69 @@ const SettingsScreen = () => {
   const handleAddBanner = useCallback(async () => {
     try {
       const result = await launchImageLibrary({
-        mediaType: 'mixed',
+        mediaType: 'photo',
         quality: 0.8,
         selectionLimit: 1,
       });
       if (result.didCancel || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Error', 'El archivo no debe superar 5MB');
+      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+        Alert.alert('Error', 'La imagen no debe superar 2MB');
         return;
       }
-
-      // Pedir duración al usuario
-      Alert.prompt(
-        'Duración del banner',
-        '¿Cuántos segundos debe mostrarse cada banner antes de cambiar al siguiente? (1-30)',
-        [
-          { text: 'Cancelar', style: 'cancel', onPress: () => {} },
-          {
-            text: 'Subir',
-            onPress: async (durationText) => {
-              const duration = parseInt(durationText) || 4;
-              setBannerUploading(true);
-              try {
-                const api = await apiService.createApiClient();
-                const formData = new FormData();
-                formData.append('file', {
-                  uri: asset.uri,
-                  name: asset.fileName || 'banner.jpg',
-                  type: asset.type || 'image/jpeg',
-                });
-                formData.append('duration', String(Math.max(1, Math.min(30, duration))));
-                const res = await api.post('/banners', formData, {
-                  headers: {'Content-Type': 'multipart/form-data'},
-                  transformRequest: (data) => data,
-                });
-                const newBanner = res?.banner || res?.data?.banner;
-                if (newBanner) {
-                  setBanners(prev => [...prev, newBanner]);
-                  if (!bannersEnabled) {
-                    setBannersEnabled(true);
-                    await updateConfig({banners_enabled: 'true'});
-                  }
-                }
-              } catch (err) {
-                Alert.alert('Error', 'No se pudo subir el banner.');
-              } finally {
-                setBannerUploading(false);
-              }
-            },
-          },
-        ],
-        'plain-text',
-        '4',
-        'number-pad',
-      );
+      setBannerUploading(true);
+      try {
+        const api = await apiService.createApiClient();
+        const formData = new FormData();
+        formData.append('file', {
+          uri: asset.uri,
+          name: asset.fileName || 'banner.jpg',
+          type: asset.type || 'image/jpeg',
+        });
+        const res = await api.post('/config/upload-banner', formData, {
+          headers: {'Content-Type': 'multipart/form-data'},
+          transformRequest: (data) => data,
+        });
+        const url = res?.url || res?.data?.url;
+        if (url) {
+          const newBanners = [...banners, {image: url, link: ''}];
+          setBanners(newBanners);
+          await updateConfig({banners_data: JSON.stringify(newBanners)});
+          if (!bannersEnabled) {
+            setBannersEnabled(true);
+            await updateConfig({banners_enabled: 'true'});
+          }
+        }
+      } catch (err) {
+        Alert.alert('Error', 'No se pudo subir el banner.');
+      } finally {
+        setBannerUploading(false);
+      }
     } catch {
       // Picker error
     }
-  }, [bannersEnabled, updateConfig]);
+  }, [banners, bannersEnabled, updateConfig]);
 
-  const handleEditBannerDuration = useCallback((banner) => {
-    setBannerMenuId(null);
-    setEditingBanner(banner);
-    setDurationInput(String(banner.duration || 4));
-    setDurationModalVisible(true);
-    setTimeout(() => durationInputRef.current?.focus(), 300);
-  }, []);
-
-  const handleSaveDuration = useCallback(async () => {
-    const duration = parseInt(durationInput);
-    if (!duration || duration < 4 || duration > 30) {
-      Alert.alert('Error', 'La duración debe ser entre 4 y 30 segundos.');
-      return;
-    }
+  const handleRemoveBanner = useCallback(async (index) => {
+    const newBanners = banners.filter((_, i) => i !== index);
+    setBanners(newBanners);
     try {
-      const api = await apiService.createApiClient();
-      const formData = new FormData();
-      formData.append('duration', String(duration));
-      const res = await api.put(`/banners/${editingBanner.id}`, formData, {
-        headers: {'Content-Type': 'multipart/form-data'},
-        transformRequest: (data) => data,
-      });
-      const updated = res?.banner || res?.data?.banner;
-      if (updated) {
-        setBanners(prev => prev.map(b => b.id === editingBanner.id ? updated : b));
+      await updateConfig({banners_data: JSON.stringify(newBanners)});
+      // Try to delete the file from server
+      try {
+        await apiService.deleteBanner(banners[index].image);
+      } catch {
+        // Non-critical
       }
-      setDurationModalVisible(false);
-      setEditingBanner(null);
     } catch {
-      Alert.alert('Error', 'No se pudo actualizar la duración.');
-    }
-  }, [durationInput, editingBanner]);
-
-  const handleRemoveBanner = useCallback(async (bannerId) => {
-    setBannerMenuId(null);
-    setBanners(prev => prev.filter(b => b.id !== bannerId));
-    try {
-      const api = await apiService.createApiClient();
-      await api.delete(`/banners/${bannerId}`);
-    } catch {
-      loadBanners();
+      setBanners(banners);
       Alert.alert('Error', 'No se pudo eliminar el banner.');
     }
-  }, [loadBanners]);
-
-  const handleToggleBannerActive = useCallback(async (banner) => {
-    const newActive = !banner.active;
-    setBanners(prev => prev.map(b => b.id === banner.id ? {...b, active: newActive} : b));
-    try {
-      const api = await apiService.createApiClient();
-      const formData = new FormData();
-      formData.append('active', String(newActive));
-      const res = await api.put(`/banners/${banner.id}`, formData, {
-        headers: {'Content-Type': 'multipart/form-data'},
-        transformRequest: (data) => data,
-      });
-      const updated = res?.banner || res?.data?.banner;
-      if (updated) {
-        setBanners(prev => prev.map(b => b.id === banner.id ? updated : b));
-      }
-    } catch {
-      setBanners(prev => prev.map(b => b.id === banner.id ? {...b, active: !newActive} : b));
-      Alert.alert('Error', 'No se pudo cambiar el estado.');
-    }
-  }, []);
+  }, [banners, updateConfig]);
 
   const openPrivacyPolicy = () => {
     Linking.openURL('https://example.com/privacy').catch(() => {});
   };
-
-  // ─── Section Header Component ─────────────────────────────────────────
-  const SectionHeaderComp = ({iconName, iconColor, iconBg, title, description}) => (
-    <View style={styles.sectionHeaderRow}>
-      <View style={[styles.sectionHeaderIcon, {backgroundColor: iconBg}]}>
-        <Icon name={iconName} size={18} color={iconColor} />
-      </View>
-      <View style={styles.sectionHeaderTextWrap}>
-        <Text style={styles.sectionHeaderTitle}>{title}</Text>
-        <Text style={styles.sectionHeaderDesc}>{description}</Text>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -453,18 +350,16 @@ const SettingsScreen = () => {
           <View style={{width: 40}} />
         </View>
 
-        {/* ═══════════════════════════════════════════════════════════════
-            APARIENCIA (solo admin)
-           ═══════════════════════════════════════════════════════════════ */}
+        {/* ─── Apariencia (solo admin) ──────────────────────────────────── */}
         {isAdmin && (
         <View style={styles.section}>
-          <SectionHeaderComp
-            iconName="color-palette-outline"
-            iconColor={accentColor || '#E94560'}
-            iconBg={(accentColor || '#E94560') + '1A'}
-            title="Apariencia"
-            description="Personaliza el nombre, colores y logo del sistema"
-          />
+          <View style={styles.sectionHeader}>
+            <Icon name="color-palette-outline" size={20} color={primary} />
+            <View style={styles.sectionHeaderInfo}>
+              <Text style={styles.sectionTitle}>Apariencia</Text>
+              <Text style={styles.sectionDescription}>Personaliza el nombre, colores y logo de tu tienda</Text>
+            </View>
+          </View>
           <View style={styles.card}>
             {/* Nombre del sistema */}
             <Text style={styles.appearanceLabel}>Nombre del sistema</Text>
@@ -575,18 +470,16 @@ const SettingsScreen = () => {
         </View>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
-            MODO DE TIENDA (solo admin)
-           ═══════════════════════════════════════════════════════════════ */}
+        {/* ─── Configuración de Multi-Store (solo admin) ─────────────────── */}
         {isAdmin && (
         <View style={styles.section}>
-          <SectionHeaderComp
-            iconName="storefront-outline"
-            iconColor="#00B894"
-            iconBg="#E8FBF5"
-            title="Modo de Tienda"
-            description="Configura el modo de operación de tu tienda"
-          />
+          <View style={styles.sectionHeader}>
+            <Icon name="storefront-outline" size={20} color={primary} />
+            <View style={styles.sectionHeaderInfo}>
+              <Text style={styles.sectionTitle}>Modo de Tienda</Text>
+              <Text style={styles.sectionDescription}>Configura el modo multi-tienda o tienda unica</Text>
+            </View>
+          </View>
           <View style={styles.card}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
@@ -596,8 +489,8 @@ const SettingsScreen = () => {
                 </View>
                 <Text style={styles.toggleDescription}>
                   {multiStoreSwitch
-                    ? 'Permite gestionar múltiples tiendas desde un solo panel.'
-                    : 'Modo tienda única. Todos los productos y pedidos pertenecen a una sola tienda.'}
+                    ? 'Los clientes y delivery verán filtro de tienda. Los productos se asignan a tiendas específicas.'
+                    : 'Modo tienda única. No se muestra filtro de tienda ni asignación de productos por tienda.'}
                 </Text>
               </View>
               <View style={styles.switchWrapper}>
@@ -631,18 +524,16 @@ const SettingsScreen = () => {
         </View>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
-            BANNERS DE PUBLICIDAD (solo admin)
-           ═══════════════════════════════════════════════════════════════ */}
+        {/* ─── Banners de Publicidad (solo admin) ───────────────────────── */}
         {isAdmin && (
         <View style={styles.section}>
-          <SectionHeaderComp
-            iconName="images-outline"
-            iconColor="#F39C12"
-            iconBg="#FEF3E2"
-            title="Banners de Publicidad"
-            description="Configura los banners del carrusel en la página principal"
-          />
+          <View style={styles.sectionHeader}>
+            <Icon name="images-outline" size={20} color={primary} />
+            <View style={styles.sectionHeaderInfo}>
+              <Text style={styles.sectionTitle}>Banners de Publicidad</Text>
+              <Text style={styles.sectionDescription}>Gestiona los banners promocionales de la tienda</Text>
+            </View>
+          </View>
           <View style={styles.card}>
             {/* Toggle */}
             <View style={styles.toggleRow}>
@@ -670,73 +561,26 @@ const SettingsScreen = () => {
             {bannersEnabled && (
               <>
                 {/* Lista de banners */}
-                {bannerLoading ? (
-                  <ActivityIndicator size="small" color={primary} style={{marginVertical: 16}} />
-                ) : banners.length > 0 ? (
+                {banners.length > 0 && (
                   <View style={styles.bannerList}>
-                    {banners.map((banner) => (
-                      <View key={`banner-${banner.id}`} style={[styles.bannerItem, !banner.active && styles.bannerItemInactive, bannerMenuId === banner.id && styles.bannerItemElevated]}>
-                        <View style={styles.bannerItemRow}>
-                          <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
-                          <View style={styles.bannerItemInfo}>
-                            <Text style={styles.bannerItemLabel}>
-                              Banner {banner.sortOrder}
-                              <Text style={{fontSize: 11, color: theme.colors.textLight, fontWeight: '400', marginLeft: 6}}>
-                                {banner.mediaType === 'video' ? 'Video' : 'Imagen'}
-                              </Text>
-                              <Text style={{fontSize: 11, color: '#F39C12', fontWeight: '600', marginLeft: 6}}>
-                                {banner.duration}s
-                              </Text>
-                            </Text>
-                            {banner.link ? (
-                              <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.link}</Text>
-                            ) : null}
-                            <Text style={{fontSize: 10, color: banner.active ? theme.colors.textLight : '#EF4444', marginTop: 2}}>
-                              {banner.active ? 'Visible' : 'Inactivo'}
-                            </Text>
-                          </View>
-                          {/* Three-dot menu */}
-                          <TouchableOpacity
-                            onPress={() => setBannerMenuId(bannerMenuId === banner.id ? null : banner.id)}
-                            style={styles.bannerMoreBtn}
-                            hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
-                            activeOpacity={0.7}>
-                            <Icon name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
-                          </TouchableOpacity>
+                    {banners.map((banner, index) => (
+                      <View key={`banner-${index}`} style={styles.bannerItem}>
+                        <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                        <View style={styles.bannerItemInfo}>
+                          <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
+                          <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
                         </View>
-                        {bannerMenuId === banner.id && (
-                          <View style={styles.bannerDropdown}>
-                            <TouchableOpacity
-                              onPress={() => handleEditBannerDuration(banner)}
-                              style={styles.bannerDropdownItem}
-                              activeOpacity={0.6}>
-                              <Icon name="timer-outline" size={18} color="#F39C12" />
-                              <Text style={styles.bannerDropdownText}>Editar duración</Text>
-                            </TouchableOpacity>
-                            <View style={styles.bannerDropdownSep} />
-                            <TouchableOpacity
-                              onPress={() => { handleToggleBannerActive(banner); setBannerMenuId(null); }}
-                              style={styles.bannerDropdownItem}
-                              activeOpacity={0.6}>
-                              <Icon name={banner.active ? 'eye-off-outline' : 'eye-outline'} size={18} color={banner.active ? '#F39C12' : '#00B894'} />
-                              <Text style={[styles.bannerDropdownText, {color: banner.active ? '#F39C12' : '#00B894'}]}>
-                                {banner.active ? 'Desactivar' : 'Activar'}
-                              </Text>
-                            </TouchableOpacity>
-                            <View style={styles.bannerDropdownSep} />
-                            <TouchableOpacity
-                              onPress={() => handleRemoveBanner(banner.id)}
-                              style={[styles.bannerDropdownItem, {borderBottomWidth: 0}]}
-                              activeOpacity={0.6}>
-                              <Icon name="trash-outline" size={18} color="#EF4444" />
-                              <Text style={[styles.bannerDropdownText, {color: '#EF4444'}]}>Eliminar</Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
+                        <TouchableOpacity
+                          onPress={() => handleRemoveBanner(index)}
+                          style={styles.bannerRemoveBtn}
+                          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                          activeOpacity={0.7}>
+                          <Icon name="close-circle" size={22} color="#EF4444" />
+                        </TouchableOpacity>
                       </View>
                     ))}
                   </View>
-                ) : null}
+                )}
 
                 {/* Botón agregar */}
                 <TouchableOpacity
@@ -753,25 +597,23 @@ const SettingsScreen = () => {
                     {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
                   </Text>
                 </TouchableOpacity>
-                <Text style={styles.logoHint}>Maximo 5MB. Imagenes o videos. Se mostrara como carrusel en el inicio.</Text>
+                <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
               </>
             )}
           </View>
         </View>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
-            SERVIDOR BACKEND (solo admin)
-           ═══════════════════════════════════════════════════════════════ */}
+        {/* URL del entorno (embebida en compilación) — SOLO ADMIN */}
         {isAdmin && (
         <View style={styles.section}>
-          <SectionHeaderComp
-            iconName="globe-outline"
-            iconColor="#54A0FF"
-            iconBg="#E8F1FF"
-            title="Servidor Backend"
-            description="Información de conexión al servidor"
-          />
+          <View style={styles.sectionHeader}>
+            <Icon name="server-outline" size={20} color={primary} />
+            <View style={styles.sectionHeaderInfo}>
+              <Text style={styles.sectionTitle}>Servidor Backend</Text>
+              <Text style={styles.sectionDescription}>Configura la conexion al servidor de la API</Text>
+            </View>
+          </View>
 
           {/* Tarjeta con la URL embebida */}
           <View style={styles.envCard}>
@@ -808,7 +650,7 @@ const SettingsScreen = () => {
               <Text style={styles.inputHint}>
                 {saved
                   ? 'Usando URL personalizada. Deja vacío para volver a la embebida.'
-                  : 'Usando URL embebida. Escribe otra para sobreescribir.'}
+                  : `Usando URL embebida. Escribe otra para sobreescribir.`}
               </Text>
             </View>
 
@@ -882,33 +724,39 @@ const SettingsScreen = () => {
         </View>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
-            ACERCA DE
-           ═══════════════════════════════════════════════════════════════ */}
+        {/* Info de la app */}
         <View style={styles.section}>
-          <SectionHeaderComp
-            iconName="information-circle-outline"
-            iconColor="#A29BFE"
-            iconBg="#F0EDFF"
-            title="Acerca de"
-            description="Información de la aplicación"
-          />
+          <View style={styles.sectionHeader}>
+            <Icon name="information-circle-outline" size={20} color={primary} />
+            <View style={styles.sectionHeaderInfo}>
+              <Text style={styles.sectionTitle}>Acerca de</Text>
+              <Text style={styles.sectionDescription}>Informacion de la aplicacion</Text>
+            </View>
+          </View>
           <View style={styles.card}>
-            {[
-              {label: 'Aplicación', value: config.shop_name || 'JO-Shop'},
-              {label: 'Versión', value: '1.0.0'},
-              {label: 'Plataforma', value: 'React Native (CLI)'},
-              {label: 'Rol actual', value: user?.roles?.[0]?.name || user?.role || (isAdmin ? 'Administrador' : 'Usuario')},
-              {label: 'Usuario', value: user?.name || user?.email || 'N/A'},
-            ].map((item, idx) => (
-              <React.Fragment key={item.label}>
-                <View style={styles.aboutRowNew}>
-                  <Text style={styles.aboutLabelNew}>{item.label}</Text>
-                  <Text style={styles.aboutValueNew}>{item.value}</Text>
-                </View>
-                {idx < 4 && <View style={styles.aboutDividerNew} />}
-              </React.Fragment>
-            ))}
+            <View style={styles.aboutRow}>
+              <Icon name="information-circle-outline" size={20} color={theme.colors.textSecondary} />
+              <View style={styles.aboutInfo}>
+                <Text style={styles.aboutLabel}>Versión</Text>
+                <Text style={styles.aboutValue}>1.0.0</Text>
+              </View>
+            </View>
+            <View style={styles.aboutDivider} />
+            <View style={styles.aboutRow}>
+              <Icon name="code-outline" size={20} color={theme.colors.textSecondary} />
+              <View style={styles.aboutInfo}>
+                <Text style={styles.aboutLabel}>Desarrollado con</Text>
+                <Text style={styles.aboutValue}>React Native (CLI)</Text>
+              </View>
+            </View>
+            <View style={styles.aboutDivider} />
+            <View style={styles.aboutRow}>
+              <Icon name="heart-outline" size={20} color={primary} />
+              <View style={styles.aboutInfo}>
+                <Text style={styles.aboutLabel}>{config.shop_name || 'JO-Shop'}</Text>
+                <Text style={styles.aboutValue}>Tu tienda favorita</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -926,64 +774,6 @@ const SettingsScreen = () => {
           else setModal(prev => ({...prev, visible: false}));
         }}
       />
-      {/* Modal editar duración */}
-      <Modal
-        visible={durationModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDurationModalVisible(false)}>
-        <TouchableWithoutFeedback onPress={() => setDurationModalVisible(false)}>
-          <View style={styles.durationModalOverlay}>
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={styles.durationModalContent}>
-                <Text style={styles.durationModalTitle}>
-                  Editar duración
-                </Text>
-                <Text style={styles.durationModalSubtitle}>
-                  Banner {editingBanner?.sortOrder} — Duración actual: {editingBanner?.duration}s
-                </Text>
-                <View style={styles.durationInputWrapper}>
-                  <TextInput
-                    ref={durationInputRef}
-                    style={styles.durationInput}
-                    value={durationInput}
-                    onChangeText={(text) => {
-                      const cleaned = text.replace(/[^0-9]/g, '');
-                      if (cleaned === '' || (parseInt(cleaned) >= 0 && parseInt(cleaned) <= 30)) {
-                        setDurationInput(cleaned);
-                      }
-                    }}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    autoFocus
-                    selectTextOnFocus
-                    placeholder="4"
-                    placeholderTextColor="#999"
-                  />
-                  <Text style={styles.durationInputSuffix}>segundos</Text>
-                </View>
-                <Text style={styles.durationModalHint}>Mínimo 4s — Máximo 30s</Text>
-                <View style={styles.durationModalActions}>
-                  <TouchableOpacity
-                    style={styles.durationCancelBtn}
-                    onPress={() => setDurationModalVisible(false)}
-                    activeOpacity={0.7}>
-                    <Text style={styles.durationCancelText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.durationSaveBtn}
-                    onPress={handleSaveDuration}
-                    activeOpacity={0.7}>
-                    <Text style={styles.durationSaveText}>Guardar</Text>
-                  </TouchableOpacity>
-                </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -1035,61 +825,26 @@ const createStyles = (primary) => StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     marginTop: theme.spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  sectionHeaderInfo: {
+    flex: 1,
+  },
+  sectionDescription: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginTop: 2,
+  },
   sectionTitle: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: theme.spacing.sm,
-  },
-  // ─── Section Header (coloreado como el frontend) ───────────────────────
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  sectionHeaderIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionHeaderTextWrap: {
-    flex: 1,
-  },
-  sectionHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  sectionHeaderDesc: {
-    fontSize: 12,
-    color: theme.colors.textLight,
-    marginTop: 1,
-  },
-  // ─── About (new style matching frontend) ────────────────────────────────
-  aboutRowNew: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  aboutLabelNew: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  aboutValueNew: {
-    fontSize: 14,
-    color: theme.colors.text,
-    fontWeight: '600',
-  },
-  aboutDividerNew: {
-    height: 1,
-    backgroundColor: theme.colors.border,
   },
   card: {
     backgroundColor: theme.colors.card,
@@ -1449,13 +1204,12 @@ const createStyles = (primary) => StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   bannerItem: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: theme.colors.inputBg,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.sm,
     gap: theme.spacing.sm,
-    position: 'relative',
   },
   bannerThumb: {
     width: 64,
@@ -1476,144 +1230,8 @@ const createStyles = (primary) => StyleSheet.create({
     color: theme.colors.textLight,
     marginTop: 2,
   },
-  bannerItemInactive: {
-    opacity: 0.5,
-  },
-  bannerItemElevated: {
-    zIndex: 20,
-    elevation: 20,
-  },
-  bannerItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  bannerMoreBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 'auto',
-  },
-  bannerDropdown: {
-    position: 'absolute',
-    top: 32,
-    right: 0,
-    backgroundColor: theme.colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    zIndex: 10,
-    minWidth: 180,
-    overflow: 'hidden',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 3},
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-  },
-  bannerDropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-  },
-  bannerDropdownSep: {
-    height: 0.5,
-    backgroundColor: '#E5E7EB',
-    marginLeft: 42,
-  },
-  bannerDropdownText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.text,
-  },
-  durationModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  durationModalContent: {
-    backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 320,
-  },
-  durationModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  durationModalSubtitle: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 18,
-  },
-  durationInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#DDD',
-    borderRadius: 10,
-    backgroundColor: '#F9F9F9',
-    paddingHorizontal: 14,
-    height: 50,
-  },
-  durationInput: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '600',
-    color: theme.colors.text,
-    padding: 0,
-    height: '100%',
-  },
-  durationInputSuffix: {
-    fontSize: 13,
-    color: '#999',
-    fontWeight: '500',
-  },
-  durationModalHint: {
-    fontSize: 11,
-    color: '#AAA',
-    marginTop: 8,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  durationModalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  durationCancelBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  durationCancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  durationSaveBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  durationSaveText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
+  bannerRemoveBtn: {
+    padding: 4,
   },
   addBannerBtn: {
     flexDirection: 'row',
