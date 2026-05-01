@@ -32,7 +32,7 @@ import useThemeColors from '@hooks/useThemeColors';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
-  const {isAdmin} = useAuth();
+  const {isAdmin, user} = useAuth();
   const { primary } = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
   const {config, isMultiStore, updateConfig} = useConfig();
@@ -421,6 +421,19 @@ const SettingsScreen = () => {
     Linking.openURL('https://example.com/privacy').catch(() => {});
   };
 
+  // ─── Section Header Component ─────────────────────────────────────────
+  const SectionHeaderComp = ({iconName, iconColor, iconBg, title, description}) => (
+    <View style={styles.sectionHeaderRow}>
+      <View style={[styles.sectionHeaderIcon, {backgroundColor: iconBg}]}>
+        <Icon name={iconName} size={18} color={iconColor} />
+      </View>
+      <View style={styles.sectionHeaderTextWrap}>
+        <Text style={styles.sectionHeaderTitle}>{title}</Text>
+        <Text style={styles.sectionHeaderDesc}>{description}</Text>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -440,172 +453,18 @@ const SettingsScreen = () => {
           <View style={{width: 40}} />
         </View>
 
-        {/* URL del entorno (embebida en compilación) — SOLO ADMIN */}
+        {/* ═══════════════════════════════════════════════════════════════
+            APARIENCIA (solo admin)
+           ═══════════════════════════════════════════════════════════════ */}
         {isAdmin && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Servidor Backend</Text>
-
-          {/* Tarjeta con la URL embebida */}
-          <View style={styles.envCard}>
-            <View style={styles.envCardHeader}>
-              <Icon name="hardware-chip-outline" size={18} color={primary} />
-              <Text style={styles.envCardTitle}>URL embebida (compilación)</Text>
-            </View>
-            <Text style={styles.envUrlText} numberOfLines={1}>
-              {envUrl || 'No configurada'}
-            </Text>
-            <Text style={styles.envHint}>
-              Definida en src/config/env.js antes de compilar
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>
-                URL del servidor {saved ? '(personalizada)' : ''}
-              </Text>
-              <TextInput
-                value={baseUrl}
-                onChangeText={text => {
-                  setBaseUrl(text);
-                  setConnectionStatus(null);
-                }}
-                placeholder={envUrl || 'https://mi-servidor.com'}
-                placeholderTextColor={theme.colors.textLight}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                style={styles.input}
-              />
-              <Text style={styles.inputHint}>
-                {saved
-                  ? 'Usando URL personalizada. Deja vacío para volver a la embebida.'
-                  : `Usando URL embebida. Escribe otra para sobreescribir.`}
-              </Text>
-            </View>
-
-            {/* Estado de conexión */}
-            {connectionStatus && (
-              <View
-                style={[
-                  styles.statusBadge,
-                  connectionStatus.success
-                    ? styles.statusSuccess
-                    : styles.statusError,
-                ]}>
-                <Icon
-                  name={connectionStatus.success ? 'checkmark-circle' : 'alert-circle'}
-                  size={18}
-                  color={
-                    connectionStatus.success
-                      ? theme.colors.success
-                      : primary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.statusText,
-                    connectionStatus.success
-                      ? styles.statusTextSuccess
-                      : styles.statusTextError,
-                  ]}>
-                  {connectionStatus.message}
-                </Text>
-              </View>
-            )}
-
-            {/* Botones de acción */}
-            <View style={styles.actions}>
-              <TouchableOpacity
-                onPress={handleTestConnection}
-                style={[styles.actionButton, styles.testButton]}
-                disabled={testing || !baseUrl.trim()}
-                activeOpacity={0.8}>
-                <Icon name="wifi-outline" size={18} color={theme.colors.text} />
-                <Text style={styles.actionButtonText}>
-                  {testing ? 'Probando...' : 'Probar'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleSave}
-                style={[styles.actionButton, styles.saveButton]}
-                activeOpacity={0.8}>
-                <Icon name="save-outline" size={18} color={theme.colors.white} />
-                <Text style={[styles.actionButtonText, {color: theme.colors.white}]}>
-                  Guardar
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Botón restaurar env */}
-          {saved && (
-            <TouchableOpacity
-              onPress={handleResetToEnv}
-              style={styles.resetButton}
-              activeOpacity={0.8}>
-              <Icon name="refresh-outline" size={18} color={primary} />
-              <Text style={styles.resetButtonText}>
-                Restaurar URL embebida
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        )}
-
-        {/* ─── Configuración de Multi-Store (solo admin) ─────────────────── */}
-        {isAdmin && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Modo de Tienda</Text>
-          <View style={styles.card}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <View style={styles.toggleIconRow}>
-                  <Icon name="storefront-outline" size={22} color={primary} />
-                  <Text style={styles.toggleLabel}>Multi-Tienda</Text>
-                </View>
-                <Text style={styles.toggleDescription}>
-                  {multiStoreSwitch
-                    ? 'Los clientes y delivery verán filtro de tienda. Los productos se asignan a tiendas específicas.'
-                    : 'Modo tienda única. No se muestra filtro de tienda ni asignación de productos por tienda.'}
-                </Text>
-              </View>
-              <View style={styles.switchWrapper}>
-                {switchLoading ? (
-                  <ActivityIndicator size="small" color={primary} />
-                ) : (
-                  <Switch
-                    value={multiStoreSwitch}
-                    onValueChange={handleMultiStoreToggle}
-                    trackColor={{
-                      false: theme.colors.border,
-                      true: primary,
-                    }}
-                    thumbColor={theme.colors.white}
-                  />
-                )}
-              </View>
-            </View>
-
-            <View style={styles.modeIndicator}>
-              <View style={[styles.modeDot, multiStoreSwitch ? styles.modeDotMulti : styles.modeDotSingle]} />
-              <Text style={styles.modeText}>
-                {multiStoreSwitch ? 'Modo Multi-Tienda activado' : 'Modo Tienda Única activado'}
-              </Text>
-            </View>
-
-            <Text style={styles.configHint}>
-              Los usuarios conectados detectarán el cambio automáticamente en los próximos segundos.
-            </Text>
-          </View>
-        </View>
-        )}
-
-        {/* ─── Apariencia (solo admin) ──────────────────────────────────── */}
-        {isAdmin && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Apariencia</Text>
+          <SectionHeaderComp
+            iconName="color-palette-outline"
+            iconColor={accentColor || '#E94560'}
+            iconBg={(accentColor || '#E94560') + '1A'}
+            title="Apariencia"
+            description="Personaliza el nombre, colores y logo del sistema"
+          />
           <View style={styles.card}>
             {/* Nombre del sistema */}
             <Text style={styles.appearanceLabel}>Nombre del sistema</Text>
@@ -716,10 +575,74 @@ const SettingsScreen = () => {
         </View>
         )}
 
-        {/* ─── Banners de Publicidad (solo admin) ───────────────────────── */}
+        {/* ═══════════════════════════════════════════════════════════════
+            MODO DE TIENDA (solo admin)
+           ═══════════════════════════════════════════════════════════════ */}
         {isAdmin && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Banners de Publicidad</Text>
+          <SectionHeaderComp
+            iconName="storefront-outline"
+            iconColor="#00B894"
+            iconBg="#E8FBF5"
+            title="Modo de Tienda"
+            description="Configura el modo de operación de tu tienda"
+          />
+          <View style={styles.card}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <View style={styles.toggleIconRow}>
+                  <Icon name="storefront-outline" size={22} color={primary} />
+                  <Text style={styles.toggleLabel}>Multi-Tienda</Text>
+                </View>
+                <Text style={styles.toggleDescription}>
+                  {multiStoreSwitch
+                    ? 'Permite gestionar múltiples tiendas desde un solo panel.'
+                    : 'Modo tienda única. Todos los productos y pedidos pertenecen a una sola tienda.'}
+                </Text>
+              </View>
+              <View style={styles.switchWrapper}>
+                {switchLoading ? (
+                  <ActivityIndicator size="small" color={primary} />
+                ) : (
+                  <Switch
+                    value={multiStoreSwitch}
+                    onValueChange={handleMultiStoreToggle}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: primary,
+                    }}
+                    thumbColor={theme.colors.white}
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.modeIndicator}>
+              <View style={[styles.modeDot, multiStoreSwitch ? styles.modeDotMulti : styles.modeDotSingle]} />
+              <Text style={styles.modeText}>
+                {multiStoreSwitch ? 'Modo Multi-Tienda activado' : 'Modo Tienda Única activado'}
+              </Text>
+            </View>
+
+            <Text style={styles.configHint}>
+              Los usuarios conectados detectarán el cambio automáticamente en los próximos segundos.
+            </Text>
+          </View>
+        </View>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════
+            BANNERS DE PUBLICIDAD (solo admin)
+           ═══════════════════════════════════════════════════════════════ */}
+        {isAdmin && (
+        <View style={styles.section}>
+          <SectionHeaderComp
+            iconName="images-outline"
+            iconColor="#F39C12"
+            iconBg="#FEF3E2"
+            title="Banners de Publicidad"
+            description="Configura los banners del carrusel en la página principal"
+          />
           <View style={styles.card}>
             {/* Toggle */}
             <View style={styles.toggleRow}>
@@ -837,33 +760,155 @@ const SettingsScreen = () => {
         </View>
         )}
 
-        {/* Info de la app */}
+        {/* ═══════════════════════════════════════════════════════════════
+            SERVIDOR BACKEND (solo admin)
+           ═══════════════════════════════════════════════════════════════ */}
+        {isAdmin && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acerca de</Text>
+          <SectionHeaderComp
+            iconName="globe-outline"
+            iconColor="#54A0FF"
+            iconBg="#E8F1FF"
+            title="Servidor Backend"
+            description="Información de conexión al servidor"
+          />
+
+          {/* Tarjeta con la URL embebida */}
+          <View style={styles.envCard}>
+            <View style={styles.envCardHeader}>
+              <Icon name="hardware-chip-outline" size={18} color={primary} />
+              <Text style={styles.envCardTitle}>URL embebida (compilación)</Text>
+            </View>
+            <Text style={styles.envUrlText} numberOfLines={1}>
+              {envUrl || 'No configurada'}
+            </Text>
+            <Text style={styles.envHint}>
+              Definida en src/config/env.js antes de compilar
+            </Text>
+          </View>
+
           <View style={styles.card}>
-            <View style={styles.aboutRow}>
-              <Icon name="information-circle-outline" size={20} color={theme.colors.textSecondary} />
-              <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>Versión</Text>
-                <Text style={styles.aboutValue}>1.0.0</Text>
-              </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>
+                URL del servidor {saved ? '(personalizada)' : ''}
+              </Text>
+              <TextInput
+                value={baseUrl}
+                onChangeText={text => {
+                  setBaseUrl(text);
+                  setConnectionStatus(null);
+                }}
+                placeholder={envUrl || 'https://mi-servidor.com'}
+                placeholderTextColor={theme.colors.textLight}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                style={styles.input}
+              />
+              <Text style={styles.inputHint}>
+                {saved
+                  ? 'Usando URL personalizada. Deja vacío para volver a la embebida.'
+                  : 'Usando URL embebida. Escribe otra para sobreescribir.'}
+              </Text>
             </View>
-            <View style={styles.aboutDivider} />
-            <View style={styles.aboutRow}>
-              <Icon name="code-outline" size={20} color={theme.colors.textSecondary} />
-              <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>Desarrollado con</Text>
-                <Text style={styles.aboutValue}>React Native (CLI)</Text>
+
+            {/* Estado de conexión */}
+            {connectionStatus && (
+              <View
+                style={[
+                  styles.statusBadge,
+                  connectionStatus.success
+                    ? styles.statusSuccess
+                    : styles.statusError,
+                ]}>
+                <Icon
+                  name={connectionStatus.success ? 'checkmark-circle' : 'alert-circle'}
+                  size={18}
+                  color={
+                    connectionStatus.success
+                      ? theme.colors.success
+                      : primary
+                  }
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    connectionStatus.success
+                      ? styles.statusTextSuccess
+                      : styles.statusTextError,
+                  ]}>
+                  {connectionStatus.message}
+                </Text>
               </View>
+            )}
+
+            {/* Botones de acción */}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                onPress={handleTestConnection}
+                style={[styles.actionButton, styles.testButton]}
+                disabled={testing || !baseUrl.trim()}
+                activeOpacity={0.8}>
+                <Icon name="wifi-outline" size={18} color={theme.colors.text} />
+                <Text style={styles.actionButtonText}>
+                  {testing ? 'Probando...' : 'Probar'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSave}
+                style={[styles.actionButton, styles.saveButton]}
+                activeOpacity={0.8}>
+                <Icon name="save-outline" size={18} color={theme.colors.white} />
+                <Text style={[styles.actionButtonText, {color: theme.colors.white}]}>
+                  Guardar
+                </Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.aboutDivider} />
-            <View style={styles.aboutRow}>
-              <Icon name="heart-outline" size={20} color={primary} />
-              <View style={styles.aboutInfo}>
-                <Text style={styles.aboutLabel}>{config.shop_name || 'JO-Shop'}</Text>
-                <Text style={styles.aboutValue}>Tu tienda favorita</Text>
-              </View>
-            </View>
+          </View>
+
+          {/* Botón restaurar env */}
+          {saved && (
+            <TouchableOpacity
+              onPress={handleResetToEnv}
+              style={styles.resetButton}
+              activeOpacity={0.8}>
+              <Icon name="refresh-outline" size={18} color={primary} />
+              <Text style={styles.resetButtonText}>
+                Restaurar URL embebida
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════
+            ACERCA DE
+           ═══════════════════════════════════════════════════════════════ */}
+        <View style={styles.section}>
+          <SectionHeaderComp
+            iconName="information-circle-outline"
+            iconColor="#A29BFE"
+            iconBg="#F0EDFF"
+            title="Acerca de"
+            description="Información de la aplicación"
+          />
+          <View style={styles.card}>
+            {[
+              {label: 'Aplicación', value: config.shop_name || 'JO-Shop'},
+              {label: 'Versión', value: '1.0.0'},
+              {label: 'Plataforma', value: 'React Native (CLI)'},
+              {label: 'Rol actual', value: user?.roles?.[0]?.name || user?.role || (isAdmin ? 'Administrador' : 'Usuario')},
+              {label: 'Usuario', value: user?.name || user?.email || 'N/A'},
+            ].map((item, idx) => (
+              <React.Fragment key={item.label}>
+                <View style={styles.aboutRowNew}>
+                  <Text style={styles.aboutLabelNew}>{item.label}</Text>
+                  <Text style={styles.aboutValueNew}>{item.value}</Text>
+                </View>
+                {idx < 4 && <View style={styles.aboutDividerNew} />}
+              </React.Fragment>
+            ))}
           </View>
         </View>
 
@@ -997,6 +1042,54 @@ const createStyles = (primary) => StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: theme.spacing.sm,
+  },
+  // ─── Section Header (coloreado como el frontend) ───────────────────────
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  sectionHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  sectionHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  sectionHeaderDesc: {
+    fontSize: 12,
+    color: theme.colors.textLight,
+    marginTop: 1,
+  },
+  // ─── About (new style matching frontend) ────────────────────────────────
+  aboutRowNew: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  aboutLabelNew: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  aboutValueNew: {
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '600',
+  },
+  aboutDividerNew: {
+    height: 1,
+    backgroundColor: theme.colors.border,
   },
   card: {
     backgroundColor: theme.colors.card,
