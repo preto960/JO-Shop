@@ -8,14 +8,9 @@ import {useConfig} from '@context/ConfigContext';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
-// ─── Tarjetas de gestión (como el sidebar del frontend) ──────────────────────
+// ─── Tarjetas de gestión (movidas del tab bar a configuración) ──────────────────
 const MANAGEMENT_CARDS = [
-  {id: 'AdminDashboardPage', title: 'Panel', description: 'Estadisticas y resumen general', icon: 'grid-outline', permission: 'dashboard'},
-  {id: 'AdminProductsPage', title: 'Productos', description: 'Gestionar productos del catalogo', icon: 'pricetag-outline', permission: 'products'},
-  {id: 'AdminBatchesPage', title: 'Lotes', description: 'Descuentos por lotes de productos', icon: 'layers-outline', permission: 'batches'},
   {id: 'AdminCategoriesPage', title: 'Categorias', description: 'Administrar categorias del catalogo', icon: 'folder-outline', permission: 'categories'},
-  {id: 'AdminOrdersPage', title: 'Pedidos', description: 'Gestionar pedidos de clientes', icon: 'receipt-outline', permission: 'orders'},
-  {id: 'AdminStoresPage', title: 'Tiendas', description: 'Administrar tiendas disponibles', icon: 'store-outline', permission: 'stores', multiStoreOnly: true},
   {id: 'AdminRolesPage', title: 'Roles', description: 'Roles y permisos del sistema', icon: 'shield-outline', permission: 'roles'},
   {id: 'AdminUsersPage', title: 'Usuarios', description: 'Gestionar usuarios del sistema', icon: 'people-outline', adminOnly: true},
 ];
