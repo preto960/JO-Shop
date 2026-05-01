@@ -247,6 +247,7 @@ const AppNavigator = () => {
           <Stack.Screen name="AdminMainTabs" component={AdminTabs} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="AdminCategoriesPage" component={AdminCategoriesScreen} />
+          <Stack.Screen name="AdminStoresPage" component={AdminStoresScreen} />
           <Stack.Screen name="AdminRolesPage" component={AdminRolesScreen} />
           <Stack.Screen name="AdminUsersPage" component={AdminUsersScreen} />
         </>

@@ -11,6 +11,7 @@ import useThemeColors from '@hooks/useThemeColors';
 // ─── Tarjetas de gestión (movidas del tab bar a configuración) ──────────────────
 const MANAGEMENT_CARDS = [
   {id: 'AdminCategoriesPage', title: 'Categorias', description: 'Administrar categorias del catalogo', icon: 'folder-outline', permission: 'categories'},
+  {id: 'AdminStoresPage', title: 'Tiendas', description: 'Administrar tiendas disponibles', icon: 'storefront-outline', permission: 'stores', multiStoreOnly: true},
   {id: 'AdminRolesPage', title: 'Roles', description: 'Roles y permisos del sistema', icon: 'shield-outline', permission: 'roles'},
   {id: 'AdminUsersPage', title: 'Usuarios', description: 'Gestionar usuarios del sistema', icon: 'people-outline', adminOnly: true},
 ];
