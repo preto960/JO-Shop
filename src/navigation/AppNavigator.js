@@ -146,9 +146,6 @@ const AdminTabs = () => {
   if (canViewModule('batches')) {
     tabs.push({name: 'AdminBatches', component: AdminBatchesScreen, label: 'Lotes', icon: 'layers-outline'});
   }
-  if (isMultiStore && (hasRole('admin') || canViewModule('stores'))) {
-    tabs.push({name: 'AdminStores', component: AdminStoresScreen, label: 'Tiendas', icon: 'storefront-outline'});
-  }
   if (canViewModule('orders')) {
     tabs.push({name: 'AdminOrders', component: AdminOrdersScreen, label: 'Pedidos', icon: 'receipt-outline'});
   }
