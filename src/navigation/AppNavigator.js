@@ -14,6 +14,7 @@ import RegisterScreen from '@screens/RegisterScreen';
 import HomeScreen from '@screens/HomeScreen';
 import CartScreen from '@screens/CartScreen';
 import SettingsScreen from '@screens/SettingsScreen';
+import SettingsSectionScreen from '@screens/SettingsSectionScreen';
 import ProductDetailScreen from '@screens/ProductDetailScreen';
 import OrderConfirmationScreen from '@screens/OrderConfirmationScreen';
 import ProfileScreen from '@screens/ProfileScreen';
@@ -265,6 +266,7 @@ const AppNavigator = () => {
       )}
       <Stack.Screen name="Verification" component={VerificationScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="SettingsSection" component={SettingsSectionScreen} />
     </Stack.Navigator>
   );
 };
