@@ -233,7 +233,6 @@ const AppNavigator = () => {
           <Stack.Screen name="AdminStoresPage" component={AdminStoresScreen} />
           <Stack.Screen name="AdminRolesPage" component={AdminRolesScreen} />
           <Stack.Screen name="AdminUsersPage" component={AdminUsersScreen} />
-          <Stack.Screen name="SettingsSection" component={SettingsSectionScreen} />
         </>
       ) : (
         // ─── CLIENTE (logueado) ────────────────────────────────────
