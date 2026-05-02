@@ -406,6 +406,20 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
       </View>
       {bannersEnabled && (
         <>
+          <TouchableOpacity
+            onPress={handleAddBanner}
+            disabled={bannerUploading}
+            style={[styles.addBannerBtn, bannerUploading && {opacity: 0.6}]}
+            activeOpacity={0.7}>
+            {bannerUploading ? (
+              <ActivityIndicator size="small" color={primary} />
+            ) : (
+              <Icon name="add-circle-outline" size={20} color={primary} />
+            )}
+            <Text style={styles.addBannerBtnText}>
+              {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
+            </Text>
+          </TouchableOpacity>
           {banners.length > 0 && (
             <View style={styles.bannerList}>
               {banners.map((banner, index) => (
@@ -426,20 +440,6 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
               ))}
             </View>
           )}
-          <TouchableOpacity
-            onPress={handleAddBanner}
-            disabled={bannerUploading}
-            style={[styles.addBannerBtn, bannerUploading && {opacity: 0.6}]}
-            activeOpacity={0.7}>
-            {bannerUploading ? (
-              <ActivityIndicator size="small" color={primary} />
-            ) : (
-              <Icon name="add-circle-outline" size={20} color={primary} />
-            )}
-            <Text style={styles.addBannerBtnText}>
-              {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
-            </Text>
-          </TouchableOpacity>
           <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
         </>
       )}
