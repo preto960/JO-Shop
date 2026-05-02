@@ -174,6 +174,13 @@ const HomeScreen = () => {
   const bannerTimerRef = useRef(null);
   const bannerProgressRef = useRef(null);
   const bannerScrollRef = useRef(null);
+  const isAutoScrollingRef = useRef(false);
+  const currentBannerRef = useRef(0);
+  const bannersLengthRef = useRef(0);
+
+  // Keep refs in sync
+  useEffect(() => { currentBannerRef.current = currentBanner; }, [currentBanner]);
+  useEffect(() => { bannersLengthRef.current = banners.length; }, [banners.length]);
 
   useEffect(() => {
     if (!bannersEnabled || !hasApiConfig) { setBanners([]); setBannersLoading(false); return; }
@@ -202,12 +209,12 @@ const HomeScreen = () => {
       return;
     }
 
-    // Cleanup previous timers
-    if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
-    if (bannerProgressRef.current) clearInterval(bannerProgressRef.current);
+    // Cleanup previous timers properly
+    if (bannerTimerRef.current) { clearTimeout(bannerTimerRef.current); bannerTimerRef.current = null; }
+    if (bannerProgressRef.current) { clearInterval(bannerProgressRef.current); bannerProgressRef.current = null; }
 
     const duration = (banners[currentBanner]?.duration || 4) * 1000;
-    const stepMs = 50; // update every 50ms for smooth animation
+    const stepMs = 50;
     setBannerProgress(0);
     let elapsed = 0;
 
@@ -220,22 +227,31 @@ const HomeScreen = () => {
 
     // Advance to next banner when duration expires
     bannerTimerRef.current = setTimeout(() => {
-      setCurrentBanner(prev => (prev + 1) % banners.length);
+      const nextIndex = (currentBannerRef.current + 1) % bannersLengthRef.current;
+      isAutoScrollingRef.current = true;
+      setCurrentBanner(nextIndex);
+
+      // Scroll using scrollToOffset (more reliable than scrollToIndex on Android)
+      if (bannerScrollRef.current) {
+        const slideWidth = Dimensions.get('window').width - theme.spacing.md * 2;
+        try {
+          bannerScrollRef.current.scrollToOffset({
+            offset: slideWidth * nextIndex,
+            animated: true,
+          });
+        } catch (e) {
+          // Silently ignore scroll errors
+        }
+      }
+
+      // Reset auto-scrolling flag after animation completes
+      setTimeout(() => { isAutoScrollingRef.current = false; }, 600);
     }, duration);
 
     return () => {
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-      if (bannerProgressRef.current) clearInterval(bannerProgressRef.current);
+      if (bannerTimerRef.current) { clearTimeout(bannerTimerRef.current); bannerTimerRef.current = null; }
+      if (bannerProgressRef.current) { clearInterval(bannerProgressRef.current); bannerProgressRef.current = null; }
     };
-  }, [currentBanner, banners.length, banners]);
-
-  // Scroll to current banner on auto-rotate
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    bannerScrollRef.current?.scrollToIndex({
-      index: currentBanner,
-      animated: true,
-    });
   }, [currentBanner, banners.length]);
 
   // Calcular datos derivados para carousels
@@ -471,11 +487,15 @@ const HomeScreen = () => {
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => `banner-${item.id}`}
-          onMomentumScrollEnd={(event) => {
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            // Ignore scroll events during auto-rotate animation
+            if (isAutoScrollingRef.current) return;
             const offset = event.nativeEvent.contentOffset.x;
             const width = event.nativeEvent.layoutMeasurement.width;
+            if (width === 0) return;
             const index = Math.round(offset / width);
-            if (index >= 0 && index < banners.length) {
+            if (index >= 0 && index < banners.length && index !== currentBannerRef.current) {
               setCurrentBanner(index);
             }
           }}
