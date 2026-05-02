@@ -47,7 +47,6 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [hasApiConfig, setHasApiConfig] = useState(false);
-  const [showStoreFilter, setShowStoreFilter] = useState(false);
 
   // Scroll arrow states for category chips
   const categoryListRef = useRef(null);
@@ -58,14 +57,6 @@ const HomeScreen = () => {
   // Carousel refs
   const bestSellersRef = useRef(null);
   const offersRef = useRef(null);
-
-  // Scroll arrow states for store chips
-  const storeListRef = useRef(null);
-  const storeWrapperLayout = useRef(null);
-  const [storeCanScrollLeft, setStoreCanScrollLeft] = useState(false);
-  const [storeCanScrollRight, setStoreCanScrollRight] = useState(false);
-
-  const SCROLL_ARROW_AMOUNT = 150;
 
   // Verificar si hay configuración de API
   useEffect(() => {
@@ -285,15 +276,7 @@ const HomeScreen = () => {
   const scrollCategoryBy = (direction) => {
     if (!categoryListRef.current) return;
     categoryListRef.current.scrollToOffset({
-      offset: (direction === 'left' ? -SCROLL_ARROW_AMOUNT : SCROLL_ARROW_AMOUNT),
-      animated: true,
-    });
-  };
-
-  const scrollStoreBy = (direction) => {
-    if (!storeListRef.current) return;
-    storeListRef.current.scrollToOffset({
-      offset: (direction === 'left' ? -SCROLL_ARROW_AMOUNT : SCROLL_ARROW_AMOUNT),
+      offset: (direction === 'left' ? -150 : 150),
       animated: true,
     });
   };
@@ -312,22 +295,6 @@ const HomeScreen = () => {
 
   const handleCategoryLayout = useCallback((event) => {
     categoryWrapperLayout.current = event.nativeEvent.layout;
-  }, []);
-
-  const handleStoreScroll = useCallback((event) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    setStoreCanScrollLeft(contentOffset.x > 5);
-    setStoreCanScrollRight(contentOffset.x + layoutMeasurement.width < contentSize.width - 5);
-  }, []);
-
-  const handleStoreContentResize = useCallback((contentWidth) => {
-    if (storeWrapperLayout.current && contentWidth > storeWrapperLayout.current.width) {
-      setStoreCanScrollRight(true);
-    }
-  }, []);
-
-  const handleStoreLayout = useCallback((event) => {
-    storeWrapperLayout.current = event.nativeEvent.layout;
   }, []);
 
   const clearFilters = () => {
@@ -691,82 +658,40 @@ const HomeScreen = () => {
               </View>
             )}
 
-            {/* ═══ Store filter ═══ */}
+            {/* ═══ Store cards with images ═══ */}
             {isMultiStore && stores.length > 0 && (
-              <View style={styles.storeFilterRow}>
-                <TouchableOpacity
-                  style={styles.storeFilterToggle}
-                  onPress={() => setShowStoreFilter(prev => !prev)}>
-                  <Icon name="storefront-outline" size={16} color={selectedStore ? primary : theme.colors.textSecondary} />
-                  <Text style={[styles.storeFilterLabel, selectedStore && styles.storeFilterLabelActive]}>
-                    {selectedStore
-                      ? stores.find(s => s.id === selectedStore)?.name || 'Tienda'
-                      : 'Filtrar por tienda'}
-                  </Text>
-                  <Icon name={showStoreFilter ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
-                {hasActiveFilters && (
-                  <TouchableOpacity style={styles.clearFiltersBtn} onPress={clearFilters}>
-                    <Icon name="close-circle" size={16} color={primary} />
-                    <Text style={styles.clearFiltersText}>Limpiar</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {/* ═══ Store filter chips dropdown ═══ */}
-            {isMultiStore && showStoreFilter && stores.length > 0 && (
-              <View style={styles.storeFilterContainer}>
-                <View style={styles.chipScrollWrapper} onLayout={handleStoreLayout}>
-                  {storeCanScrollLeft && (
-                    <TouchableOpacity
-                      style={styles.scrollArrowLeft}
-                      onPress={() => scrollStoreBy('left')}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
-                      <Icon name="chevron-back" size={20} color={primary} />
-                    </TouchableOpacity>
-                  )}
-                  <FlatList
-                    ref={storeListRef}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    onScroll={handleStoreScroll}
-                    scrollEventThrottle={16}
-                    data={[{id: null, name: 'Todas las tiendas'}, ...stores]}
-                    keyExtractor={item => `store-${item.id?.toString() || 'all'}`}
-                    renderItem={({item}) => {
-                      const storeCount = item._count?.products || 0;
-                      return (
-                        <TouchableOpacity
-                          onPress={() => handleStoreSelect(item.id)}
-                          style={[styles.storeChip, selectedStore === item.id && styles.storeChipActive]}
-                          activeOpacity={0.7}>
-                          <Icon name="storefront" size={14} color={selectedStore === item.id ? theme.colors.white : theme.colors.textSecondary} />
-                          <Text style={[styles.storeChipText, selectedStore === item.id && styles.storeChipTextActive]}>
-                            {item.name || 'Todas'}
-                          </Text>
-                          {storeCount > 0 && (
-                            <Text style={[styles.storeChipCount, selectedStore === item.id && styles.storeChipCountActive]}>
-                              {storeCount}
-                            </Text>
+              <View style={styles.storeSection}>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={[{id: null, name: 'Todas', logo: null}, ...stores]}
+                  keyExtractor={item => `store-${item.id?.toString() || 'all'}`}
+                  renderItem={({item}) => {
+                    const isActive = selectedStore === item.id;
+                    return (
+                      <TouchableOpacity
+                        onPress={() => handleStoreSelect(item.id)}
+                        style={styles.storeCard}
+                        activeOpacity={0.8}>
+                        <View style={[styles.storeImageWrap, isActive && styles.storeImageWrapActive]}>
+                          {item.logo ? (
+                            <Image source={{uri: item.logo}} style={styles.storeImage} resizeMode="cover" />
+                          ) : (
+                            <View style={[styles.storeIconWrap, isActive && styles.storeIconWrapActive]}>
+                              <Icon name={item.id === null ? 'grid-outline' : 'storefront-outline'} size={20} color={isActive ? theme.colors.white : theme.colors.textSecondary} />
+                            </View>
                           )}
-                        </TouchableOpacity>
-                      );
-                    }}
-                    style={styles.filterList}
-                    onContentSizeChange={(w) => handleStoreContentResize(w)}
-                  />
-                  {storeCanScrollRight && (
-                    <TouchableOpacity
-                      style={styles.scrollArrowRight}
-                      onPress={() => scrollStoreBy('right')}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
-                      <Icon name="chevron-forward" size={20} color={primary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                        </View>
+                        <Text
+                          style={[styles.storeName, isActive && styles.storeNameActive]}
+                          numberOfLines={1}>
+                          {item.name || 'Todas'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                  contentContainerStyle={styles.storeList}
+                />
               </View>
             )}
 
@@ -1155,78 +1080,57 @@ const createStyles = (primary) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // Store filter
-  storeFilterRow: {
-    flexDirection: 'row',
+  // Store cards (with images, like categories)
+  storeSection: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  storeList: {
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  storeCard: {
+    alignItems: 'center',
+    width: 68,
+  },
+  storeImageWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 2.5,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: theme.spacing.xs,
+    overflow: 'hidden',
+    marginBottom: 4,
   },
-  storeFilterToggle: {
-    flexDirection: 'row',
+  storeImageWrapActive: {
+    borderColor: primary,
+  },
+  storeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  storeIconWrap: {
     alignItems: 'center',
-    gap: theme.spacing.xs,
+    justifyContent: 'center',
   },
-  storeFilterLabel: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  storeFilterLabelActive: {
-    color: primary,
-    fontWeight: '600',
-  },
-  clearFiltersBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-  },
-  clearFiltersText: {
-    fontSize: theme.fontSize.xs,
-    color: primary,
-    fontWeight: '600',
-  },
-  storeFilterContainer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xs,
-  },
-  storeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.xl,
-    backgroundColor: theme.colors.inputBg,
-    marginRight: theme.spacing.sm,
-  },
-  storeChipActive: {
+  storeIconWrapActive: {
     backgroundColor: primary,
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
   },
-  storeChipText: {
-    fontSize: theme.fontSize.sm,
+  storeName: {
+    fontSize: 10,
     fontWeight: '500',
     color: theme.colors.textSecondary,
-  },
-  storeChipTextActive: {
-    color: theme.colors.white,
-  },
-  storeChipCount: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: theme.colors.textLight,
-    backgroundColor: theme.colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    minWidth: 18,
     textAlign: 'center',
   },
-  storeChipCountActive: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    color: theme.colors.white,
+  storeNameActive: {
+    color: primary,
+    fontWeight: '700',
   },
   // ─── Product Grid ──────────────────────────────────────────────────
   productList: {

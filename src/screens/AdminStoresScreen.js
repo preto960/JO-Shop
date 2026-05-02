@@ -12,6 +12,8 @@ import {
   StyleSheet,
   RefreshControl,
   Platform,
+  Image,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -21,6 +23,7 @@ import apiService from '@services/api';
 import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 import ConfirmModal from '@components/ConfirmModal';
+import {launchImageLibrary} from 'react-native-image-picker';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_LIMIT = 20;
@@ -61,6 +64,7 @@ const AdminStoresScreen = () => {
   const [form, setForm] = useState(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState(EMPTY_FORM_ERRORS);
   const [submitting, setSubmitting] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
 
   // Confirm modal
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
@@ -223,6 +227,50 @@ const AdminStoresScreen = () => {
     }
   }, [form, editingStore, validateForm, closeModal, loadStores]);
 
+  // ─── Logo Upload ───────────────────────────────────────────────────────
+
+  const handleLogoPick = useCallback(async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+      if (result.didCancel || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+        Alert.alert('Error', 'La imagen no debe superar 2MB');
+        return;
+      }
+      setLogoUploading(true);
+      try {
+        const api = await apiService.createApiClient();
+        const formData = new FormData();
+        const fileUri = asset.uri;
+        const filename = asset.fileName || fileUri.split('/').pop() || 'logo.png';
+        formData.append('file', {
+          uri: fileUri,
+          name: filename,
+          type: asset.type || 'image/jpeg',
+        });
+        const res = await api.post('/stores/upload-logo', formData, {
+          headers: {'Content-Type': 'multipart/form-data'},
+          transformRequest: data => data,
+        });
+        const url = res?.url || res?.data?.url;
+        if (url) {
+          updateField('logo', url);
+        }
+      } catch {
+        Alert.alert('Error', 'No se pudo subir el logo.');
+      } finally {
+        setLogoUploading(false);
+      }
+    } catch {
+      // Picker error
+    }
+  }, [updateField]);
+
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(
@@ -328,7 +376,7 @@ const AdminStoresScreen = () => {
           {/* Avatar */}
           <View style={[styles.cardAvatar, !isActive && styles.cardAvatarInactive]}>
             {item.logo ? (
-              <Icon name="image" size={20} color={isActive ? theme.colors.textSecondary : theme.colors.textLight} />
+              <Image source={{uri: item.logo}} style={{width: '100%', height: '100%'}} resizeMode="cover" />
             ) : (
               <Text style={[styles.cardAvatarText, !isActive && styles.cardAvatarTextInactive]}>
                 {initial}
@@ -492,24 +540,36 @@ const AdminStoresScreen = () => {
               </View>
             </View>
 
-            {/* Logo URL */}
-            <Text style={styles.label}>URL del Logo</Text>
-            <TextInput
-              ref={logoInputRef}
-              style={[styles.input, formErrors.logo && styles.inputError]}
-              value={form.logo}
-              onChangeText={val => updateField('logo', val)}
-              placeholder="https://ejemplo.com/logo.png"
-              placeholderTextColor={theme.colors.textLight}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
-            {formErrors.logo && (
-              <Text style={styles.errorText}>{formErrors.logo}</Text>
-            )}
+            {/* Logo upload */}
+            <Text style={styles.label}>Logo de la tienda</Text>
+            <View style={styles.logoRow}>
+              <TouchableOpacity
+                onPress={handleLogoPick}
+                disabled={logoUploading}
+                activeOpacity={0.8}
+                style={styles.logoPreview}>
+                {logoUploading ? (
+                  <ActivityIndicator size="small" color={primary} />
+                ) : form.logo ? (
+                  <Image source={{uri: form.logo}} style={styles.logoPreviewImg} resizeMode="cover" />
+                ) : (
+                  <Icon name="camera-outline" size={24} color={theme.colors.textLight} />
+                )}
+              </TouchableOpacity>
+              <View style={styles.logoActions}>
+                <TouchableOpacity onPress={handleLogoPick} disabled={logoUploading} activeOpacity={0.7} style={styles.logoBtn}>
+                  <Icon name="cloud-upload-outline" size={16} color={primary} />
+                  <Text style={styles.logoBtnText}>{form.logo ? 'Cambiar logo' : 'Subir logo'}</Text>
+                </TouchableOpacity>
+                {form.logo ? (
+                  <TouchableOpacity onPress={() => updateField('logo', '')} activeOpacity={0.7} style={[styles.logoBtn, {borderColor: '#EF4444'}]}>
+                    <Icon name="trash-outline" size={16} color="#EF4444" />
+                    <Text style={[styles.logoBtnText, {color: '#EF4444'}]}>Eliminar</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+            <Text style={styles.logoHint}>Max 2MB. JPG, PNG, WebP</Text>
 
             {/* Active toggle */}
             <View style={styles.toggleRow}>
@@ -554,9 +614,11 @@ const AdminStoresScreen = () => {
     form,
     formErrors,
     submitting,
+    logoUploading,
     closeModal,
     updateField,
     handleSubmit,
+    handleLogoPick,
   ]);
 
   // ─── Main Render ──────────────────────────────────────────────────────────
@@ -984,6 +1046,54 @@ const createStyles = (primary) => StyleSheet.create({
     color: theme.colors.white,
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
+  },
+  // Logo upload
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  logoPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: theme.colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoPreviewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  logoActions: {
+    flex: 1,
+    gap: 8,
+  },
+  logoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.inputBg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  logoBtnText: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: '600',
+    color: primary,
+  },
+  logoHint: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginBottom: 16,
   },
 });
 
