@@ -381,8 +381,9 @@ const updateSystemConfig = async (settings) => {
 const uploadBanner = async (formData) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.post('/config/upload-banner', formData, {
+  return api.post('/banners', formData, {
     headers: {'Content-Type': 'multipart/form-data'},
+    transformRequest: data => data,
   });
 };
 
@@ -396,6 +397,27 @@ const fetchBanners = async () => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
   return api.get('/banners');
+};
+
+const fetchAdminBanners = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/banners/all');
+};
+
+const deleteBannerById = async (bannerId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.delete(`/banners/${bannerId}`);
+};
+
+const updateBanner = async (bannerId, formData) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.put(`/banners/${bannerId}`, formData, {
+    headers: {'Content-Type': 'multipart/form-data'},
+    transformRequest: data => data,
+  });
 };
 
 // Aliases for backward compatibility
@@ -511,6 +533,9 @@ const apiService = {
   uploadBanner,
   deleteBanner,
   fetchBanners,
+  fetchAdminBanners,
+  deleteBannerById,
+  updateBanner,
   // Stores CRUD
   fetchAdminStores,
   fetchStoresAdmin,

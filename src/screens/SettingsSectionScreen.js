@@ -295,27 +295,41 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
   );
   const [banners, setBanners] = useState([]);
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannersLoading, setBannersLoading] = useState(false);
 
-  const loadBanners = useCallback(() => {
-    setBannersEnabled(config.banners_enabled === 'true' || config.banners_enabled === true);
+  const loadBanners = useCallback(async () => {
+    setBannersLoading(true);
     try {
-      const data = config.banners_data;
-      if (!data) { setBanners([]); return; }
-      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-      setBanners(Array.isArray(parsed) ? parsed : []);
-    } catch {
+      const res = await apiService.fetchAdminBanners();
+      let items = [];
+      if (Array.isArray(res)) {
+        items = res;
+      } else if (res && Array.isArray(res.data)) {
+        items = res.data;
+      } else if (res && Array.isArray(res.banners)) {
+        items = res.banners;
+      }
+      setBanners(items);
+    } catch (err) {
+      console.log('[Banners] Error loading:', err?.message || err);
       setBanners([]);
+    } finally {
+      setBannersLoading(false);
     }
-  }, [config.banners_enabled, config.banners_data]);
+  }, []);
 
   useEffect(() => {
-    loadBanners();
-  }, [loadBanners]);
+    if (bannersEnabled) {
+      loadBanners();
+    } else {
+      setBanners([]);
+    }
+  }, [bannersEnabled, loadBanners]);
 
   const handleBannersToggle = async value => {
     setBannersEnabled(value);
     try {
-      await updateConfig({banners_enabled: String(value), banners_data: value ? JSON.stringify(banners) : ''});
+      await updateConfig({banners_enabled: String(value)});
     } catch {
       setBannersEnabled(!value);
       setModal({visible: true, type: 'alert', title: 'Error', message: 'No se pudo actualizar la configuracion.', confirmText: 'Aceptar', onConfirm: null});
@@ -325,98 +339,81 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
   const handleAddBanner = useCallback(async () => {
     try {
       const result = await launchImageLibrary({
-        mediaType: 'photo',
+        mediaType: 'mixed',
         quality: 0.8,
         selectionLimit: 1,
       });
       if (result.didCancel || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
-        Alert.alert('Error', 'La imagen no debe superar 2MB');
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Error', 'El archivo no debe superar 5MB');
         return;
       }
       setBannerUploading(true);
       try {
-        const api = await apiService.createApiClient();
         const formData = new FormData();
         formData.append('file', {
           uri: asset.uri,
           name: asset.fileName || 'banner.jpg',
           type: asset.type || 'image/jpeg',
         });
-        const res = await api.post('/config/upload-banner', formData, {
-          headers: {'Content-Type': 'multipart/form-data'},
-          transformRequest: data => data,
-        });
-        const url = res?.url || res?.data?.url;
-        if (url) {
-          const newBanners = [...banners, {image: url, link: ''}];
-          setBanners(newBanners);
-          await updateConfig({banners_data: JSON.stringify(newBanners)});
-          loadBanners();
-          if (!bannersEnabled) {
-            setBannersEnabled(true);
-            await updateConfig({banners_enabled: 'true'});
-          }
-        }
+        await apiService.uploadBanner(formData);
+        loadBanners();
       } catch (err) {
-        Alert.alert('Error', 'No se pudo subir el banner.');
+        Alert.alert('Error', err?.error || err?.message || 'No se pudo subir el banner.');
       } finally {
         setBannerUploading(false);
       }
     } catch {
       // Picker error
     }
-  }, [banners, bannersEnabled, updateConfig, loadBanners]);
+  }, [loadBanners]);
 
-  const handleRemoveBanner = useCallback(async index => {
-    const newBanners = banners.filter((_, i) => i !== index);
-    setBanners(newBanners);
+  const handleRemoveBanner = useCallback(async bannerId => {
     try {
-      await updateConfig({banners_data: JSON.stringify(newBanners)});
-      try { await apiService.deleteBanner(banners[index].image); } catch {}
+      await apiService.deleteBannerById(bannerId);
+      setBanners(prev => prev.filter(b => b.id !== bannerId));
     } catch {
-      setBanners(banners);
       Alert.alert('Error', 'No se pudo eliminar el banner.');
     }
-  }, [banners, updateConfig]);
+  }, []);
 
-  const handleChangeBannerImage = useCallback(async index => {
+  const handleToggleActive = useCallback(async banner => {
+    try {
+      const formData = new FormData();
+      formData.append('active', String(!banner.active));
+      await apiService.updateBanner(banner.id, formData);
+      setBanners(prev =>
+        prev.map(b => (b.id === banner.id ? {...b, active: !b.active} : b)),
+      );
+    } catch {
+      Alert.alert('Error', 'No se pudo cambiar el estado del banner.');
+    }
+  }, []);
+
+  const handleChangeBannerImage = useCallback(async bannerId => {
     try {
       const result = await launchImageLibrary({
-        mediaType: 'photo',
+        mediaType: 'mixed',
         quality: 0.8,
         selectionLimit: 1,
       });
       if (result.didCancel || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
-        Alert.alert('Error', 'La imagen no debe superar 2MB');
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Error', 'El archivo no debe superar 5MB');
         return;
       }
       setBannerUploading(true);
       try {
-        const api = await apiService.createApiClient();
         const formData = new FormData();
         formData.append('file', {
           uri: asset.uri,
           name: asset.fileName || 'banner.jpg',
           type: asset.type || 'image/jpeg',
         });
-        const res = await api.post('/config/upload-banner', formData, {
-          headers: {'Content-Type': 'multipart/form-data'},
-          transformRequest: data => data,
-        });
-        const url = res?.url || res?.data?.url;
-        if (url) {
-          const newBanners = banners.map((b, i) =>
-            i === index ? {...b, image: url} : b,
-          );
-          setBanners(newBanners);
-          await updateConfig({banners_data: JSON.stringify(newBanners)});
-          // Delete old image from storage
-          try { await apiService.deleteBanner(banners[index].image); } catch {}
-        }
+        await apiService.updateBanner(bannerId, formData);
+        loadBanners();
       } catch {
         Alert.alert('Error', 'No se pudo cambiar la imagen del banner.');
       } finally {
@@ -425,7 +422,7 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
     } catch {
       // Picker error
     }
-  }, [banners, updateConfig]);
+  }, [loadBanners]);
 
   return (
     <View style={{position: 'relative'}}>
@@ -467,26 +464,38 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
                 {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
               </Text>
             </TouchableOpacity>
-            {banners.length > 0 && (
+            {bannersLoading ? (
+              <View style={{paddingVertical: 20, alignItems: 'center'}}>
+                <ActivityIndicator size="small" color={primary} />
+                <Text style={{marginTop: 8, fontSize: 13, color: theme.colors.textSecondary}}>Cargando banners...</Text>
+              </View>
+            ) : banners.length > 0 ? (
               <View style={styles.bannerList}>
                 {banners.map((banner, index) => (
-                  <View key={`banner-${index}`} style={styles.bannerItem}>
+                  <View key={`banner-${banner.id}`} style={styles.bannerItem}>
                     <TouchableOpacity
-                      onPress={() => handleChangeBannerImage(index)}
+                      onPress={() => handleChangeBannerImage(banner.id)}
                       disabled={bannerUploading}
                       activeOpacity={0.8}
                       style={styles.bannerThumbWrapper}>
-                      <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                      <Image source={{uri: banner.imageUrl}} style={styles.bannerThumb} resizeMode="cover" />
                       <View style={styles.bannerThumbOverlay}>
                         <Icon name="camera-outline" size={18} color="#FFF" />
                       </View>
                     </TouchableOpacity>
                     <View style={styles.bannerItemInfo}>
-                      <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
-                      <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
+                      <Text style={styles.bannerItemLabel}>Banner #{index + 1}</Text>
+                      <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.active ? 'Activo' : 'Inactivo'}</Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => handleRemoveBanner(index)}
+                      onPress={() => handleToggleActive(banner)}
+                      style={styles.bannerRemoveBtn}
+                      hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                      activeOpacity={0.7}>
+                      <Icon name={banner.active ? 'eye-off-outline' : 'eye-outline'} size={20} color={banner.active ? '#27AE60' : theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveBanner(banner.id)}
                       style={styles.bannerRemoveBtn}
                       hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
                       activeOpacity={0.7}>
@@ -495,8 +504,13 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
                   </View>
                 ))}
               </View>
+            ) : (
+              <View style={{paddingVertical: 16, alignItems: 'center'}}>
+                <Icon name="images-outline" size={32} color={theme.colors.textLight} />
+                <Text style={{marginTop: 8, fontSize: 13, color: theme.colors.textSecondary}}>No hay banners configurados</Text>
+              </View>
             )}
-            <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
+            <Text style={styles.logoHint}>Maximo 5MB por banner. Se muestra como carrusel en el inicio.</Text>
           </>
         )}
       </View>
