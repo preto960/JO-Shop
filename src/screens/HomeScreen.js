@@ -401,33 +401,6 @@ const HomeScreen = () => {
     );
   };
 
-  // ─── Feature strip ──────────────────────────────────────────────────────
-  const renderFeatureStrip = () => {
-    if (hasActiveFilters) return null;
-    return (
-      <View style={styles.featureStrip}>
-        <View style={styles.featureItem}>
-          <View style={[styles.featureIcon, {backgroundColor: primaryColor + '15'}]}>
-            <Icon name="rocket-outline" size={20} color={primaryColor} />
-          </View>
-          <Text style={styles.featureLabel}>Envío rápido</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <View style={[styles.featureIcon, {backgroundColor: primaryColor + '15'}]}>
-            <Icon name="shield-checkmark-outline" size={20} color={primaryColor} />
-          </View>
-          <Text style={styles.featureLabel}>Pago seguro</Text>
-        </View>
-        <View style={styles.featureItem}>
-          <View style={[styles.featureIcon, {backgroundColor: primaryColor + '15'}]}>
-            <Icon name="headset-outline" size={20} color={primaryColor} />
-          </View>
-          <Text style={styles.featureLabel}>Soporte 24/7</Text>
-        </View>
-      </View>
-    );
-  };
-
   // ─── Banner Carousel (publicidad) ─────────────────────────────────────
   const renderBannerCarousel = () => {
     if (!bannersEnabled || hasActiveFilters) return null;
@@ -694,9 +667,6 @@ const HomeScreen = () => {
                 />
               </View>
             )}
-
-            {/* ═══ Feature Strip ═══ */}
-            {renderFeatureStrip()}
 
             {/* ═══ Best Sellers Carousel ═══ */}
             {renderProductCarousel('Más vendidos', bestSellers, bestSellersRef)}
