@@ -382,66 +382,99 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
   }, [banners, updateConfig]);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.toggleRow}>
-        <View style={styles.toggleInfo}>
-          <View style={styles.toggleIconRow}>
-            <Icon name="images-outline" size={22} color={primary} />
-            <Text style={styles.toggleLabel}>Banners activos</Text>
-          </View>
-          <Text style={styles.toggleDescription}>
-            {bannersEnabled
-              ? 'Los banners se muestran en la pagina principal de la tienda.'
-              : 'Los banners estan ocultos. Activa para mostrarlos.'}
-          </Text>
-        </View>
-        <View style={styles.switchWrapper}>
-          <Switch
-            value={bannersEnabled}
-            onValueChange={handleBannersToggle}
-            trackColor={{false: theme.colors.border, true: primary}}
-            thumbColor={theme.colors.white}
-          />
-        </View>
-      </View>
-      {bannersEnabled && (
-        <>
-          <TouchableOpacity
-            onPress={handleAddBanner}
-            disabled={bannerUploading}
-            style={[styles.addBannerBtn, bannerUploading && {opacity: 0.6}]}
-            activeOpacity={0.7}>
-            {bannerUploading ? (
-              <ActivityIndicator size="small" color={primary} />
-            ) : (
-              <Icon name="add-circle-outline" size={20} color={primary} />
-            )}
-            <Text style={styles.addBannerBtnText}>
-              {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
-            </Text>
-          </TouchableOpacity>
-          {banners.length > 0 && (
-            <View style={styles.bannerList}>
-              {banners.map((banner, index) => (
-                <View key={`banner-${index}`} style={styles.bannerItem}>
-                  <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
-                  <View style={styles.bannerItemInfo}>
-                    <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
-                    <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => handleRemoveBanner(index)}
-                    style={styles.bannerRemoveBtn}
-                    hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
-                    activeOpacity={0.7}>
-                    <Icon name="close-circle" size={22} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+    <View style={{position: 'relative'}}>
+      <View style={styles.card}>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <View style={styles.toggleIconRow}>
+              <Icon name="images-outline" size={22} color={primary} />
+              <Text style={styles.toggleLabel}>Banners activos</Text>
             </View>
+            <Text style={styles.toggleDescription}>
+              {bannersEnabled
+                ? 'Los banners se muestran en la pagina principal de la tienda.'
+                : 'Los banners estan ocultos. Activa para mostrarlos.'}
+            </Text>
+          </View>
+          <View style={styles.switchWrapper}>
+            <Switch
+              value={bannersEnabled}
+              onValueChange={handleBannersToggle}
+              trackColor={{false: theme.colors.border, true: primary}}
+              thumbColor={theme.colors.white}
+            />
+          </View>
+        </View>
+        {bannersEnabled && (
+          <>
+            <TouchableOpacity
+              onPress={handleAddBanner}
+              disabled={bannerUploading}
+              style={[styles.addBannerBtn, bannerUploading && {opacity: 0.6}]}
+              activeOpacity={0.7}>
+              {bannerUploading ? (
+                <ActivityIndicator size="small" color={primary} />
+              ) : (
+                <Icon name="add-circle-outline" size={20} color={primary} />
+              )}
+              <Text style={styles.addBannerBtnText}>
+                {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
+              </Text>
+            </TouchableOpacity>
+            {banners.length > 0 && (
+              <View style={styles.bannerList}>
+                {banners.map((banner, index) => (
+                  <View key={`banner-${index}`} style={styles.bannerItem}>
+                    <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                    <View style={styles.bannerItemInfo}>
+                      <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
+                      <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveBanner(index)}
+                      style={styles.bannerRemoveBtn}
+                      hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                      activeOpacity={0.7}>
+                      <Icon name="close-circle" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
+          </>
+        )}
+      </View>
+      {/* Floating Add Banner FAB */}
+      {bannersEnabled && (
+        <TouchableOpacity
+          onPress={handleAddBanner}
+          disabled={bannerUploading}
+          style={{
+            position: 'absolute',
+            bottom: -8,
+            right: 16,
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: {width: 0, height: 4},
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 6,
+            zIndex: 10,
+          }}
+          activeOpacity={0.8}
+          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
+          {bannerUploading ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Icon name="add" size={28} color="#FFF" />
           )}
-          <Text style={styles.logoHint}>Maximo 2MB por banner. Se muestra como carrusel en el inicio.</Text>
-        </>
+        </TouchableOpacity>
       )}
     </View>
   );
