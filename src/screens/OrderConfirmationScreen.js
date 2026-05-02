@@ -92,7 +92,7 @@ const OrderConfirmationScreen = ({route}) => {
                     {item.name} x{item.quantity}
                   </Text>
                   <Text style={styles.itemSubtotal}>
-                    {formatPrice((item.price || 0) * item.quantity)}
+                    {formatPrice((item.productPrice || item.price || 0) * item.quantity)}
                   </Text>
                 </View>
               </View>

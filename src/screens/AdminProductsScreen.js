@@ -852,8 +852,8 @@ const AdminProductsScreen = () => {
       <Modal
         visible={modalVisible}
         animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={closeModal}>
+        presentationStyle="fullScreen"
+        onRequestClose={() => {}}>
         <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
           {/* Modal header */}
           <View style={styles.modalHeader}>

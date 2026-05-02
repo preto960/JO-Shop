@@ -328,7 +328,7 @@ const SettingsScreen = () => {
                 });
                 const newBanner = res?.banner || res?.data?.banner;
                 if (newBanner) {
-                  setBanners(prev => [...prev, newBanner]);
+                  await loadBanners();
                   if (!bannersEnabled) {
                     setBannersEnabled(true);
                     await updateConfig({banners_enabled: 'true'});
@@ -349,7 +349,7 @@ const SettingsScreen = () => {
     } catch {
       // Picker error
     }
-  }, [bannersEnabled, updateConfig]);
+  }, [bannersEnabled, updateConfig, loadBanners]);
 
   const handleEditBannerDuration = useCallback((banner) => {
     setBannerMenuId(null);
