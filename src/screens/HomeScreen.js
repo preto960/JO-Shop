@@ -587,16 +587,37 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* ═══ Header ═══ */}
-      <View style={[styles.header, !isAuthenticated ? styles.headerGuest : null]}>
+      <View style={styles.header}>
         {shopLogoUrl ? (
           <Image source={{uri: shopLogoUrl}} style={styles.logoImage} resizeMode="contain" />
         ) : (
           <Text style={[styles.logo, {color: primaryColor}]}>{shopName}</Text>
         )}
-        <View style={styles.headerSpacer} />
+        {/* Search bar in header */}
+        <View style={styles.headerSearchContainer}>
+          <Icon name="search" size={16} color={theme.colors.textLight} />
+          <TextInput
+            style={styles.headerSearchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Buscar productos..."
+            placeholderTextColor={theme.colors.textLight}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery ? (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}>
+              <Icon name="close-circle" size={16} color={theme.colors.textLight} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
         {isAuthenticated ? (
           <TouchableOpacity onPress={logout} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="log-out-outline" size={24} color={primary} />
+            <Icon name="log-out-outline" size={22} color={primary} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -626,118 +647,47 @@ const HomeScreen = () => {
         }
         ListHeaderComponent={
           <>
-            {/* ═══ Hero Banner ═══ */}
-            {!hasActiveFilters && (
-              <View style={[styles.heroBanner, {backgroundColor: primaryColor}]}>
-                {/* Decorative circles */}
-                <View style={[styles.heroCircle1, {borderColor: 'rgba(255,255,255,0.15)'}]} />
-                <View style={[styles.heroCircle2, {borderColor: 'rgba(255,255,255,0.1)'}]} />
-                <View style={styles.heroCircle3} />
-
-                <Text style={styles.heroGreeting}>
-                  {isAuthenticated && user?.name
-                    ? `Hola, ${user.name.split(' ')[0]} 👋`
-                    : `Bienvenido a ${shopName}`}
-                </Text>
-                <Text style={styles.heroSubtext}>Descubre productos increíbles</Text>
-
-                {/* Search bar */}
-                <View style={styles.heroSearchContainer}>
-                  <Icon name="search" size={18} color={theme.colors.textSecondary} style={styles.heroSearchIcon} />
-                  <TextInput
-                    style={styles.heroSearchInput}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Buscar productos..."
-                    placeholderTextColor={theme.colors.textLight}
-                    returnKeyType="search"
-                    clearButtonMode="while-editing"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  {searchQuery ? (
-                    <TouchableOpacity
-                      onPress={() => setSearchQuery('')}
-                      hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-                      <Icon name="close-circle" size={18} color={theme.colors.textSecondary} />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
-            )}
-
-            {/* ═══ Search bar (when filters active, outside hero) ═══ */}
-            {hasActiveFilters && (
-              <View style={styles.searchContainer}>
-                <View style={styles.searchInputContainer}>
-                  <Icon name="search" size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
-                  <TextInput
-                    style={styles.searchInput}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Buscar productos..."
-                    placeholderTextColor={theme.colors.textLight}
-                    returnKeyType="search"
-                    clearButtonMode="while-editing"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  {searchQuery ? (
-                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-                      <Icon name="close-circle" size={18} color={theme.colors.textSecondary} />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
-            )}
-
             {/* ═══ Banner Carousel (publicidad) ═══ */}
             {renderBannerCarousel()}
 
-            {/* ═══ Category filters ═══ */}
+            {/* ═══ Category cards with images ═══ */}
             {categories.length > 0 && (
-              <View style={styles.filterRow}>
-                <View style={styles.chipScrollWrapper} onLayout={handleCategoryLayout}>
-                  {catCanScrollLeft && (
-                    <TouchableOpacity
-                      style={styles.scrollArrowLeft}
-                      onPress={() => scrollCategoryBy('left')}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
-                      <Icon name="chevron-back" size={20} color={primary} />
-                    </TouchableOpacity>
-                  )}
-                  <FlatList
-                    ref={categoryListRef}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    onScroll={handleCategoryScroll}
-                    scrollEventThrottle={16}
-                    data={[{id: null, name: 'Todos'}, ...categories]}
-                    keyExtractor={item => `cat-${item.id?.toString() || 'all'}`}
-                    renderItem={({item}) => (
+              <View style={styles.categorySection}>
+                <FlatList
+                  ref={categoryListRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={handleCategoryScroll}
+                  scrollEventThrottle={16}
+                  data={[{id: null, name: 'Todos', image: null}, ...categories]}
+                  keyExtractor={item => `cat-${item.id?.toString() || 'all'}`}
+                  renderItem={({item}) => {
+                    const isActive = selectedCategory === item.id;
+                    return (
                       <TouchableOpacity
                         onPress={() => handleCategorySelect(item.id)}
-                        style={[styles.filterChip, selectedCategory === item.id && styles.filterChipActive]}
-                        activeOpacity={0.7}>
-                        <Text style={[styles.filterChipText, selectedCategory === item.id && styles.filterChipTextActive]}>
+                        style={[styles.categoryCard, isActive && styles.categoryCardActive]}
+                        activeOpacity={0.8}>
+                        <View style={[styles.categoryImageWrap, isActive && styles.categoryImageWrapActive]}>
+                          {item.image ? (
+                            <Image source={{uri: item.image}} style={styles.categoryImage} resizeMode="cover" />
+                          ) : (
+                            <View style={[styles.categoryIconWrap, isActive && styles.categoryIconWrapActive]}>
+                              <Icon name={item.id === null ? 'grid-outline' : 'pricetag-outline'} size={22} color={isActive ? theme.colors.white : theme.colors.textSecondary} />
+                            </View>
+                          )}
+                        </View>
+                        <Text
+                          style={[styles.categoryName, isActive && styles.categoryNameActive]}
+                          numberOfLines={1}>
                           {item.name || 'Todos'}
                         </Text>
                       </TouchableOpacity>
-                    )}
-                    style={styles.filterList}
-                    onContentSizeChange={(w) => handleCategoryContentResize(w)}
-                  />
-                  {catCanScrollRight && (
-                    <TouchableOpacity
-                      style={styles.scrollArrowRight}
-                      onPress={() => scrollCategoryBy('right')}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}>
-                      <Icon name="chevron-forward" size={20} color={primary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                    );
+                  }}
+                  contentContainerStyle={styles.categoryList}
+                  onContentSizeChange={(w) => handleCategoryContentResize(w)}
+                />
               </View>
             )}
 
@@ -882,22 +832,29 @@ const createStyles = (primary) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.white,
-    paddingLeft: 4,
+    paddingLeft: theme.spacing.sm,
     paddingRight: theme.spacing.md,
     paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
     ...theme.shadows.sm,
   },
-  headerGuest: {
-    backgroundColor: 'transparent',
-    elevation: 0,
-    shadowColor: 'transparent',
-    shadowOffset: {width: 0, height: 0},
-    shadowOpacity: 0,
-    shadowRadius: 0,
-  },
-  headerSpacer: {
+  headerSearchContainer: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.md,
+    height: 40,
+  },
+  headerSearchInput: {
+    flex: 1,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    height: 40,
+    padding: 0,
+    marginLeft: 6,
   },
   loginBtn: {
     paddingHorizontal: 14,
@@ -910,106 +867,69 @@ const createStyles = (primary) => StyleSheet.create({
     fontWeight: '700',
   },
   logo: {
-    fontSize: theme.fontSize.title,
+    fontSize: theme.fontSize.md,
     fontWeight: '800',
     color: theme.colors.primary,
     letterSpacing: -0.5,
   },
   logoImage: {
-    width: 160,
-    height: 50,
+    width: 90,
+    height: 40,
   },
-  // ─── Hero Banner ─────────────────────────────────────────────────────
-  heroBanner: {
-    marginHorizontal: theme.spacing.md,
+  // ─── Category Cards (with images) ────────────────────────────────────
+  categorySection: {
     marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
-    paddingTop: theme.spacing.xxl,
-    paddingBottom: theme.spacing.lg,
-    overflow: 'hidden',
-    position: 'relative',
+    marginBottom: theme.spacing.sm,
   },
-  heroCircle1: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 2,
-    top: -40,
-    right: -30,
+  categoryList: {
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.md,
   },
-  heroCircle2: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    bottom: -20,
-    left: -20,
+  categoryCard: {
+    alignItems: 'center',
+    width: 72,
   },
-  heroCircle3: {
-    position: 'absolute',
+  categoryCardActive: {
+    // Active state handled per-sub-element
+  },
+  categoryImageWrap: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    top: 20,
-    right: 80,
-  },
-  heroGreeting: {
-    fontSize: theme.fontSize.xl + 2,
-    fontWeight: '800',
-    color: theme.colors.white,
-    marginBottom: 4,
-  },
-  heroSubtext: {
-    fontSize: theme.fontSize.md,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: theme.spacing.lg,
-    fontWeight: '500',
-  },
-  heroSearchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: theme.borderRadius.full,
-    paddingHorizontal: theme.spacing.md,
-    height: 46,
-  },
-  heroSearchIcon: {
-    marginRight: theme.spacing.sm,
-  },
-  heroSearchInput: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    height: 46,
-    padding: 0,
-  },
-  // ─── Search (outside hero) ──────────────────────────────────────────
-  searchContainer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.borderRadius.full,
-    paddingHorizontal: theme.spacing.md,
-    height: 42,
+    borderWidth: 2.5,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 6,
   },
-  searchIcon: {
-    marginRight: theme.spacing.sm,
+  categoryImageWrapActive: {
+    borderColor: primary,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    height: 42,
-    padding: 0,
+  categoryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  categoryIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryIconWrapActive: {
+    backgroundColor: primary,
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+  },
+  categoryName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  categoryNameActive: {
+    color: primary,
+    fontWeight: '700',
   },
   // ─── Feature Strip ───────────────────────────────────────────────────
   featureStrip: {
@@ -1234,61 +1154,6 @@ const createStyles = (primary) => StyleSheet.create({
     position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  scrollArrowLeft: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: theme.borderRadius.xl,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: -1, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  scrollArrowRight: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: theme.borderRadius.xl,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  filterList: {
-    marginRight: theme.spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.xl,
-    backgroundColor: theme.colors.inputBg,
-    marginRight: theme.spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: primary,
-  },
-  filterChipText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: '500',
-    color: theme.colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: theme.colors.white,
   },
   // Store filter
   storeFilterRow: {
