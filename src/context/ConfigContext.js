@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useState, useEffect, useCallback, useRef} from 'react';
-import {AppState} from 'react-native';
+import {AppState, AsyncStorage} from 'react-native';
 import apiService from '@services/api';
 
 const ConfigContext = createContext(null);
@@ -18,6 +18,20 @@ export const ConfigProvider = ({children}) => {
 
   const loadConfig = useCallback(async () => {
     try {
+      // Try loading from cache first for immediate colors on reload
+      try {
+        const cached = await AsyncStorage.getItem('app_config');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && Object.keys(parsed).length > 0) {
+            lastConfigRef.current = parsed;
+            setConfig(parsed);
+          }
+        }
+      } catch {
+        // Ignore cache errors
+      }
+
       const data = await apiService.fetchSystemConfig();
       // data is a flat object { multi_store: "true", ... }
       const newConfig = {
@@ -26,6 +40,12 @@ export const ConfigProvider = ({children}) => {
       };
       lastConfigRef.current = newConfig;
       setConfig(newConfig);
+      // Persist to AsyncStorage for fast reload
+      try {
+        await AsyncStorage.setItem('app_config', JSON.stringify(newConfig));
+      } catch {
+        // Ignore storage errors
+      }
     } catch (err) {
       console.warn('[Config] Error loading config:', err.message);
     } finally {
@@ -37,8 +57,15 @@ export const ConfigProvider = ({children}) => {
     try {
       const result = await apiService.updateSystemConfig(settings);
       // Immediately update local state
+      const newConfig = {...lastConfigRef.current, ...settings};
       setConfig(prev => ({...prev, ...settings}));
-      lastConfigRef.current = {...lastConfigRef.current, ...settings};
+      lastConfigRef.current = newConfig;
+      // Persist to AsyncStorage
+      try {
+        await AsyncStorage.setItem('app_config', JSON.stringify(newConfig));
+      } catch {
+        // Ignore storage errors
+      }
       return result;
     } catch (err) {
       console.error('[Config] Error updating config:', err.message);

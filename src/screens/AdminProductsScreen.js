@@ -645,6 +645,7 @@ const AdminProductsScreen = () => {
                 source={{uri: item.thumbnail || item.image}}
                 style={styles.cardAvatarImg}
                 resizeMode="cover"
+                onError={() => {}}
               />
             ) : (
               <View style={styles.cardAvatarPlaceholder}>

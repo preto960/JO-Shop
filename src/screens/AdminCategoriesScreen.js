@@ -140,6 +140,12 @@ const AdminCategoriesScreen = () => {
 
       if (isEditing && editingCategory) {
         await apiService.updateCategory(editingCategory.id, payload);
+        // Update local state immediately for image removal
+        setCategories(prev => prev.map(c =>
+          c.id === editingCategory.id
+            ? {...c, name: payload.name, image: payload.image}
+            : c
+        ));
       } else {
         await apiService.createCategory(payload);
       }
@@ -199,9 +205,12 @@ const AdminCategoriesScreen = () => {
       {/* Image thumbnail or placeholder */}
       <View style={styles.imageContainer}>
         {item.image ? (
-          <View style={[styles.imagePlaceholder, {backgroundColor: '#FDE8EC'}]}>
-            <Icon name="image-outline" size={28} color={primary} />
-          </View>
+          <Image
+            source={{uri: item.image}}
+            style={styles.categoryImage}
+            resizeMode="cover"
+            onError={() => {}}
+          />
         ) : (
           <View style={styles.imagePlaceholder}>
             <Icon name="folder-outline" size={28} color={theme.colors.textSecondary} />
@@ -493,6 +502,11 @@ const createStyles = (primary) => StyleSheet.create({
     backgroundColor: '#F0F2F5',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  categoryImage: {
+    width: 50,
+    height: 50,
+    borderRadius: theme.borderRadius.md,
   },
   cardInfo: {
     flex: 1,

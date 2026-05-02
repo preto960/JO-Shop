@@ -64,6 +64,7 @@ const ProductDetailScreen = ({route}) => {
   const styles = useMemo(() => createStyles(primary), [primary]);
   const product = route.params?.product;
   const [addedToCart, setAddedToCart] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -143,6 +144,9 @@ const ProductDetailScreen = ({route}) => {
 
   const imageUrl = allImages.length > 0 ? allImages[currentIndex] : null;
 
+  // Reset image error when image source changes
+  useEffect(() => { setImageError(false); }, [imageUrl]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
@@ -150,9 +154,9 @@ const ProductDetailScreen = ({route}) => {
         contentContainerStyle={styles.scrollContent}>
         {/* Imagen / Carousel */}
         <View style={styles.imageContainer}>
-          {imageUrl ? (
+          {imageUrl && !imageError ? (
             <Animated.View style={{opacity: fadeAnim, flex: 1}}>
-              <Image source={{uri: imageUrl}} style={styles.image} />
+              <Image source={{uri: imageUrl}} style={styles.image} onError={() => setImageError(true)} />
             </Animated.View>
           ) : (
             <View style={styles.imagePlaceholder}>

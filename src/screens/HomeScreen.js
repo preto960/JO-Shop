@@ -360,6 +360,7 @@ const HomeScreen = () => {
                   source={{uri: item.image || item.imageUrl || item.images?.[0]}}
                   style={styles.carouselImage}
                   resizeMode="cover"
+                  onError={() => {}}
                 />
                 {item.stock !== undefined && item.stock <= 0 && (
                   <View style={styles.outOfStockBadge}>
@@ -1332,9 +1333,11 @@ const createStyles = (primary) => StyleSheet.create({
   },
   row: {
     gap: theme.spacing.md,
+    justifyContent: 'center',
   },
   productCard: {
-    width: '48%',
+    flex: 1,
+    maxWidth: '48%',
   },
 });
 

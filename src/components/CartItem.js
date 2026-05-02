@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,15 @@ import theme from '@theme/styles';
 import useThemeColors from '@hooks/useThemeColors';
 
 const CartItem = ({item}) => {
+  const [imageError, setImageError] = useState(false);
   const {updateQuantity, removeItem} = useCart();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
 
   const imageUrl = item.image || item.thumbnail || null;
+
+  // Reset image error when item/imageUrl changes
+  useEffect(() => { setImageError(false); }, [imageUrl]);
   const discount = item.discountPercent ?? item.discount_percent ?? 0;
   const hasDiscount = discount > 0;
   const price = item.price ?? item.precio ?? 0;
@@ -27,8 +31,8 @@ const CartItem = ({item}) => {
     <View style={styles.container}>
       {/* Imagen */}
       <View style={styles.imageContainer}>
-        {imageUrl ? (
-          <Image source={{uri: imageUrl}} style={styles.image} />
+        {imageUrl && !imageError ? (
+          <Image source={{uri: imageUrl}} style={styles.image} onError={() => setImageError(true)} />
         ) : (
           <View style={styles.imagePlaceholder}>
             <Icon name="image-outline" size={24} color={theme.colors.textLight} />

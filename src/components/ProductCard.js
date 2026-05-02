@@ -51,11 +51,16 @@ const parseProductImages = product => {
 };
 
 const ProductCard = ({product, onPress, containerStyle}) => {
+  const [imageError, setImageError] = useState(false);
   const {addItem} = useCart();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
 
   const allImages = useMemo(() => parseProductImages(product), [product]);
+  const imageUrl = allImages.length > 0 ? allImages[currentIndex] : null;
+
+  // Reset image error when image source changes
+  useEffect(() => { setImageError(false); }, [imageUrl]);
   const hasMultipleImages = allImages.length > 1;
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef(null);
@@ -79,7 +84,6 @@ const ProductCard = ({product, onPress, containerStyle}) => {
     addItem(product);
   };
 
-  const imageUrl = allImages.length > 0 ? allImages[currentIndex] : null;
   const discount = product.discountPercent ?? product.discount_percent ?? 0;
   const hasDiscount = discount > 0;
   const price = product.price ?? product.precio ?? 0;
@@ -92,8 +96,8 @@ const ProductCard = ({product, onPress, containerStyle}) => {
       style={[styles.card, containerStyle]}>
       {/* Imagen del producto */}
       <View style={styles.imageContainer}>
-        {imageUrl ? (
-          <Image source={{uri: imageUrl}} style={styles.image} />
+        {imageUrl && !imageError ? (
+          <Image source={{uri: imageUrl}} style={styles.image} onError={() => setImageError(true)} />
         ) : (
           <View style={styles.imagePlaceholder}>
             <Icon name="image-outline" size={36} color={theme.colors.textLight} />
