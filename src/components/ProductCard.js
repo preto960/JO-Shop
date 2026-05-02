@@ -57,13 +57,14 @@ const ProductCard = ({product, onPress, containerStyle}) => {
   const styles = useMemo(() => createStyles(primary), [primary]);
 
   const allImages = useMemo(() => parseProductImages(product), [product]);
+  const hasMultipleImages = allImages.length > 1;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const intervalRef = useRef(null);
+
   const imageUrl = allImages.length > 0 ? allImages[currentIndex] : null;
 
   // Reset image error when image source changes
   useEffect(() => { setImageError(false); }, [imageUrl]);
-  const hasMultipleImages = allImages.length > 1;
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const intervalRef = useRef(null);
 
   // Auto-rotate every 3 seconds when multiple images
   useEffect(() => {
