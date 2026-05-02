@@ -169,22 +169,29 @@ const HomeScreen = () => {
   const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [bannerProgress, setBannerProgress] = useState(0);
+  const [bannersLoading, setBannersLoading] = useState(false);
   const bannerTimerRef = useRef(null);
   const bannerProgressRef = useRef(null);
   const bannerScrollRef = useRef(null);
 
   useEffect(() => {
-    if (!bannersEnabled || !hasApiConfig) { setBanners([]); return; }
+    if (!bannersEnabled || !hasApiConfig) { setBanners([]); setBannersLoading(false); return; }
+    let cancelled = false;
     const loadBanners = async () => {
+      setBannersLoading(true);
       try {
         const data = await apiService.fetchBanners();
+        if (cancelled) return;
         const list = Array.isArray(data) ? data : data?.data || [];
         setBanners(list);
       } catch {
-        setBanners([]);
+        if (!cancelled) setBanners([]);
+      } finally {
+        if (!cancelled) setBannersLoading(false);
       }
     };
     loadBanners();
+    return () => { cancelled = true; };
   }, [bannersEnabled, hasApiConfig]);
 
   // Auto-rotate banners with per-banner duration + progress bar
@@ -439,8 +446,20 @@ const HomeScreen = () => {
 
   // ─── Banner Carousel (publicidad) ─────────────────────────────────────
   const renderBannerCarousel = () => {
-    if (!bannersEnabled || banners.length === 0) return null;
-    if (hasActiveFilters) return null;
+    if (!bannersEnabled || hasActiveFilters) return null;
+
+    // Show placeholder skeleton while loading to prevent layout collapse
+    if (bannersLoading) {
+      return (
+        <View style={styles.bannerCarousel}>
+          <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+            <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+          </View>
+        </View>
+      );
+    }
+
+    if (banners.length === 0) return null;
 
     return (
       <View style={styles.bannerCarousel}>

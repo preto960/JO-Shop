@@ -289,13 +289,21 @@ const StoreModeSection = ({primary, styles, isMultiStore, updateConfig, setModal
 };
 
 // ─── Banners de Publicidad ───────────────────────────────────────────────────
-const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
+const BannersSection = ({primary, styles, config, updateConfig, setModal, onAddBannerReady}) => {
   const [bannersEnabled, setBannersEnabled] = useState(
     config.banners_enabled === 'true' || config.banners_enabled === true,
   );
   const [banners, setBanners] = useState([]);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [bannersLoading, setBannersLoading] = useState(false);
+  const addBannerRef = useRef(null);
+
+  // Expose add handler to parent for the screen-level FAB
+  useEffect(() => {
+    if (onAddBannerReady) {
+      onAddBannerReady(bannersEnabled ? () => addBannerRef.current?.() : null);
+    }
+  }, [bannersEnabled, onAddBannerReady]);
 
   const loadBanners = useCallback(async () => {
     setBannersLoading(true);
@@ -368,6 +376,9 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
       // Picker error
     }
   }, [loadBanners]);
+
+  // Keep ref pointing to current handler
+  useEffect(() => { addBannerRef.current = handleAddBanner; }, [handleAddBanner]);
 
   const handleRemoveBanner = useCallback(async bannerId => {
     try {
@@ -514,37 +525,6 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
           </>
         )}
       </View>
-      {/* Floating Add Banner FAB */}
-      {bannersEnabled && (
-        <TouchableOpacity
-          onPress={handleAddBanner}
-          disabled={bannerUploading}
-          style={{
-            position: 'absolute',
-            bottom: -8,
-            right: 16,
-            width: 52,
-            height: 52,
-            borderRadius: 26,
-            backgroundColor: primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: {width: 0, height: 4},
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
-            zIndex: 10,
-          }}
-          activeOpacity={0.8}
-          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-          {bannerUploading ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Icon name="add" size={28} color="#FFF" />
-          )}
-        </TouchableOpacity>
-      )}
     </View>
   );
 };
@@ -749,6 +729,7 @@ const SettingsSectionScreen = () => {
   const styles = useMemo(() => createStyles(primary), [primary]);
   const {config, isMultiStore, updateConfig} = useConfig();
   const [modal, setModal] = useState({visible: false, type: 'alert', title: '', message: '', confirmText: 'Aceptar', onConfirm: null});
+  const [bannerFabAction, setBannerFabAction] = useState(null);
 
   const section = route.params?.section || 'appearance';
   const meta = SECTION_META[section] || SECTION_META.appearance;
@@ -760,7 +741,7 @@ const SettingsSectionScreen = () => {
       case 'storeMode':
         return <StoreModeSection primary={primary} styles={styles} isMultiStore={isMultiStore} updateConfig={updateConfig} setModal={setModal} />;
       case 'banners':
-        return <BannersSection primary={primary} styles={styles} config={config} updateConfig={updateConfig} setModal={setModal} />;
+        return <BannersSection primary={primary} styles={styles} config={config} updateConfig={updateConfig} setModal={setModal} onAddBannerReady={setBannerFabAction} />;
       case 'server':
         return <ServerSection primary={primary} styles={styles} setModal={setModal} />;
       case 'about':
@@ -805,6 +786,32 @@ const SettingsSectionScreen = () => {
           else setModal(prev => ({...prev, visible: false}));
         }}
       />
+
+      {/* Screen-level FAB for banners */}
+      {bannerFabAction && section === 'banners' && (
+        <TouchableOpacity
+          onPress={bannerFabAction}
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            right: 20,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: {width: 0, height: 4},
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+          activeOpacity={0.85}
+          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
+          <Icon name="add" size={28} color="#FFF" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
