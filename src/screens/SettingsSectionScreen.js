@@ -381,6 +381,52 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
     }
   }, [banners, updateConfig]);
 
+  const handleChangeBannerImage = useCallback(async index => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+      if (result.didCancel || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 2 * 1024 * 1024) {
+        Alert.alert('Error', 'La imagen no debe superar 2MB');
+        return;
+      }
+      setBannerUploading(true);
+      try {
+        const api = await apiService.createApiClient();
+        const formData = new FormData();
+        formData.append('file', {
+          uri: asset.uri,
+          name: asset.fileName || 'banner.jpg',
+          type: asset.type || 'image/jpeg',
+        });
+        const res = await api.post('/config/upload-banner', formData, {
+          headers: {'Content-Type': 'multipart/form-data'},
+          transformRequest: data => data,
+        });
+        const url = res?.url || res?.data?.url;
+        if (url) {
+          const newBanners = banners.map((b, i) =>
+            i === index ? {...b, image: url} : b,
+          );
+          setBanners(newBanners);
+          await updateConfig({banners_data: JSON.stringify(newBanners)});
+          // Delete old image from storage
+          try { await apiService.deleteBanner(banners[index].image); } catch {}
+        }
+      } catch {
+        Alert.alert('Error', 'No se pudo cambiar la imagen del banner.');
+      } finally {
+        setBannerUploading(false);
+      }
+    } catch {
+      // Picker error
+    }
+  }, [banners, updateConfig]);
+
   return (
     <View style={{position: 'relative'}}>
       <View style={styles.card}>
@@ -425,7 +471,16 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal}) => {
               <View style={styles.bannerList}>
                 {banners.map((banner, index) => (
                   <View key={`banner-${index}`} style={styles.bannerItem}>
-                    <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                    <TouchableOpacity
+                      onPress={() => handleChangeBannerImage(index)}
+                      disabled={bannerUploading}
+                      activeOpacity={0.8}
+                      style={styles.bannerThumbWrapper}>
+                      <Image source={{uri: banner.image || banner.url}} style={styles.bannerThumb} resizeMode="cover" />
+                      <View style={styles.bannerThumbOverlay}>
+                        <Icon name="camera-outline" size={18} color="#FFF" />
+                      </View>
+                    </TouchableOpacity>
                     <View style={styles.bannerItemInfo}>
                       <Text style={styles.bannerItemLabel}>Banner {index + 1}</Text>
                       <Text style={styles.bannerItemUrl} numberOfLines={1}>{banner.image || banner.url}</Text>
@@ -1031,6 +1086,23 @@ const createStyles = primary => StyleSheet.create({
     height: 36,
     borderRadius: theme.borderRadius.sm,
     backgroundColor: theme.colors.border,
+  },
+  bannerThumbWrapper: {
+    width: 64,
+    height: 36,
+    borderRadius: theme.borderRadius.sm,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  bannerThumbOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bannerItemInfo: {flex: 1},
   bannerItemLabel: {
