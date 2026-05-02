@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import React, {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 import {
   View,
   Text,
@@ -475,6 +475,7 @@ const BannersSection = ({primary, styles, config, updateConfig, setModal, onAddB
                 {bannerUploading ? 'Subiendo banner...' : 'Agregar banner'}
               </Text>
             </TouchableOpacity>
+            <View style={{height: 16}} />
             {bannersLoading ? (
               <View style={{paddingVertical: 20, alignItems: 'center'}}>
                 <ActivityIndicator size="small" color={primary} />
