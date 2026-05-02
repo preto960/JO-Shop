@@ -282,6 +282,13 @@ const RegisterScreen = ({navigation}) => {
                 <Text style={styles.loginLink}>Inicia sesión</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('GuestTabs')}
+              style={styles.linkButton}
+              activeOpacity={0.7}>
+              <Text style={styles.linkText}>Ir al inicio</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -437,6 +444,16 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: primary,
+  },
+  linkButton: {
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  linkText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   passwordRulesContainer: {
     backgroundColor: theme.colors.inputBg,

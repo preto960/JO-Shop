@@ -1,4 +1,5 @@
-import React, {useState, useMemo} from 'react';
+import React, {useState, useMemo, useEffect} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -31,6 +32,20 @@ const LoginScreen = ({navigation, route}) => {
 
   const canGoBack = route.params?.fromGuest;
 
+  useEffect(() => {
+    const loadSavedCredentials = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@joshop_saved_credentials');
+        if (saved) {
+          const { email: savedEmail, password: savedPassword } = JSON.parse(saved);
+          if (savedEmail) setEmail(savedEmail);
+          if (savedPassword) setPassword(savedPassword);
+        }
+      } catch {}
+    };
+    loadSavedCredentials();
+  }, []);
+
   const handleLogin = async () => {
     setLocalError('');
 
@@ -45,6 +60,11 @@ const LoginScreen = ({navigation, route}) => {
 
     const result = await login(email.trim().toLowerCase(), password);
     console.log('[LoginScreen] login result:', JSON.stringify(result));
+    if (result.success) {
+      try {
+        await AsyncStorage.setItem('@joshop_saved_credentials', JSON.stringify({ email, password }));
+      } catch {}
+    }
     if (!result.success) {
       if (result.requiresOtp) {
         // Redirigir a verificación 2FA
@@ -176,6 +196,13 @@ const LoginScreen = ({navigation, route}) => {
                 <Text style={styles.registerLink}>Regístrate</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('GuestTabs')}
+              style={styles.linkButton}
+              activeOpacity={0.7}>
+              <Text style={styles.linkText}>Ir al inicio</Text>
+            </TouchableOpacity>
           </View>
 
 
@@ -299,6 +326,16 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: primary,
+  },
+  linkButton: {
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  linkText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
 
 });
