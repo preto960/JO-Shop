@@ -1159,8 +1159,7 @@ const createStyles = (primary) => StyleSheet.create({
   storeFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
+    justifyContent: 'center',
     paddingVertical: theme.spacing.xs,
   },
   storeFilterToggle: {
