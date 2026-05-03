@@ -3,12 +3,12 @@ import theme from '@theme/styles';
 
 /**
  * Hook that returns the dynamic theme colors from the admin config.
- * Falls back to the static theme colors when no config is available.
+ * Falls back to neutral gray when no config is available yet.
  *
  * - primary: The main brand color (configurable via admin settings)
- *   -> defaults to theme.colors.accent (#E94560) when not set
+ *   -> defaults to theme.colors.accent (neutral gray) when not set
  * - accent: The secondary brand color (configurable via admin settings)
- *   -> defaults to theme.colors.accentLight (#FF6B81) when not set
+ *   -> defaults to theme.colors.accentLight (neutral gray) when not set
  */
 const useThemeColors = () => {
   const {config} = useConfig();

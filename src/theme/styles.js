@@ -5,8 +5,8 @@ const {width, height} = Dimensions.get('window');
 const colors = {
   primary: '#1A1A2E',
   secondary: '#16213E',
-  accent: '#E94560',
-  accentLight: '#FF6B81',
+  accent: '#B0B8C1',
+  accentLight: '#C4CCD4',
   success: '#2ECC71',
   warning: '#F39C12',
   text: '#2C3E50',

@@ -10,6 +10,7 @@ import theme from '@theme/styles';
 import pushNotifications from '@services/notifications';
 import ConfirmModal from '@components/ConfirmModal';
 import OneSignal from 'react-native-onesignal';
+import ThemeLoader from '@components/ThemeLoader';
 
 // Ref de navegacion accesible fuera del componente
 export const navigationRef = createRef();
@@ -170,35 +171,48 @@ const NotificationHandler = () => {
   );
 };
 
+// Componente interno que accede a config para theme dinámico + loader
+const AppContent = () => {
+  const {config, loading} = useConfig();
+  const primaryColor = config.primary_color || theme.colors.accent;
+
+  return (
+    <>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={{
+          dark: false,
+          colors: {
+            primary: primaryColor,
+            background: theme.colors.background,
+            card: theme.colors.card,
+            text: theme.colors.text,
+            border: theme.colors.border,
+            notification: primaryColor,
+          },
+        }}>
+        <View style={styles.container}>
+          <StatusBar
+            barStyle="dark-content"
+            backgroundColor={theme.colors.white}
+            translucent={false}
+          />
+          <NotificationHandler />
+          <AppNavigator />
+        </View>
+      </NavigationContainer>
+      {loading && <ThemeLoader />}
+    </>
+  );
+};
+
 const App = () => {
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <ConfigProvider>
           <CartProvider>
-            <NavigationContainer
-              ref={navigationRef}
-              theme={{
-                dark: false,
-                colors: {
-                  primary: theme.colors.accent,
-                  background: theme.colors.background,
-                  card: theme.colors.card,
-                  text: theme.colors.text,
-                  border: theme.colors.border,
-                  notification: theme.colors.accent,
-                },
-              }}>
-              <View style={styles.container}>
-                <StatusBar
-                  barStyle="dark-content"
-                  backgroundColor={theme.colors.white}
-                  translucent={false}
-                />
-                <NotificationHandler />
-                <AppNavigator />
-              </View>
-            </NavigationContainer>
+            <AppContent />
           </CartProvider>
         </ConfigProvider>
       </AuthProvider>

@@ -1,5 +1,5 @@
-import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import React, {useRef, useEffect} from 'react';
+import {View, Text, StyleSheet, Animated, Easing} from 'react-native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -128,7 +128,7 @@ const CustomerTabs = () => {
   );
 };
 
-// ─── Admin Tabs (dinámicos según permisos) ──────────────────────────────────
+// ─── Admin Tabs (Panel + Configuración) ──────────────────────────────────
 const AdminTabs = () => {
   const {canViewModule, hasRole} = useAuth();
   const {isMultiStore} = useConfig();
@@ -162,13 +162,15 @@ const AdminTabs = () => {
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({color, size}) => {
-          const tab = tabs.find(t => t.name === route.name);
-          return <Icon name={tab?.icon || 'circle-outline'} size={size} color={color} />;
+          const icons = {
+            AdminDashboard: 'grid-outline',
+            SettingsHub: 'settings-outline',
+          };
+          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
         },
       })}>
-      {tabs.map(tab => (
-        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={{tabBarLabel: tab.label}} />
-      ))}
+      <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{tabBarLabel: 'Panel'}} />
+      <Tab.Screen name="SettingsHub" component={SettingsScreen} options={{tabBarLabel: 'Config'}} />
     </Tab.Navigator>
   );
 };
@@ -199,13 +201,43 @@ const DeliveryTabs = () => {
   );
 };
 
-// Pantalla de loading al verificar sesión
-const LoadingScreen = () => (
-  <View style={styles.loadingContainer}>
-    <Text style={styles.loadingText}>Cargando...</Text>
-  </View>
-);
+// Pantalla de loading al verificar sesión — usa el loader con borde animado
+const LoadingScreen = () => {
+  const rotateAnim = React.useRef(new Animated.Value(0)).current;
 
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 360,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, []);
+
+  return (
+    <View style={styles.loadingContainer}>
+      <View style={styles.loaderBox}>
+        <Animated.View
+          style={[
+            styles.loaderBorderWrap,
+            {transform: [{rotate: rotateAnim.interpolate({inputRange: [0, 360], outputRange: ['0deg', '360deg']})}]},
+          ]}>
+          <View style={[styles.loaderBorderSeg, {borderTopColor: '#999'}]} />
+          <View style={[styles.loaderBorderSeg, {borderRightColor: '#C0C0C0'}]} />
+          <View style={[styles.loaderBorderSeg, {borderBottomColor: '#D8D8D8'}]} />
+          <View style={[styles.loaderBorderSeg, {borderLeftColor: '#E0E0E0'}]} />
+        </Animated.View>
+        <View style={styles.loaderInner}>
+          <Text style={styles.loaderText}>JO</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
 // ─── Navegación principal ───────────────────────────────────────────────────
 const AppNavigator = () => {
   const {isRestoring, isAuthenticated, hasRole} = useAuth();
@@ -301,11 +333,43 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#FFFFFF',
   },
-  loadingText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
+  loaderBox: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  loaderBorderWrap: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  loaderBorderSeg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 18,
+    borderWidth: 2.5,
+    borderColor: 'transparent',
+  },
+  loaderInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#E8E8E8',
+  },
+  loaderText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#636E72',
+    letterSpacing: -0.5,
   },
 });
 
