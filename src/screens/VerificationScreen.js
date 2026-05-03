@@ -22,10 +22,9 @@ const RESEND_COOLDOWN = 60;
 
 const VerificationScreen = ({route, navigation}) => {
   const {email, type = 'login', user, token, refreshToken, otpCode, twoFactorType = 'email', onComplete} = route.params || {};
-  const {loginWithOtp, resendOtpCode, isAuthenticated, isAdmin, hasRole} = useAuth();
+  const {loginWithOtp, resendOtpCode, isAuthenticated, isAdmin} = useAuth();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
-  const isDelivery = hasRole('delivery');
 
   // Cuando el login con OTP exita, isAuthenticated cambia a true
   // Navegar automaticamente a la pantalla principal correcta
@@ -34,9 +33,7 @@ const VerificationScreen = ({route, navigation}) => {
 
     const timer = setTimeout(() => {
       try {
-        let targetScreen = 'CustomerTabs';
-        if (isDelivery) targetScreen = 'DeliveryMainTabs';
-        else if (isAdmin) targetScreen = 'AdminMainTabs';
+        let targetScreen = isAdmin ? 'AdminMainTabs' : 'CustomerTabs';
 
         navigation.dispatch(CommonActions.reset({
           index: 0,
@@ -48,7 +45,7 @@ const VerificationScreen = ({route, navigation}) => {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, type, isDelivery, isAdmin, navigation]);
+  }, [isAuthenticated, type, isAdmin, navigation]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
