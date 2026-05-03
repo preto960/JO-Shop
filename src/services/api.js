@@ -320,33 +320,7 @@ const deleteAddress = async (addressId) => {
   return api.delete(`/addresses/${addressId}`);
 };
 
-// ==================== DELIVERY ASSIGNMENT ====================
 
-const assignOrderDelivery = async (orderId, deliveryId) => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.put(`/orders/${orderId}/assign`, {deliveryId});
-};
-
-const fetchDeliveryUsers = async () => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.get('/auth/users');
-};
-
-// Delivery: pedidos disponibles para aceptar
-const fetchAvailableOrders = async () => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.get('/orders/available');
-};
-
-// Delivery: aceptar pedido
-const acceptOrder = async orderId => {
-  const api = await createApiClient();
-  if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.post(`/orders/${orderId}/accept`);
-};
 
 // ==================== ADMIN USER EDIT ====================
 
@@ -542,11 +516,7 @@ const apiService = {
   createStore,
   updateStore,
   deleteStore,
-  // Delivery assignment
-  assignOrderDelivery,
-  fetchDeliveryUsers,
-  fetchAvailableOrders,
-  acceptOrder,
+
   // Product Batches
   fetchBatches,
   createBatch,

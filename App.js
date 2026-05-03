@@ -19,8 +19,6 @@ export const navigationRef = createRef();
 const SCREEN_ROUTES = {
   GuestHome:       { parent: 'GuestTabs',       screen: 'Home' },
   GuestCart:       { parent: 'GuestTabs',       screen: 'Cart' },
-  DeliveryOrders: { parent: 'DeliveryMainTabs', screen: 'DeliveryOrders' },
-  DeliveryProfile: { parent: 'DeliveryMainTabs', screen: 'DeliveryProfile' },
   MyOrders:        { parent: 'CustomerTabs',    screen: 'MyOrders' },
   Home:            { parent: 'CustomerTabs',    screen: 'Home' },
   Cart:            { parent: 'CustomerTabs',    screen: 'Cart' },

@@ -26,7 +26,6 @@ import AdminRolesScreen from '@screens/AdminRolesScreen';
 import AdminUsersScreen from '@screens/AdminUsersScreen';
 import AdminStoresScreen from '@screens/AdminStoresScreen';
 import AdminBatchesScreen from '@screens/AdminBatchesScreen';
-import DeliveryOrdersScreen from '@screens/DeliveryOrdersScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
 
@@ -175,32 +174,6 @@ const AdminTabs = () => {
   );
 };
 
-// ─── Delivery Tabs ──────────────────────────────────────────────────────────
-const DeliveryTabs = () => {
-  const {config} = useConfig();
-  const activeColor = config.primary_color || theme.colors.accent;
-  return (
-    <Tab.Navigator
-      screenOptions={({route}) => ({
-        headerShown: false,
-        tabBarActiveTintColor: activeColor,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({color, size}) => {
-          const icons = {
-            DeliveryOrders: 'bicycle-outline',
-            DeliveryProfile: 'person-outline',
-          };
-          return <Icon name={icons[route.name] || 'circle-outline'} size={size} color={color} />;
-        },
-      })}>
-      <Tab.Screen name="DeliveryOrders" component={DeliveryOrdersScreen} options={{tabBarLabel: 'Entregas'}} />
-      <Tab.Screen name="DeliveryProfile" component={ProfileScreen} options={{tabBarLabel: 'Perfil'}} />
-    </Tab.Navigator>
-  );
-};
-
 // Pantalla de loading al verificar sesión — usa el loader con borde animado
 const LoadingScreen = () => {
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
@@ -243,7 +216,6 @@ const AppNavigator = () => {
   const {isRestoring, isAuthenticated, hasRole} = useAuth();
 
   const isStaff = hasRole('admin') || hasRole('editor');
-  const isDelivery = hasRole('delivery');
 
   if (isRestoring) {
     return <LoadingScreen />;
@@ -264,11 +236,6 @@ const AppNavigator = () => {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-        </>
-      ) : isDelivery ? (
-        // ─── DELIVERY ─────────────────────────────────────────────
-        <>
-          <Stack.Screen name="DeliveryMainTabs" component={DeliveryTabs} />
         </>
       ) : isStaff ? (
         // ─── STAFF (admin/editor) ─────────────────────────────────
