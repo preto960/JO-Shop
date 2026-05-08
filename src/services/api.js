@@ -450,6 +450,23 @@ const deleteBatch = async (batchId) => {
   return api.delete(`/product-batches/${batchId}`);
 };
 
+// ==================== CHAT ====================
+
+const sendChatMessage = async (orderId, content, senderRole) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/chats/messages', {orderId, content, senderRole});
+};
+
+const fetchChatMessages = async (orderId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get(`/chats/conversations/${orderId}`);
+};
+
+// Getter for auth token (used by pusher.js)
+const getAuthToken = () => authToken;
+
 // Alias for backward compatibility
 const fetchStoresAdmin = fetchAdminStores;
 
@@ -522,6 +539,11 @@ const apiService = {
   createBatch,
   updateBatch,
   deleteBatch,
+
+  // Chat
+  sendChatMessage,
+  fetchChatMessages,
+  getAuthToken,
 };
 
 export default apiService;

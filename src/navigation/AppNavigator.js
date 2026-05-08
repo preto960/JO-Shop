@@ -28,6 +28,7 @@ import AdminStoresScreen from '@screens/AdminStoresScreen';
 import AdminBatchesScreen from '@screens/AdminBatchesScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
+import ChatScreen from '@screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -246,6 +247,7 @@ const AppNavigator = () => {
           <Stack.Screen name="AdminStoresPage" component={AdminStoresScreen} />
           <Stack.Screen name="AdminRolesPage" component={AdminRolesScreen} />
           <Stack.Screen name="AdminUsersPage" component={AdminUsersScreen} />
+          <Stack.Screen name="Chat" component={ChatScreen} />
         </>
       ) : (
         // ─── CLIENTE (logueado) ────────────────────────────────────
@@ -253,6 +255,7 @@ const AppNavigator = () => {
           <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+          <Stack.Screen name="Chat" component={ChatScreen} />
         </>
       )}
       <Stack.Screen name="Verification" component={VerificationScreen} />

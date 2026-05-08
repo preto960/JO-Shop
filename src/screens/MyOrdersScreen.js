@@ -527,6 +527,24 @@ const MyOrdersScreen = () => {
                 </View>
               </View>
 
+              {/* Chat button - only for active orders with delivery */}
+              {['confirmed', 'preparing', 'shipped'].includes(item.status) && (
+                <TouchableOpacity
+                  style={styles.chatButton}
+                  onPress={() =>
+                    navigation.navigate('Chat', {
+                      orderId: item.id,
+                      orderNumber: item.orderNumber,
+                      otherUserName: item.delivery?.name || 'Delivery',
+                    })
+                  }
+                  activeOpacity={0.7}>
+                  <Icon name="chatbubble-outline" size={18} color={theme.colors.white} />
+                  <Text style={styles.chatButtonText}>Chat con delivery</Text>
+                  <Icon name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              )}
+
               {/* Cancel button */}
               {canCancel && (
                 <TouchableOpacity
@@ -1043,6 +1061,24 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: primary,
+  },
+
+  // Chat Button
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: '#3498DB',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  chatButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.white,
+    flex: 1,
   },
 });
 
