@@ -450,6 +450,14 @@ const deleteBatch = async (batchId) => {
   return api.delete(`/product-batches/${batchId}`);
 };
 
+// ==================== TRACKING ====================
+
+const fetchDeliveryLocation = async (orderId) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get(`/tracking/location/${orderId}`);
+};
+
 // ==================== CHAT ====================
 
 const sendChatMessage = async (orderId, content, senderRole) => {
@@ -544,6 +552,9 @@ const apiService = {
   sendChatMessage,
   fetchChatMessages,
   getAuthToken,
+
+  // Tracking
+  fetchDeliveryLocation,
 };
 
 export default apiService;

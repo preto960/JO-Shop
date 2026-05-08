@@ -29,6 +29,7 @@ import AdminBatchesScreen from '@screens/AdminBatchesScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
 import ChatScreen from '@screens/ChatScreen';
+import TrackingScreen from '@screens/TrackingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -256,6 +257,7 @@ const AppNavigator = () => {
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
           <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
+          <Stack.Screen name="Tracking" component={TrackingScreen} />
         </>
       )}
       <Stack.Screen name="Verification" component={VerificationScreen} />

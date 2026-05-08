@@ -478,6 +478,25 @@ const MyOrdersScreen = () => {
                   renderDeliveryInfo(item.delivery)
                 )}
 
+              {/* Tracking button - only for shipped orders */}
+              {item.status === 'shipped' && (
+                <TouchableOpacity
+                  style={styles.trackingButton}
+                  onPress={() =>
+                    navigation.navigate('Tracking', {
+                      orderId: item.id,
+                      orderNumber: item.orderNumber,
+                      deliveryName: item.delivery?.name || '',
+                      customerAddress: item.customerAddr || '',
+                    })
+                  }
+                  activeOpacity={0.7}>
+                  <Ionicons name="navigate-outline" size={18} color="#1ABC9C" />
+                  <Text style={styles.trackingButtonText}>Ver seguimiento en mapa</Text>
+                  <Ionicons name="chevron-forward" size={16} color="rgba(26,188,156,0.7)" />
+                </TouchableOpacity>
+              )}
+
               {/* Delivery address */}
               {item.customerAddr && (
                 <View style={styles.addressRow}>
@@ -1078,6 +1097,25 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.white,
+    flex: 1,
+  },
+
+  // Tracking Button
+  trackingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: '#1ABC9C10',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: '#1ABC9C40',
+  },
+  trackingButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: '#1ABC9C',
     flex: 1,
   },
 });
