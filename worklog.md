@@ -17,3 +17,19 @@ Stage Summary:
 - Landingpage commit: 6b0e4d8 (X-Platform header + filter)
 - JO-Delivery commit: 2c26c9a (Ionicons import fix)
 - JO-Shop commit: 892f354 (Ionicons → Icon reference fix)
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix JO-Shop & JO-Delivery AdminChatScreen: double back arrows + online users
+
+Work Log:
+- Identified double back arrows: React Navigation's default back button + custom headerLeft both showing
+- Fixed by removing headerShown:true and navigation.setOptions(), using inline custom header instead
+- Added Pusher presence channel subscription with X-Platform header (app-shop / app-delivery)
+- Added online members panel: toggle with people icon, shows admins from other platforms
+- Shows connection status (En linea / Desconectado)
+- Applied same fix to both JO-Shop and JO-Delivery
+
+Stage Summary:
+- JO-Shop commit: 7f69b82
+- JO-Delivery commit: d0757c5
