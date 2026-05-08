@@ -372,7 +372,7 @@ const MyOrdersScreen = () => {
   // ─── Render: Delivery Info ────────────────────────────────────────────
 
   const renderDeliveryInfo = useCallback(
-    delivery => {
+    (delivery, orderStatus, orderId, orderNumber) => {
       if (!delivery) return null;
 
       return (
@@ -396,22 +396,37 @@ const MyOrdersScreen = () => {
               <Text style={styles.deliveryName}>{delivery.name}</Text>
             </View>
 
-            {delivery.phone && (
-              <TouchableOpacity
-                style={styles.callButton}
-                onPress={() => handleCallDelivery(delivery.phone)}
-                activeOpacity={0.7}>
-                <Icon name="call" size={16} color={theme.colors.white} />
-                <Text style={styles.callButtonText}>
-                  Llamar al {delivery.phone}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.deliveryActionsRow}>
+              {delivery.phone && (
+                <TouchableOpacity
+                  style={[styles.deliveryActionButton, {backgroundColor: '#1ABC9C'}]}
+                  onPress={() => handleCallDelivery(delivery.phone)}
+                  activeOpacity={0.7}>
+                  <Icon name="call" size={16} color={theme.colors.white} />
+                  <Text style={styles.deliveryActionText}>Llamar</Text>
+                </TouchableOpacity>
+              )}
+              {['confirmed', 'preparing', 'shipped'].includes(orderStatus) && (
+                <TouchableOpacity
+                  style={[styles.deliveryActionButton, {backgroundColor: '#3498DB'}]}
+                  onPress={() =>
+                    navigation.navigate('Chat', {
+                      orderId,
+                      orderNumber,
+                      otherUserName: delivery.name || 'Delivery',
+                    })
+                  }
+                  activeOpacity={0.7}>
+                  <Icon name="chatbubble-outline" size={16} color={theme.colors.white} />
+                  <Text style={styles.deliveryActionText}>Chat</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       );
     },
-    [handleCallDelivery],
+    [handleCallDelivery, navigation],
   );
 
   // ─── Render: Order Card ────────────────────────────────────────────────
@@ -475,7 +490,7 @@ const MyOrdersScreen = () => {
               {/* Delivery info */}
               {(item.status === 'shipped' || item.status === 'delivered' || item.status === 'confirmed') &&
                 item.delivery && (
-                  renderDeliveryInfo(item.delivery)
+                  renderDeliveryInfo(item.delivery, item.status, item.id, item.orderNumber)
                 )}
 
               {/* Tracking button - only for shipped orders */}
@@ -546,24 +561,6 @@ const MyOrdersScreen = () => {
                 </View>
               </View>
 
-              {/* Chat button - only for active orders with delivery */}
-              {['confirmed', 'preparing', 'shipped'].includes(item.status) && (
-                <TouchableOpacity
-                  style={styles.chatButton}
-                  onPress={() =>
-                    navigation.navigate('Chat', {
-                      orderId: item.id,
-                      orderNumber: item.orderNumber,
-                      otherUserName: item.delivery?.name || 'Delivery',
-                    })
-                  }
-                  activeOpacity={0.7}>
-                  <Icon name="chatbubble-outline" size={18} color={theme.colors.white} />
-                  <Text style={styles.chatButtonText}>Chat con delivery</Text>
-                  <Icon name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" />
-                </TouchableOpacity>
-              )}
-
               {/* Cancel button */}
               {canCancel && (
                 <TouchableOpacity
@@ -579,7 +576,7 @@ const MyOrdersScreen = () => {
         </View>
       );
     },
-    [expandedOrder, toggleExpand, renderDeliveryInfo, renderStatusProgress, handleCancelOrder],
+    [expandedOrder, toggleExpand, renderDeliveryInfo, renderStatusProgress, handleCancelOrder, navigation],
   );
 
   // ─── Render: Filter Tabs ──────────────────────────────────────────────
@@ -980,17 +977,21 @@ const createStyles = (primary) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text,
   },
-  callButton: {
+  deliveryActionsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+  },
+  deliveryActionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: theme.spacing.sm,
-    backgroundColor: '#1ABC9C',
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.sm,
-    marginTop: theme.spacing.xs,
   },
-  callButtonText: {
+  deliveryActionText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.white,
@@ -1080,24 +1081,6 @@ const createStyles = (primary) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: primary,
-  },
-
-  // Chat Button
-  chatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: '#3498DB',
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-  },
-  chatButtonText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: '600',
-    color: theme.colors.white,
-    flex: 1,
   },
 
   // Tracking Button

@@ -156,35 +156,11 @@ const ChatScreen = ({route, navigation}) => {
     }
   };
 
-  // ─── Header setup ─────────────────────────────────────────────────────
+  // ─── Hide React Navigation header (we use a custom inline header) ──
 
   useEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      title: '',
-      headerStyle: {
-        backgroundColor: theme.colors.white,
-        ...theme.shadows.sm,
-      },
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}
-          style={styles.headerBackBtn}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-      ),
-      headerTitle: () => (
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Chat Pedido #{orderNumber}</Text>
-          {otherUserName && (
-            <Text style={styles.headerSubtitle}>{otherUserName}</Text>
-          )}
-        </View>
-      ),
-      headerRight: () => <View style={{width: 40}} />,
-    });
-  }, [navigation, orderNumber, otherUserName, styles]);
+    navigation.setOptions({headerShown: false});
+  }, [navigation]);
 
   // ─── Render: Message Bubble ───────────────────────────────────────────
 
@@ -275,7 +251,23 @@ const ChatScreen = ({route, navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Chat Pedido #{orderNumber}</Text>
+            {otherUserName && (
+              <Text style={styles.headerSubtitle}>{otherUserName}</Text>
+            )}
+          </View>
+          <View style={styles.headerRight} />
+        </View>
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={primary} />
           <Text style={styles.loaderText}>Cargando mensajes...</Text>
@@ -287,7 +279,25 @@ const ChatScreen = ({route, navigation}) => {
   // ─── Main Render ──────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{top: 8, bottom: 8, left: 4, right: 4}}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Chat Pedido #{orderNumber}</Text>
+          {otherUserName && (
+            <Text style={styles.headerSubtitle}>{otherUserName}</Text>
+          )}
+        </View>
+        <View style={styles.headerRight} />
+      </View>
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -364,12 +374,24 @@ const createStyles = primary =>
     },
 
     // Header
-    headerBackBtn: {
-      marginLeft: theme.spacing.sm,
-      padding: theme.spacing.xs,
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.white,
+      paddingHorizontal: theme.spacing.md,
+      paddingTop: theme.spacing.sm,
+      paddingBottom: theme.spacing.md,
+      ...theme.shadows.sm,
+    },
+    headerLeft: {
+      width: 40,
     },
     headerCenter: {
+      flex: 1,
       alignItems: 'center',
+    },
+    headerRight: {
+      width: 40,
     },
     headerTitle: {
       fontSize: theme.fontSize.lg,
