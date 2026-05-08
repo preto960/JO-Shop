@@ -33,6 +33,10 @@ const SettingsScreen = () => {
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
 
+  // Determine if this screen is rendered as a tab (no back button needed)
+  const state = navigation.getState();
+  const isTabScreen = state.routes[state.index]?.name === 'SettingsHub';
+
   // Filtrar tarjetas de gestión por permisos
   const visibleManagement = MANAGEMENT_CARDS.filter(card => {
     if (card.adminOnly && !hasRole('admin')) return false;
@@ -64,12 +68,16 @@ const SettingsScreen = () => {
         keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Icon name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
+          {isTabScreen ? (
+            <View style={styles.backButton} />
+          ) : (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Icon name="arrow-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+          )}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Configuracion</Text>
           </View>
