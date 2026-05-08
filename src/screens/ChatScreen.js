@@ -12,7 +12,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import {Ionicons} from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useAuth} from '@context/AuthContext';
 import apiService from '@services/api';
 import {
@@ -65,15 +65,31 @@ const ChatScreen = ({route, navigation}) => {
     try {
       setLoading(true);
       const res = await apiService.fetchChatMessages(orderId);
-      if (res && res.messages) {
-        setMessages(res.messages);
+      if (res) {
+        // Backend returns { data: [...messages], pagination: {...} }
+        let msgs = [];
+        if (res.messages) {
+          msgs = res.messages;
+        } else if (res.data && Array.isArray(res.data)) {
+          msgs = res.data.map(m => ({
+            id: String(m.id),
+            content: m.content,
+            senderId: String(m.senderId),
+            senderName: m.sender?.name || '',
+            senderRole: m.senderId === user?.id ? 'customer' : 'delivery',
+            createdAt: m.createdAt,
+          }));
+        } else if (Array.isArray(res)) {
+          msgs = res;
+        }
+        setMessages(msgs);
       }
     } catch (err) {
       console.error('Error cargando mensajes:', err);
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, user?.id]);
 
   useEffect(() => {
     fetchMessages();

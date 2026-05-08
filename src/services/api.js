@@ -463,13 +463,13 @@ const fetchDeliveryLocation = async (orderId) => {
 const sendChatMessage = async (orderId, content, senderRole) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.post('/chats/messages', {orderId, content, senderRole});
+  return api.post(`/chats/orders/${orderId}/messages`, {content});
 };
 
 const fetchChatMessages = async (orderId) => {
   const api = await createApiClient();
   if (!api) throw new Error('No hay URL del servidor configurada');
-  return api.get(`/chats/conversations/${orderId}`);
+  return api.get(`/chats/orders/${orderId}/messages`);
 };
 
 // Admin Chat
