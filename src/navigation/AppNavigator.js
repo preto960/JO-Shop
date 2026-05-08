@@ -29,6 +29,7 @@ import AdminBatchesScreen from '@screens/AdminBatchesScreen';
 import MyOrdersScreen from '@screens/MyOrdersScreen';
 import VerificationScreen from '@screens/VerificationScreen';
 import ChatScreen from '@screens/ChatScreen';
+import AdminChatScreen from '@screens/AdminChatScreen';
 import TrackingScreen from '@screens/TrackingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -249,6 +250,7 @@ const AppNavigator = () => {
           <Stack.Screen name="AdminRolesPage" component={AdminRolesScreen} />
           <Stack.Screen name="AdminUsersPage" component={AdminUsersScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
+          <Stack.Screen name="AdminChat" component={AdminChatScreen} />
         </>
       ) : (
         // ─── CLIENTE (logueado) ────────────────────────────────────

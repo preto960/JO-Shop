@@ -472,6 +472,19 @@ const fetchChatMessages = async (orderId) => {
   return api.get(`/chats/conversations/${orderId}`);
 };
 
+// Admin Chat
+const fetchAdminChatMessages = async () => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.get('/chats/admin/messages');
+};
+
+const sendAdminChatMessage = async (content) => {
+  const api = await createApiClient();
+  if (!api) throw new Error('No hay URL del servidor configurada');
+  return api.post('/chats/admin/messages', { content });
+};
+
 // Getter for auth token (used by pusher.js)
 const getAuthToken = () => authToken;
 
@@ -551,6 +564,8 @@ const apiService = {
   // Chat
   sendChatMessage,
   fetchChatMessages,
+  fetchAdminChatMessages,
+  sendAdminChatMessage,
   getAuthToken,
 
   // Tracking

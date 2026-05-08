@@ -14,6 +14,7 @@ const MANAGEMENT_CARDS = [
   {id: 'AdminStoresPage', title: 'Tiendas', description: 'Administrar tiendas disponibles', icon: 'storefront-outline', permission: 'stores', multiStoreOnly: true},
   {id: 'AdminRolesPage', title: 'Roles', description: 'Roles y permisos del sistema', icon: 'shield-outline', permission: 'roles'},
   {id: 'AdminUsersPage', title: 'Usuarios', description: 'Gestionar usuarios del sistema', icon: 'people-outline', adminOnly: true},
+  {id: 'AdminChat', title: 'Chat Admin', description: 'Chat en tiempo real entre administradores', icon: 'chatbubbles-outline', permission: 'admin-chat', showToAllStaff: true},
 ];
 
 // ─── Tarjetas de configuración (como el settings del frontend) ───────────────
@@ -36,6 +37,7 @@ const SettingsScreen = () => {
   const visibleManagement = MANAGEMENT_CARDS.filter(card => {
     if (card.adminOnly && !hasRole('admin')) return false;
     if (card.multiStoreOnly && !isMultiStore) return false;
+    if (card.showToAllStaff && (hasRole('admin') || hasRole('editor'))) return true;
     if (card.permission === 'roles') return hasRole('admin') || canViewModule('users');
     if (card.permission) return canViewModule(card.permission) || hasRole('admin');
     return true;
