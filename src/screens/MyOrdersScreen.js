@@ -491,9 +491,9 @@ const MyOrdersScreen = () => {
                     })
                   }
                   activeOpacity={0.7}>
-                  <Ionicons name="navigate-outline" size={18} color="#1ABC9C" />
+                  <Icon name="navigate-outline" size={18} color="#1ABC9C" />
                   <Text style={styles.trackingButtonText}>Ver seguimiento en mapa</Text>
-                  <Ionicons name="chevron-forward" size={16} color="rgba(26,188,156,0.7)" />
+                  <Icon name="chevron-forward" size={16} color="rgba(26,188,156,0.7)" />
                 </TouchableOpacity>
               )}
 
