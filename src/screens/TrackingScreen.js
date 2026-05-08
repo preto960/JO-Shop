@@ -8,6 +8,7 @@ import {
   Dimensions,
   SafeAreaView,
   StatusBar,
+  Linking,
 } from 'react-native';
 import MapView, {Marker} from 'react-native-maps';
 import {Ionicons} from 'react-native-vector-icons/Ionicons';
@@ -33,7 +34,7 @@ const DEFAULT_REGION = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const TrackingScreen = ({route, navigation}) => {
-  const {orderId, orderNumber, deliveryName, customerAddress} = route.params || {};
+  const {orderId, orderNumber, deliveryName, deliveryPhone, customerAddress} = route.params || {};
   const {token} = useAuth();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
@@ -253,17 +254,19 @@ const TrackingScreen = ({route, navigation}) => {
               </View>
             ) : null}
 
-            {/* Action buttons */}
+            {/* Delivery actions: Call & Chat */}
             <View style={styles.actionsRow}>
+              {deliveryPhone ? (
+                <TouchableOpacity
+                  style={[styles.actionBtn, {backgroundColor: '#1ABC9C'}]}
+                  onPress={() => Linking.openURL(`tel:${deliveryPhone}`)}
+                  activeOpacity={0.7}>
+                  <Ionicons name="call" size={18} color={theme.colors.white} />
+                  <Text style={styles.actionBtnText}>Llamar</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
-                style={styles.refreshBtn}
-                onPress={fetchLocation}
-                activeOpacity={0.7}>
-                <Ionicons name="refresh" size={18} color={primary} />
-                <Text style={styles.refreshBtnText}>Actualizar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.chatBtn}
+                style={[styles.actionBtn, {backgroundColor: '#3498DB'}]}
                 onPress={() =>
                   navigation.navigate('Chat', {
                     orderId,
@@ -273,7 +276,7 @@ const TrackingScreen = ({route, navigation}) => {
                 }
                 activeOpacity={0.7}>
                 <Ionicons name="chatbubble-outline" size={18} color={theme.colors.white} />
-                <Text style={styles.chatBtnText}>Chat</Text>
+                <Text style={styles.actionBtnText}>Chat</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -607,34 +610,16 @@ const createStyles = (primary) =>
       flexDirection: 'row',
       gap: theme.spacing.md,
     },
-    refreshBtn: {
+    actionBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: theme.spacing.sm,
-      backgroundColor: theme.colors.inputBg,
-      borderRadius: theme.borderRadius.md,
-      paddingVertical: theme.spacing.sm,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    refreshBtnText: {
-      fontSize: theme.fontSize.md,
-      fontWeight: '600',
-      color: primary,
-    },
-    chatBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.spacing.sm,
-      backgroundColor: '#3498DB',
       borderRadius: theme.borderRadius.md,
       paddingVertical: theme.spacing.sm,
     },
-    chatBtnText: {
+    actionBtnText: {
       fontSize: theme.fontSize.md,
       fontWeight: '600',
       color: theme.colors.white,

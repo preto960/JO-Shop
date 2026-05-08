@@ -502,6 +502,7 @@ const MyOrdersScreen = () => {
                       orderId: item.id,
                       orderNumber: item.orderNumber,
                       deliveryName: item.delivery?.name || '',
+                      deliveryPhone: item.delivery?.phone || '',
                       customerAddress: item.customerAddr || '',
                     })
                   }
