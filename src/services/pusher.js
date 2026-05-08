@@ -22,9 +22,10 @@ export function getPusherClient(authToken) {
     channelAuthorization: {
       endpoint: `${API_URL}/pusher/auth`,
       transport: 'ajax',
-      headers: {
+      headersProvider: () => ({
         Authorization: `Bearer ${authToken}`,
-      },
+        'X-Platform': 'app-shop',
+      }),
     },
   });
   pusherInstance._lastToken = authToken;
