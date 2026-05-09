@@ -59,6 +59,7 @@ const createApiClient = async () => {
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
+    'X-Platform': 'app-shop',
   };
 
   if (authToken) {

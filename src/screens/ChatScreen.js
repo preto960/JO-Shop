@@ -76,6 +76,7 @@ const ChatScreen = ({route, navigation}) => {
             content: m.content,
             senderId: String(m.senderId),
             senderName: m.sender?.name || '',
+            platform: m.platform || 'unknown',
             senderRole: m.senderId === user?.id ? 'customer' : 'delivery',
             createdAt: m.createdAt,
           }));
