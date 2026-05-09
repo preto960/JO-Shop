@@ -166,7 +166,7 @@ const ChatScreen = ({route, navigation}) => {
 
   const renderMessage = useCallback(
     ({item, index}) => {
-      const isSender = item.senderRole === 'customer';
+      const isSender = String(item.senderId) === String(user?.id);
       const prevMessage = index > 0 ? messages[index - 1] : null;
       const showDate =
         !prevMessage ||
@@ -221,7 +221,7 @@ const ChatScreen = ({route, navigation}) => {
         </View>
       );
     },
-    [messages, styles],
+    [messages, styles, user?.id],
   );
 
   // ─── Key extractor ────────────────────────────────────────────────────
