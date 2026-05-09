@@ -9,11 +9,17 @@ import {
   StyleSheet,
   Linking,
   DeviceEventEmitter,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import apiService from '@services/api';
+import {
+  getPusherClient,
+  subscribeToUserChannel,
+  unsubscribeFromUserChannel,
+} from '@services/pusher';
 import {formatPrice} from '@utils/helpers';
 import theme from '@theme/styles';
 import ConfirmModal from '@components/ConfirmModal';
@@ -99,7 +105,7 @@ const MyOrdersScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const isFocused = useIsFocused();
-  const {logout} = useAuth();
+  const {logout, user: authUser, token} = useAuth();
   const {primary} = useThemeColors();
   const styles = useMemo(() => createStyles(primary), [primary]);
 
@@ -224,6 +230,37 @@ const MyOrdersScreen = () => {
     });
     return () => subscription.remove();
   }, [loadOrders]);
+
+  // Escuchar mensajes de chat de orden via Pusher (canal de usuario)
+  useEffect(() => {
+    if (!token || !authUser?.id) return;
+
+    const pusher = getPusherClient(token);
+    const channel = subscribeToUserChannel(pusher, authUser.id);
+    if (!channel) return;
+
+    channel.bind('order-message', (data) => {
+      const senderName = data?.senderName || 'Repartidor';
+      const orderId = data?.orderId;
+      Alert.alert(
+        'Nuevo mensaje',
+        `${senderName} te escribio en la orden #${String(orderId || '').slice(-6)}`,
+        [
+          { text: 'OK', style: 'default' },
+        ],
+      );
+      // Emit event to refresh orders list
+      DeviceEventEmitter.emit('pushNotificationReceived', {
+        type: 'order_status_change',
+        orderId,
+      });
+    });
+
+    return () => {
+      channel.unbind('order-message');
+      unsubscribeFromUserChannel(pusher, authUser.id);
+    };
+  }, [token, authUser?.id]);
 
   // Escuchar accion del boton "Ver" del modal de notificacion
   // Refresca la lista primero y luego expande la orden cuando los datos estan listos
