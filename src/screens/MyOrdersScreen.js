@@ -242,17 +242,22 @@ const MyOrdersScreen = () => {
     channel.bind('order-message', (data) => {
       const senderName = data?.senderName || 'Repartidor';
       const orderId = data?.orderId;
-      Alert.alert(
-        'Nuevo mensaje',
-        `${senderName} te escribio en la orden #${String(orderId || '').slice(-6)}`,
-        [
-          { text: 'OK', style: 'default' },
-        ],
-      );
-      // Emit event to refresh orders list
-      DeviceEventEmitter.emit('pushNotificationReceived', {
-        type: 'order_status_change',
-        orderId,
+      setConfirmModal({
+        visible: true,
+        type: 'confirm',
+        title: 'Nuevo mensaje',
+        message: `${senderName} te escribio en la orden #${String(orderId || '').slice(-6)}`,
+        confirmText: 'Ver',
+        cancelText: 'Cancelar',
+        onConfirm: () => {
+          if (orderId) {
+            navigation.navigate('Chat', {
+              orderId: orderId,
+              orderNumber: String(orderId).slice(-6).toUpperCase(),
+              otherUserName: senderName,
+            });
+          }
+        },
       });
     });
 
