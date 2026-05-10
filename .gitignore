@@ -62,8 +62,20 @@ upload/
 worklog.md
 .next/
 db/
-JO-Shop/
 repos/
 prisma/
 prisma.config.ts
 vercel.json
+
+# Other repositories (never track these inside this repo)
+JO-Delivery/
+JO-backend-shop/
+JO-frontend-shop/
+JO-landingpage/
+
+# Sensitive Android/iOS files
+*.keystore
+!debug.keystore.example
+google-services.json
+GoogleService-Info.plist
+*.jks
